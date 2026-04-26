@@ -97,7 +97,32 @@ Authorization: Bearer <token>
 ## 核心模块
 
 ### 1. 系统初始化
-- `POST /api/system/init/setup` - 完成系统初始化配置
+- `POST /api/system/init/setup` - 完成系统初始化配置（幂等设计，可重复调用）
+
+### 2. 用户与权限管理
+- `GET/POST /api/system/user` - 用户列表/创建
+- `PUT/DELETE /api/system/user/[id]` - 更新/删除用户
+- `GET/POST /api/system/dept` - 部门管理
+- `GET/POST /api/system/role` - 角色管理
+- `GET/POST /api/system/menu` - 菜单管理
+
+### 3. 数据库配置（分布式多数据库）
+- `GET /api/system/database` - 获取数据库配置列表
+- `POST /api/system/database` - 创建数据库配置
+- `GET /api/system/database/[id]` - 获取数据库配置详情
+- `PUT /api/system/database/[id]` - 更新数据库配置
+- `DELETE /api/system/database/[id]` - 删除数据库配置
+
+### 4. 存储配置（NAS/本地存储）
+- `GET /api/system/storage` - 获取存储设备列表
+- `POST /api/system/storage` - 创建/测试存储设备
+- `PUT /api/system/storage` - 更新存储设备
+- `DELETE /api/system/storage` - 删除存储设备
+
+### 5. 系统参数配置
+- `GET /api/system/config?type=param` - 获取系统参数列表
+- `PUT /api/system/config/param` - 创建/更新系统参数
+- `GET /api/system/config/param?key=xxx` - 获取单个系统参数
 
 ### 2. 认证模块
 - `POST /api/auth/login` - 用户登录

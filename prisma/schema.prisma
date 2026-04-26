@@ -206,6 +206,9 @@ model User {
   createdBy    Int?      @map("created_by")
   modifiedBy   Int?      @map("modified_by")
 
+  // 关系
+  dept         Dept?     @relation("UserDept", fields: [deptId], references: [id])
+
   @@index([deptId], name: "idx_dept")
   @@index([customerId], name: "idx_customer")
   @@map("user")
@@ -226,6 +229,9 @@ model Dept {
   updatedAt    DateTime  @updatedAt @map("updated_at")
   createdBy    Int?      @map("created_by")
   modifiedBy   Int?      @map("modified_by")
+
+  // 关系
+  users        User[]    @relation("UserDept")
 
   @@map("dept")
 }

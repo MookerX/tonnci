@@ -110,7 +110,6 @@ export async function GET(request: NextRequest) {
           email: true,
           phone: true,
           avatar: true,
-          gender: true,
           deptId: true,
           roleIds: true,
           userType: true,
@@ -118,12 +117,6 @@ export async function GET(request: NextRequest) {
           status: true,
           lastLoginAt: true,
           createdAt: true,
-          department: {
-            select: {
-              id: true,
-              deptName: true,
-            },
-          },
         },
         orderBy: {
           [sortField]: sortOrder,
@@ -157,15 +150,31 @@ export async function GET(request: NextRequest) {
 
     const roleMap = new Map(roles.map(r => [r.id, r]));
 
-    // 6. 格式化返回数据
+    // 6. 获取部门信息
+    const allDeptIds = users.map(u => u.deptId).filter((id): id is number => id !== null);
+    const depts = await prisma.dept.findMany({
+      where: {
+        id: { in: allDeptIds },
+        isDelete: false,
+      },
+      select: {
+        id: true,
+        deptName: true,
+      },
+    });
+    const deptMap = new Map(depts.map(d => [d.id, d]));
+
+    // 7. 格式化返回数据
     const formattedUsers = users.map(user => {
       const userRoleIds = user.roleIds ? JSON.parse(user.roleIds as any) : [];
       const userRoles = userRoleIds.map((id: number) => roleMap.get(id)).filter(Boolean);
+      const dept = user.deptId ? deptMap.get(user.deptId) : null;
       
       return {
         ...user,
         roleIds: userRoleIds,
         roles: userRoles,
+        dept: dept,
       };
     });
 

@@ -93,7 +93,7 @@ async function getUserPermissions(roleIds: number[]): Promise<string[]> {
 async function validateUserStatus(userId: number): Promise<boolean> {
   const user = await prisma.user.findUnique({
     where: { id: userId, isDelete: false },
-    select: { status: true, isFirstLogin: true },
+    select: { status: true },
   });
   
   if (!user) return false;
