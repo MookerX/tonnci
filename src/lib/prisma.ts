@@ -14,10 +14,16 @@ declare global {
 // 创建Prisma客户端实例
 function createPrismaClient(): PrismaClient {
   // Prisma 7.x 使用标准方式初始化
+  // 开发环境直接使用环境变量
   return new PrismaClient({
     log: process.env.NODE_ENV === 'development' 
       ? ['query', 'info', 'warn', 'error'] 
       : ['error'],
+    datasources: {
+      db: {
+        url: process.env.DATABASE_URL || 'mysql://root:password123@localhost:3306/tengxi'
+      }
+    }
   });
 }
 
