@@ -1,0 +1,1179 @@
+// =============================================================================
+// 腾曦生产管理系统 - Prisma数据库Schema
+// 描述: 完整的数据库模型定义
+// 版本: 1.0.0
+// =============================================================================
+
+generator client {
+  provider   = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+// =============================================================================
+// 通用字段模型
+// =============================================================================
+
+// 系统初始化状态表
+model SystemInitStatus {
+  id              Int       @id @default(autoincrement())
+  initStep        String    @map("init_step") @db.VarChar(50)
+  stepStatus      String    @default("pending") @map("step_status") @db.VarChar(20)
+  completedAt     DateTime? @map("completed_at")
+  configData      String?   @db.Text @map("config_data")
+  isDelete        Boolean   @default(false)
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+
+  @@map("system_init_status")
+}
+
+// 系统配置表
+model SystemConfig {
+  id         Int       @id @default(autoincrement())
+  paramKey   String    @unique @db.VarChar(100)
+  paramValue String    @db.Text
+  paramType  String    @default("string") @db.VarChar(20)
+  remark     String?   @db.Text
+  isDelete   Boolean   @default(false)
+  createdAt  DateTime  @default(now()) @map("created_at")
+  updatedAt  DateTime  @updatedAt @map("updated_at")
+  createdBy  Int?      @map("created_by")
+  modifiedBy Int?      @map("modified_by")
+
+  @@map("system_config")
+}
+
+// 系统字典表
+model SystemDict {
+  id         Int       @id @default(autoincrement())
+  dictType   String    @db.VarChar(50)
+  dictLabel  String    @db.VarChar(100)
+  dictValue  String    @db.VarChar(100)
+  sortOrder  Int       @default(0) @map("sort_order")
+  status     String    @default("active") @db.VarChar(20)
+  remark     String?   @db.Text
+  isDelete   Boolean   @default(false)
+  createdAt  DateTime  @default(now()) @map("created_at")
+  updatedAt  DateTime  @updatedAt @map("updated_at")
+  createdBy  Int?      @map("created_by")
+  modifiedBy Int?      @map("modified_by")
+
+  @@index([dictType], name: "idx_dict_type")
+  @@map("system_dict")
+}
+
+// 编码规则表
+model CodeRule {
+  id           Int       @id @default(autoincrement())
+  ruleName     String    @map("rule_name") @db.VarChar(100)
+  ruleCode     String    @unique @map("rule_code") @db.VarChar(50)
+  prefix       String?   @db.VarChar(20)
+  dateFormat   String    @default("") @map("date_format") @db.VarChar(20)
+  seqLength    Int       @default(4) @map("seq_length")
+  suffix       String?   @db.VarChar(20)
+  resetType    String    @default("daily") @map("reset_type") @db.VarChar(20)
+  currentSeq   Int       @default(0) @map("current_seq")
+  lastResetDate DateTime? @map("last_reset_date")
+  remark       String?   @db.Text
+  isDelete     Boolean   @default(false)
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+  createdBy    Int?      @map("created_by")
+
+  @@map("code_rule")
+}
+
+// 操作日志表
+model OperationLog {
+  id            Int       @id @default(autoincrement())
+  moduleName    String    @map("module_name") @db.VarChar(50)
+  businessType  String    @map("business_type") @db.VarChar(50)
+  operatorId    Int?      @map("operator_id")
+  operatorName  String?   @map("operator_name") @db.VarChar(50)
+  operationDesc String?   @map("operation_desc") @db.Text
+  requestParams String?   @map("request_params") @db.Text
+  ipAddress     String?   @map("ip_address") @db.VarChar(50)
+  status        String    @default("success") @db.VarChar(20)
+  errorMessage  String?   @map("error_message") @db.Text
+  isDelete      Boolean   @default(false)
+  createdAt     DateTime  @default(now()) @map("created_at")
+
+  @@index([operatorId], name: "idx_operator")
+  @@index([moduleName], name: "idx_module")
+  @@index([createdAt], name: "idx_created")
+  @@map("operation_log")
+}
+
+// 文件记录表
+model FileRecord {
+  id           Int       @id @default(autoincrement())
+  fileName     String    @map("file_name") @db.VarChar(255)
+  filePath     String    @map("file_path") @db.Text
+  fileSize     BigInt    @default(0) @map("file_size")
+  md5          String?   @db.VarChar(64)
+  storageType  String    @map("storage_type") @db.VarChar(50)
+  fileCategory String?   @map("file_category") @db.VarChar(50)
+  materialId   Int?      @map("material_id")
+  uploaderId   Int?      @map("uploader_id")
+  version      Int       @default(1)
+  parentMd5    String?   @map("parent_md5") @db.VarChar(64)
+  status       String    @default("active") @db.VarChar(20)
+  nasDeviceId  Int?      @map("nas_device_id")
+  remark       String?   @db.Text
+  isDelete     Boolean   @default(false)
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+  createdBy    Int?      @map("created_by")
+
+  @@index([materialId], name: "idx_material")
+  @@index([md5], name: "idx_md5")
+  @@map("file_record")
+}
+
+// NAS设备表
+model NasDevice {
+  id           Int       @id @default(autoincrement())
+  deviceName   String    @map("device_name") @db.VarChar(100)
+  deviceType   String    @default("synology") @map("device_type") @db.VarChar(20)
+  host         String    @db.VarChar(255)
+  port         Int       @default(445)
+  username     String    @db.VarChar(100)
+  password     String    @db.Text
+  sharePath    String    @map("share_path") @db.Text
+  storageTypes String    @db.Text
+  isDefault    Boolean   @default(false) @map("is_default")
+  status       String    @default("active") @db.VarChar(20)
+  remark       String?   @db.Text
+  isDelete     Boolean   @default(false)
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+  createdBy    Int?      @map("created_by")
+  modifiedBy   Int?      @map("modified_by")
+
+  @@map("nas_device")
+}
+
+// 数据库配置表
+model DatabaseConfig {
+  id           Int       @id @default(autoincrement())
+  moduleName   String    @map("module_name") @db.VarChar(100)
+  moduleCode   String    @unique @map("module_code") @db.VarChar(50)
+  host         String    @db.VarChar(255)
+  port         Int       @default(3306)
+  database     String    @db.VarChar(100)
+  username     String    @db.VarChar(100)
+  password     String    @db.Text
+  isEnabled    Boolean   @default(false) @map("is_enabled")
+  remark       String?   @db.Text
+  isDelete     Boolean   @default(false)
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+  createdBy    Int?      @map("created_by")
+  modifiedBy   Int?      @map("modified_by")
+
+  @@map("database_config")
+}
+
+// =============================================================================
+// 用户与权限模块
+// =============================================================================
+
+// 用户表
+model User {
+  id           Int       @id @default(autoincrement())
+  uuid         String    @unique @db.VarChar(36)
+  username     String    @unique @db.VarChar(50)
+  password     String    @db.VarChar(255)
+  realName     String?   @map("real_name") @db.VarChar(50)
+  phone        String?   @db.VarChar(20)
+  email        String?   @db.VarChar(100)
+  avatar       String?   @db.VarChar(255)
+  deptId       Int?      @map("dept_id")
+  userType     String    @default("internal") @map("user_type") @db.VarChar(20)
+  customerId   Int?      @map("customer_id")
+  roleIds      String?   @map("role_ids") @db.Text
+  status       String    @default("active") @db.VarChar(20)
+  lastLoginAt  DateTime? @map("last_login_at")
+  loginIp      String?   @map("login_ip") @db.VarChar(50)
+  remark       String?   @db.Text
+  isDelete     Boolean   @default(false)
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+  createdBy    Int?      @map("created_by")
+  modifiedBy   Int?      @map("modified_by")
+
+  @@index([deptId], name: "idx_dept")
+  @@index([customerId], name: "idx_customer")
+  @@map("user")
+}
+
+// 部门表
+model Dept {
+  id           Int       @id @default(autoincrement())
+  parentId     Int?      @map("parent_id")
+  deptName     String    @map("dept_name") @db.VarChar(100)
+  deptCode     String?   @map("dept_code") @db.VarChar(50)
+  leaderName   String?   @map("leader_name") @db.VarChar(50)
+  sortOrder    Int       @default(0) @map("sort_order")
+  status       String    @default("active") @db.VarChar(20)
+  remark       String?   @db.Text
+  isDelete     Boolean   @default(false)
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+  createdBy    Int?      @map("created_by")
+  modifiedBy   Int?      @map("modified_by")
+
+  @@map("dept")
+}
+
+// 角色表
+model Role {
+  id           Int       @id @default(autoincrement())
+  roleName     String    @map("role_name") @db.VarChar(100)
+  roleCode     String    @unique @map("role_code") @db.VarChar(50)
+  dataScope    String    @default("custom") @map("data_scope") @db.VarChar(20)
+  status       String    @default("active") @db.VarChar(20)
+  sortOrder    Int       @default(0) @map("sort_order")
+  remark       String?   @db.Text
+  isDelete     Boolean   @default(false)
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+  createdBy    Int?      @map("created_by")
+  modifiedBy   Int?      @map("modified_by")
+
+  @@map("role")
+}
+
+// 用户角色关联表
+model UserRole {
+  id           Int       @id @default(autoincrement())
+  userId       Int       @map("user_id")
+  roleId       Int       @map("role_id")
+  isDelete     Boolean   @default(false)
+  createdAt    DateTime  @default(now()) @map("created_at")
+
+  @@unique([userId, roleId], name: "uk_user_role")
+  @@map("user_role")
+}
+
+// 菜单表
+model Menu {
+  id           Int       @id @default(autoincrement())
+  parentId     Int?      @map("parent_id")
+  menuName     String    @map("menu_name") @db.VarChar(100)
+  menuCode     String?   @map("menu_code") @db.VarChar(50)
+  menuType     String    @default("menu") @map("menu_type") @db.VarChar(20)
+  icon         String?   @db.VarChar(50)
+  path         String?   @db.VarChar(255)
+  component    String?   @db.VarChar(255)
+  sortOrder    Int       @default(0) @map("sort_order")
+  visible      String    @default("visible") @db.VarChar(20)
+  status       String    @default("active") @db.VarChar(20)
+  remark       String?   @db.Text
+  isDelete     Boolean   @default(false)
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+  createdBy    Int?      @map("created_by")
+  modifiedBy   Int?      @map("modified_by")
+
+  @@map("menu")
+}
+
+// 角色权限关联表
+model RolePermission {
+  id           Int       @id @default(autoincrement())
+  roleId       Int       @map("role_id")
+  menuId       Int?      @map("menu_id")
+  permission   String?   @db.VarChar(100)
+  actionType   String?   @map("action_type") @db.VarChar(50)
+  isDelete     Boolean   @default(false)
+  createdAt    DateTime  @default(now()) @map("created_at")
+
+  @@unique([roleId, menuId, permission], name: "uk_role_menu_perm")
+  @@map("role_permission")
+}
+
+// 角色数据范围关联表
+model RoleDeptScope {
+  id           Int       @id @default(autoincrement())
+  roleId       Int       @map("role_id")
+  deptId       Int       @map("dept_id")
+  isDelete     Boolean   @default(false)
+  createdAt    DateTime  @default(now()) @map("created_at")
+
+  @@unique([roleId, deptId], name: "uk_role_dept")
+  @@map("role_dept_scope")
+}
+
+// =============================================================================
+// BOM与物料管理
+// =============================================================================
+
+// 客户表
+model Customer {
+  id             Int       @id @default(autoincrement())
+  customerCode   String    @unique @map("customer_code") @db.VarChar(50)
+  customerName   String    @map("customer_name") @db.VarChar(200)
+  customerType   String    @default("enterprise") @map("customer_type") @db.VarChar(20)
+  contactPerson  String?   @map("contact_person") @db.VarChar(50)
+  contactPhone   String?   @map("contact_phone") @db.VarChar(20)
+  contactEmail   String?   @map("contact_email") @db.VarChar(100)
+  taxNo          String?   @map("tax_no") @db.VarChar(50)
+  bankName       String?   @map("bank_name") @db.VarChar(100)
+  bankAccount    String?   @map("bank_account") @db.VarChar(50)
+  address        String?   @db.Text
+  creditLevel    String?   @map("credit_level") @db.VarChar(10)
+  userId         Int?      @map("user_id")
+  status         String    @default("active") @db.VarChar(20)
+  remark         String?   @db.Text
+  isDelete       Boolean   @default(false)
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
+  createdBy      Int?      @map("created_by")
+  modifiedBy     Int?      @map("modified_by")
+
+  @@map("customer")
+}
+
+// 客户权限配置表
+model CustomerPermission {
+  id                 Int       @id @default(autoincrement())
+  customerId         Int       @map("customer_id")
+  userId             Int?      @map("user_id")
+  enableProgressView Boolean   @default(true) @map("enable_progress_view")
+  enableDrawingView  Boolean   @default(false) @map("enable_drawing_view")
+  enableProcessView  Boolean   @default(true) @map("enable_process_view")
+  enableLogisticsView Boolean  @default(true) @map("enable_logistics_view")
+  isDelete           Boolean   @default(false)
+  createdAt          DateTime  @default(now()) @map("created_at")
+  updatedAt          DateTime  @updatedAt @map("updated_at")
+
+  @@map("customer_permission")
+}
+
+// 客户反馈表
+model CustomerFeedback {
+  id            Int       @id @default(autoincrement())
+  customerId    Int       @map("customer_id")
+  orderId       Int?      @map("order_id")
+  userId        Int?      @map("user_id")
+  content       String    @db.Text
+  feedbackType  String    @default("customer") @map("feedback_type") @db.VarChar(20)
+  status        String    @default("pending") @db.VarChar(20)
+  replyContent  String?   @map("reply_content") @db.Text
+  replierId     Int?      @map("replier_id")
+  replyTime     DateTime? @map("reply_time")
+  isDelete      Boolean   @default(false)
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+
+  @@map("customer_feedback")
+}
+
+// 物料表
+model Material {
+  id             Int       @id @default(autoincrement())
+  uuid           String    @unique @db.VarChar(36)
+  materialName   String    @map("material_name") @db.VarChar(200)
+  internalCode   String    @unique @map("internal_code") @db.VarChar(50)
+  drawingCode    String?   @map("drawing_code") @db.VarChar(50)
+  drawingNo      String?   @map("drawing_no") @db.VarChar(50)
+  materialType   String    @default("part") @map("material_type") @db.VarChar(20)
+  unit           String?   @db.VarChar(20)
+  spec           String?   @db.Text
+  weight         Decimal?  @map("weight") @db.Decimal(10, 3)
+  customerId     Int?      @map("customer_id")
+  remark         String?   @db.Text
+  isDelete       Boolean   @default(false)
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
+  createdBy      Int?      @map("created_by")
+  modifiedBy     Int?      @map("modified_by")
+
+  @@map("material")
+}
+
+// BOM表
+model BomItem {
+  id               Int       @id @default(autoincrement())
+  parentMaterialId Int       @map("parent_material_id")
+  childMaterialId  Int       @map("child_material_id")
+  quantity         Decimal   @default(1) @db.Decimal(10, 3)
+  lossRate         Decimal   @default(0) @map("loss_rate") @db.Decimal(5, 2)
+  levelCode        String?   @map("level_code") @db.VarChar(50)
+  bomRemark        String?   @map("bom_remark") @db.Text
+  isDelete         Boolean   @default(false)
+  createdAt        DateTime  @default(now()) @map("created_at")
+  updatedAt        DateTime  @updatedAt @map("updated_at")
+  createdBy        Int?      @map("created_by")
+  modifiedBy       Int?      @map("modified_by")
+
+  @@index([parentMaterialId], name: "idx_parent")
+  @@index([childMaterialId], name: "idx_child")
+  @@map("bom_item")
+}
+
+// =============================================================================
+// 工艺与工序
+// =============================================================================
+
+// 班组表
+model Team {
+  id           Int       @id @default(autoincrement())
+  teamCode     String    @unique @map("team_code") @db.VarChar(50)
+  teamName     String    @map("team_name") @db.VarChar(100)
+  leaderId     Int?      @map("leader_id")
+  teamType     String    @default("processing") @map("team_type") @db.VarChar(20)
+  status       String    @default("active") @db.VarChar(20)
+  remark       String?   @db.Text
+  isDelete     Boolean   @default(false)
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+  createdBy    Int?      @map("created_by")
+  modifiedBy   Int?      @map("modified_by")
+
+  @@map("team")
+}
+
+// 工序表
+model Process {
+  id               Int       @id @default(autoincrement())
+  processCode      String    @unique @map("process_code") @db.VarChar(50)
+  processName      String    @map("process_name") @db.VarChar(100)
+  processType      String    @default("other") @map("process_type") @db.VarChar(20)
+  teamId           Int?      @map("team_id")
+  equipmentRequired Boolean  @default(false) @map("equipment_required")
+  standardHours    Decimal?  @map("standard_hours") @db.Decimal(10, 2)
+  preparationHours Decimal?  @map("preparation_hours") @db.Decimal(10, 2)
+  qualityPoints    Int       @default(1) @map("quality_points")
+  processOrder     Int       @default(0) @map("process_order")
+  status           String    @default("active") @db.VarChar(20)
+  remark           String?   @db.Text
+  isDelete         Boolean   @default(false)
+  createdAt        DateTime  @default(now()) @map("created_at")
+  updatedAt        DateTime  @updatedAt @map("updated_at")
+  createdBy        Int?      @map("created_by")
+  modifiedBy       Int?      @map("modified_by")
+
+  @@map("process")
+}
+
+// 工艺路线表
+model ProcessRoute {
+  id             Int       @id @default(autoincrement())
+  routeName      String    @map("route_name") @db.VarChar(100)
+  materialId     Int       @map("material_id")
+  isDefault      Boolean   @default(false) @map("is_default")
+  remark         String?   @db.Text
+  isDelete       Boolean   @default(false)
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
+  createdBy      Int?      @map("created_by")
+  modifiedBy     Int?      @map("modified_by")
+
+  @@map("process_route")
+}
+
+// 工艺路线工序关联表
+model RouteProcess {
+  id               Int       @id @default(autoincrement())
+  routeId          Int       @map("route_id")
+  processId        Int       @map("process_id")
+  processOrder     Int       @map("process_order")
+  standardHours    Decimal?  @map("standard_hours") @db.Decimal(10, 2)
+  preparationHours Decimal?  @map("preparation_hours") @db.Decimal(10, 2)
+  remarks          String?   @db.Text
+  isDelete         Boolean   @default(false)
+  createdAt        DateTime  @default(now()) @map("created_at")
+
+  @@unique([routeId, processId], name: "uk_route_process")
+  @@map("route_process")
+}
+
+// =============================================================================
+// 订单管理
+// =============================================================================
+
+// 生产订单表
+model ProductionOrder {
+  id                   Int       @id @default(autoincrement())
+  uuid                 String    @unique @db.VarChar(36)
+  orderNo              String    @unique @map("order_no") @db.VarChar(50)
+  customerOrderNo      String?   @map("customer_order_no") @db.VarChar(50)
+  customerId           Int       @map("customer_id")
+  materialId           Int       @map("material_id")
+  quantity             Int
+  deliveredQty         Int       @default(0) @map("delivered_qty")
+  unitPrice            Decimal?  @map("unit_price") @db.Decimal(12, 2)
+  orderDate            DateTime? @map("order_date") @db.Date
+  deliveryDate         DateTime? @map("delivery_date") @db.Date
+
+  nestingPlanDate      DateTime? @map("nesting_plan_date")
+  materialPlanDate     DateTime? @map("material_plan_date")
+  purchasePlanDate     DateTime? @map("purchase_plan_date")
+  productionPlanDate   DateTime? @map("production_plan_date")
+
+  nestingActualDate    DateTime? @map("nesting_actual_date")
+  materialActualDate   DateTime? @map("material_actual_date")
+  purchaseActualDate   DateTime? @map("purchase_actual_date")
+  productionActualDate DateTime? @map("production_actual_date")
+
+  deliveryAddress      String?   @map("delivery_address") @db.Text
+  freightBear          String?   @map("freight_bear") @db.VarChar(20)
+  projectName          String?   @map("project_name") @db.VarChar(100)
+  projectCode          String?   @map("project_code") @db.VarChar(50)
+  equipmentNo          String?   @map("equipment_no") @db.VarChar(50)
+  equipmentName        String?   @map("equipment_name") @db.VarChar(100)
+  surfaceTreatment     String?   @map("surface_treatment") @db.VarChar(100)
+  orderStatus          String    @default("pending") @map("order_status") @db.VarChar(20)
+  reconciliationStatus String    @default("unreconciled") @map("reconciliation_status") @db.VarChar(20)
+
+  snapshotData         String?   @map("snapshot_data") @db.Text
+  progressLog          String?   @map("progress_log") @db.Text
+  remark               String?   @db.Text
+  isDelete             Boolean   @default(false)
+  createdAt            DateTime  @default(now()) @map("created_at")
+  updatedAt            DateTime  @updatedAt @map("updated_at")
+  createdBy            Int?      @map("created_by")
+  modifiedBy           Int?      @map("modified_by")
+
+  @@index([customerId], name: "idx_order_customer")
+  @@index([orderStatus], name: "idx_order_status")
+  @@map("production_order")
+}
+
+// 技术任务表
+model TechTask {
+  id                Int       @id @default(autoincrement())
+  orderId           Int       @map("order_id")
+  assigneeId        Int?      @map("assignee_id")
+  priority          String    @default("normal") @db.VarChar(20)
+  dueDate           DateTime? @map("due_date") @db.Date
+  bomStatus         String    @default("pending") @map("bom_status") @db.VarChar(20)
+  drawingStatus     String    @default("pending") @map("drawing_status") @db.VarChar(20)
+  processStatus     String    @default("pending") @map("process_status") @db.VarChar(20)
+  attachmentStatus  String    @default("pending") @map("attachment_status") @db.VarChar(20)
+  isDelete          Boolean   @default(false)
+  createdAt         DateTime  @default(now()) @map("created_at")
+  updatedAt         DateTime  @updatedAt @map("updated_at")
+  createdBy         Int?      @map("created_by")
+  modifiedBy        Int?      @map("modified_by")
+
+  @@map("tech_task")
+}
+
+// 技术任务BOM表
+model TechBomItem {
+  id              Int       @id @default(autoincrement())
+  taskId          Int       @map("task_id")
+  materialId      Int       @map("material_id")
+  parentId        Int?      @map("parent_id")
+  quantity        Decimal   @default(1) @db.Decimal(10, 3)
+  status          String    @default("pending") @db.VarChar(20)
+  isDelete        Boolean   @default(false)
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+
+  @@map("tech_bom_item")
+}
+
+// 技术任务转交表
+model TechTaskTransfer {
+  id              Int       @id @default(autoincrement())
+  taskId          Int       @map("task_id")
+  fromUserId      Int       @map("from_user_id")
+  toUserId        Int       @map("to_user_id")
+  transferReason String?   @map("transfer_reason") @db.Text
+  status          String    @default("pending") @db.VarChar(20)
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+
+  @@map("tech_task_transfer")
+}
+
+// =============================================================================
+// 生产管理
+// =============================================================================
+
+// 生产任务表
+model ProductionTask {
+  id                Int       @id @default(autoincrement())
+  taskNo            String    @unique @map("task_no") @db.VarChar(50)
+  orderId           Int       @map("order_id")
+  materialId        Int       @map("material_id")
+  taskQuantity      Int       @map("task_quantity")
+  producedQty       Int       @default(0) @map("produced_qty")
+  nestingStatus     String    @default("pending") @map("nesting_status") @db.VarChar(20)
+  materialStatus    String    @default("pending") @map("material_status") @db.VarChar(20)
+  purchaseStatus    String    @default("pending") @map("purchase_status") @db.VarChar(20)
+  taskStatus        String    @default("pending") @map("task_status") @db.VarChar(20)
+  productionStartDate DateTime? @map("production_start_date")
+  productionEndDate DateTime? @map("production_end_date")
+  qrCode            String?   @map("qr_code") @db.VarChar(255)
+  remark            String?   @db.Text
+  isDelete          Boolean   @default(false)
+  createdAt         DateTime  @default(now()) @map("created_at")
+  updatedAt         DateTime  @updatedAt @map("updated_at")
+  createdBy         Int?      @map("created_by")
+  modifiedBy        Int?      @map("modified_by")
+
+  @@map("production_task")
+}
+
+// 任务工序表
+model TaskProcess {
+  id               Int       @id @default(autoincrement())
+  taskId           Int       @map("task_id")
+  processId        Int       @map("process_id")
+  processOrder     Int       @map("process_order")
+  planStartDate    DateTime? @map("plan_start_date") @db.Date
+  planEndDate      DateTime? @map("plan_end_date") @db.Date
+  actualStartDate  DateTime? @map("actual_start_date")
+  actualEndDate    DateTime? @map("actual_end_date")
+  workerId         Int?      @map("worker_id")
+  standardHours    Decimal?  @map("standard_hours") @db.Decimal(10, 2)
+  status           String    @default("pending") @db.VarChar(20)
+  isDelete         Boolean   @default(false)
+  createdAt        DateTime  @default(now()) @map("created_at")
+  updatedAt        DateTime  @updatedAt @map("updated_at")
+
+  @@unique([taskId, processId], name: "uk_task_process")
+  @@map("task_process")
+}
+
+// 激光套料表
+model Nesting {
+  id                Int       @id @default(autoincrement())
+  taskId            Int       @map("task_id")
+  nestingNo         String    @unique @map("nesting_no") @db.VarChar(50)
+  materialId        Int       @map("material_id")
+  plateThickness    Decimal?  @map("plate_thickness") @db.Decimal(10, 2)
+  plateMaterial     String?   @map("plate_material") @db.VarChar(50)
+  plateLength       Decimal?  @map("plate_length") @db.Decimal(10, 2)
+  plateWidth        Decimal?  @map("plate_width") @db.Decimal(10, 2)
+  useQty            Int       @default(0) @map("use_qty")
+  cutTime           Int?      @map("cut_time")
+  nestingFileId     Int?      @map("nesting_file_id")
+  operatorId        Int?      @map("operator_id")
+  planCompleteDate  DateTime? @map("plan_complete_date") @db.Date
+  actualCompleteDate DateTime? @map("actual_complete_date")
+  tailMaterial      String?   @map("tail_material") @db.Text
+  status            String    @default("pending") @db.VarChar(20)
+  remark            String?   @db.Text
+  isDelete          Boolean   @default(false)
+  createdAt         DateTime  @default(now()) @map("created_at")
+  updatedAt         DateTime  @updatedAt @map("updated_at")
+  createdBy         Int?      @map("created_by")
+
+  @@map("nesting")
+}
+
+// =============================================================================
+// 员工与报工
+// =============================================================================
+
+// 员工表
+model Worker {
+  id           Int       @id @default(autoincrement())
+  workerCode   String    @unique @map("worker_code") @db.VarChar(50)
+  realName     String    @map("real_name") @db.VarChar(50)
+  phone        String?   @db.VarChar(20)
+  teamId       Int?      @map("team_id")
+  workerType   String    @default("piece") @map("worker_type") @db.VarChar(20)
+  hourlyRate   Decimal?  @map("hourly_rate") @db.Decimal(10, 2)
+  status       String    @default("active") @db.VarChar(20)
+  remark       String?   @db.Text
+  isDelete     Boolean   @default(false)
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+  createdBy    Int?      @map("created_by")
+  modifiedBy   Int?      @map("modified_by")
+
+  @@map("worker")
+}
+
+// 报工记录表
+model WorkReport {
+  id              Int       @id @default(autoincrement())
+  taskId          Int       @map("task_id")
+  processId       Int       @map("process_id")
+  workerId        Int?      @map("worker_id")
+  workType        String    @default("piece") @map("work_type") @db.VarChar(20)
+  reportDate      DateTime  @map("report_date") @db.Date
+  quantity        Int
+  actualHours     Decimal?  @map("actual_hours") @db.Decimal(10, 2)
+  overtimeHours   Decimal?  @map("overtime_hours") @db.Decimal(10, 2)
+  piecePrice      Decimal?  @map("piece_price") @db.Decimal(10, 2)
+  pieceAmount     Decimal?  @map("piece_amount") @db.Decimal(12, 2)
+  timeAmount      Decimal?  @map("time_amount") @db.Decimal(12, 2)
+  overtimeAmount  Decimal?  @map("overtime_amount") @db.Decimal(12, 2)
+  allowance       Decimal   @default(0) @db.Decimal(12, 2)
+  deduction       Decimal   @default(0) @db.Decimal(12, 2)
+  status          String    @default("pending") @db.VarChar(20)
+  isDelete        Boolean   @default(false)
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+  createdBy       Int?      @map("created_by")
+  confirmedBy     Int?      @map("confirmed_by")
+  confirmedAt     DateTime? @map("confirmed_at")
+
+  @@index([taskId, processId], name: "idx_task_process")
+  @@index([reportDate], name: "idx_report_date")
+  @@map("work_report")
+}
+
+// =============================================================================
+// 库存管理
+// =============================================================================
+
+// 库存表
+model Inventory {
+  id             Int       @id @default(autoincrement())
+  materialId     Int       @map("material_id")
+  warehouseId    Int?      @map("warehouse_id")
+  totalQty       Int       @default(0) @map("total_qty")
+  availableQty   Int       @default(0) @map("available_qty")
+  lockedQty      Int       @default(0) @map("locked_qty")
+  unit           String?   @db.VarChar(20)
+  remark         String?   @db.Text
+  isDelete       Boolean   @default(false)
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
+  createdBy      Int?      @map("created_by")
+  modifiedBy     Int?      @map("modified_by")
+
+  @@unique([materialId, warehouseId], name: "uk_material_warehouse")
+  @@map("inventory")
+}
+
+// 库存锁定表
+model InventoryLock {
+  id              Int       @id @default(autoincrement())
+  orderId         Int       @map("order_id")
+  taskId          Int?      @map("task_id")
+  materialId      Int       @map("material_id")
+  lockQty         Int       @map("lock_qty")
+  usedQty         Int       @default(0) @map("used_qty")
+  releasedQty     Int       @default(0) @map("released_qty")
+  lockType        String    @default("production") @map("lock_type") @db.VarChar(20)
+  status          String    @default("locked") @db.VarChar(20)
+  expireDate      DateTime? @map("expire_date")
+  remark          String?   @db.Text
+  isDelete        Boolean   @default(false)
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+  createdBy       Int?      @map("created_by")
+
+  @@map("inventory_lock")
+}
+
+// 库存流水表
+model InventoryLog {
+  id              Int       @id @default(autoincrement())
+  materialId      Int       @map("material_id")
+  orderId         Int?      @map("order_id")
+  taskId          Int?      @map("task_id")
+  changeType      String    @map("change_type") @db.VarChar(50)
+  changeQty       Int
+  beforeQty       Int       @map("before_qty")
+  afterQty        Int       @map("after_qty")
+  lockId          Int?      @map("lock_id")
+  operatorId      Int?      @map("operator_id")
+  remark          String?   @db.Text
+  isDelete        Boolean   @default(false)
+  createdAt       DateTime  @default(now()) @map("created_at")
+
+  @@index([materialId, createdAt], name: "idx_material_time")
+  @@map("inventory_log")
+}
+
+// =============================================================================
+// 质量管理
+// =============================================================================
+
+// 质检记录表
+model QcRecord {
+  id                Int       @id @default(autoincrement())
+  taskId            Int       @map("task_id")
+  processId         Int       @map("process_id")
+  reportId          Int?      @map("report_id")
+  qcType            String    @map("qc_type") @db.VarChar(20)
+  inspectedQty      Int       @map("inspected_qty")
+  qualifiedQty      Int       @map("qualified_qty")
+  unqualifiedQty    Int       @map("unqualified_qty")
+  unqualifiedReason String?   @map("unqualified_reason") @db.Text
+  handlingMethod    String?   @map("handling_method") @db.VarChar(20)
+  inspectorId       Int       @map("inspector_id")
+  inspectionDate    DateTime  @map("inspection_date") @db.Date
+  photos            String?   @db.Text
+  status            String    @default("passed") @db.VarChar(20)
+  remark            String?   @db.Text
+  isDelete          Boolean   @default(false)
+  createdAt         DateTime  @default(now()) @map("created_at")
+
+  @@map("qc_record")
+}
+
+// 重做计划表
+model ReworkPlan {
+  id              Int       @id @default(autoincrement())
+  taskId          Int       @map("task_id")
+  processId       Int       @map("process_id")
+  originalQty     Int       @map("original_qty")
+  reworkQty       Int       @map("rework_qty")
+  completedQty    Int       @default(0) @map("completed_qty")
+  reason          String?   @db.Text
+  status          String    @default("pending") @db.VarChar(20)
+  isDelete        Boolean   @default(false)
+  createdAt       DateTime  @default(now()) @map("created_at")
+  completedAt     DateTime? @map("completed_at")
+  createdBy       Int?      @map("created_by")
+  remark          String?   @db.Text
+
+  @@map("rework_plan")
+}
+
+// =============================================================================
+// 采购管理
+// =============================================================================
+
+// 供应商表
+model Supplier {
+  id             Int       @id @default(autoincrement())
+  supplierCode   String    @unique @map("supplier_code") @db.VarChar(50)
+  supplierName   String    @map("supplier_name") @db.VarChar(200)
+  contactPerson  String?   @map("contact_person") @db.VarChar(50)
+  contactPhone   String?   @map("contact_phone") @db.VarChar(20)
+  contactEmail   String?   @map("contact_email") @db.VarChar(100)
+  taxNo          String?   @map("tax_no") @db.VarChar(50)
+  bankName       String?   @map("bank_name") @db.VarChar(100)
+  bankAccount    String?   @map("bank_account") @db.VarChar(50)
+  address        String?   @db.Text
+  supplyTypes    String?   @map("supply_types") @db.Text
+  rating         String?   @db.VarChar(10)
+  status         String    @default("active") @db.VarChar(20)
+  remark         String?   @db.Text
+  isDelete       Boolean   @default(false)
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
+  createdBy      Int?      @map("created_by")
+  modifiedBy     Int?      @map("modified_by")
+
+  @@map("supplier")
+}
+
+// 采购需求表
+model PurchaseRequirement {
+  id              Int       @id @default(autoincrement())
+  requirementNo  String    @unique @map("requirement_no") @db.VarChar(50)
+  materialId     Int       @map("material_id")
+  requirementQty Int       @map("requirement_qty")
+  unitPrice      Decimal?  @map("unit_price") @db.Decimal(12, 2)
+  totalAmount    Decimal?  @map("total_amount") @db.Decimal(12, 2)
+  requiredDate   DateTime? @map("required_date") @db.Date
+  priority       String    @default("normal") @db.VarChar(20)
+  sourceType     String    @default("auto") @map("source_type") @db.VarChar(20)
+  sourceOrderId  Int?      @map("source_order_id")
+  status         String    @default("pending") @db.VarChar(20)
+  remark         String?   @db.Text
+  isDelete       Boolean   @default(false)
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
+  createdBy      Int?      @map("created_by")
+
+  @@map("purchase_requirement")
+}
+
+// 采购订单表
+model PurchaseOrder {
+  id              Int       @id @default(autoincrement())
+  purchaseNo      String    @unique @map("purchase_no") @db.VarChar(50)
+  supplierId      Int       @map("supplier_id")
+  orderDate       DateTime? @map("order_date") @db.Date
+  deliveryDate    DateTime? @map("delivery_date") @db.Date
+  totalAmount     Decimal   @default(0) @map("total_amount") @db.Decimal(12, 2)
+  paidAmount      Decimal   @default(0) @map("paid_amount") @db.Decimal(12, 2)
+  receivedQty     Int       @default(0) @map("received_qty")
+  status          String    @default("pending") @db.VarChar(20)
+  approvalStatus  String    @default("pending") @map("approval_status") @db.VarChar(20)
+  remark          String?   @db.Text
+  isDelete        Boolean   @default(false)
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+  createdBy       Int?      @map("created_by")
+  modifiedBy      Int?      @map("modified_by")
+
+  @@map("purchase_order")
+}
+
+// 采购订单明细表
+model PurchaseOrderItem {
+  id              Int       @id @default(autoincrement())
+  orderId         Int       @map("order_id")
+  materialId      Int       @map("material_id")
+  orderQty        Int       @map("order_qty")
+  receivedQty     Int       @default(0) @map("received_qty")
+  unitPrice       Decimal   @map("unit_price") @db.Decimal(12, 2)
+  amount          Decimal   @map("amount") @db.Decimal(12, 2)
+  isDelete        Boolean   @default(false)
+  createdAt       DateTime  @default(now()) @map("created_at")
+
+  @@map("purchase_order_item")
+}
+
+// 采购入库表
+model PurchaseReceive {
+  id              Int       @id @default(autoincrement())
+  receiveNo       String    @unique @map("receive_no") @db.VarChar(50)
+  orderId         Int?      @map("order_id")
+  supplierId      Int       @map("supplier_id")
+  receiveDate     DateTime  @map("receive_date") @db.Date
+  totalAmount     Decimal   @default(0) @map("total_amount") @db.Decimal(12, 2)
+  qualityStatus   String    @default("pending") @map("quality_status") @db.VarChar(20)
+  status          String    @default("pending") @db.VarChar(20)
+  remark          String?   @db.Text
+  isDelete        Boolean   @default(false)
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+  createdBy       Int?      @map("created_by")
+
+  @@map("purchase_receive")
+}
+
+// 采购发票表
+model PurchaseInvoice {
+  id              Int       @id @default(autoincrement())
+  invoiceNo       String    @unique @map("invoice_no") @db.VarChar(50)
+  supplierId      Int       @map("supplier_id")
+  orderId         Int?      @map("order_id")
+  invoiceType     String    @map("invoice_type") @db.VarChar(20)
+  invoiceAmount   Decimal   @map("invoice_amount") @db.Decimal(12, 2)
+  taxAmount       Decimal   @default(0) @map("tax_amount") @db.Decimal(12, 2)
+  invoiceDate     DateTime? @map("invoice_date") @db.Date
+  status          String    @default("pending") @db.VarChar(20)
+  remark          String?   @db.Text
+  isDelete        Boolean   @default(false)
+  createdAt       DateTime  @default(now()) @map("created_at")
+  createdBy       Int?      @map("created_by")
+
+  @@map("purchase_invoice")
+}
+
+// =============================================================================
+// 发货管理
+// =============================================================================
+
+// 发货计划表
+model DeliveryPlan {
+  id                Int       @id @default(autoincrement())
+  deliveryNo        String    @unique @map("delivery_no") @db.VarChar(50)
+  customerId        Int       @map("customer_id")
+  planShipDate      DateTime? @map("plan_ship_date") @db.Date
+  shipDate          DateTime? @map("ship_date")
+  deliveryAddress   String?   @map("delivery_address") @db.Text
+  contactPerson     String?   @map("contact_person") @db.VarChar(50)
+  contactPhone      String?   @map("contact_phone") @db.VarChar(20)
+  freightMethod     String    @default("self") @map("freight_method") @db.VarChar(20)
+  freightAmount     Decimal   @default(0) @map("freight_amount") @db.Decimal(12, 2)
+  logisticsCompany  String?   @map("logistics_company") @db.VarChar(100)
+  trackingNo        String?   @map("tracking_no") @db.VarChar(100)
+  totalAmount       Decimal   @default(0) @map("total_amount") @db.Decimal(12, 2)
+  status            String    @default("pending") @db.VarChar(20)
+  receiveDate       DateTime? @map("receive_date")
+  receiveRemark     String?   @map("receive_remark") @db.Text
+  shippedBy         Int?      @map("shipped_by")
+  remark            String?   @db.Text
+  isDelete          Boolean   @default(false)
+  createdAt         DateTime  @default(now()) @map("created_at")
+  updatedAt         DateTime  @updatedAt @map("updated_at")
+  createdBy         Int?      @map("created_by")
+
+  @@map("delivery_plan")
+}
+
+// 发货明细表
+model DeliveryItem {
+  id              Int       @id @default(autoincrement())
+  planId          Int       @map("plan_id")
+  orderId         Int       @map("order_id")
+  materialId      Int       @map("material_id")
+  quantity        Int
+  unitPrice       Decimal?  @map("unit_price") @db.Decimal(12, 2)
+  amount          Decimal   @default(0) @map("amount") @db.Decimal(12, 2)
+  status          String    @default("pending") @db.VarChar(20)
+  isDelete        Boolean   @default(false)
+  createdAt       DateTime  @default(now()) @map("created_at")
+
+  @@map("delivery_item")
+}
+
+// 售后记录表
+model AfterSalesRecord {
+  id              Int       @id @default(autoincrement())
+  planId          Int?      @map("plan_id")
+  orderId         Int?      @map("order_id")
+  materialId      Int?      @map("material_id")
+  type            String    @db.VarChar(20)
+  quantity        Int       @default(0)
+  reason          String?   @db.Text
+  status          String    @default("pending") @db.VarChar(20)
+  handleResult    String?   @map("handle_result") @db.Text
+  isDelete        Boolean   @default(false)
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+  createdBy       Int?      @map("created_by")
+  remark          String?   @db.Text
+
+  @@map("after_sales_record")
+}
+
+// =============================================================================
+// 财务对账
+// =============================================================================
+
+// 客户对账单表
+model CustomerReconciliation {
+  id              Int       @id @default(autoincrement())
+  reconNo         String    @unique @map("recon_no") @db.VarChar(50)
+  customerId      Int       @map("customer_id")
+  periodStart     DateTime  @map("period_start") @db.Date
+  periodEnd       DateTime  @map("period_end") @db.Date
+  totalAmount     Decimal   @map("total_amount") @db.Decimal(12, 2)
+  paidAmount      Decimal   @default(0) @map("paid_amount") @db.Decimal(12, 2)
+  unpaidAmount    Decimal   @default(0) @map("unpaid_amount") @db.Decimal(12, 2)
+  invoicedAmount  Decimal   @default(0) @map("invoiced_amount") @db.Decimal(12, 2)
+  uninvoicedAmount Decimal  @default(0) @map("uninvoiced_amount") @db.Decimal(12, 2)
+  status          String    @default("pending") @db.VarChar(20)
+  remark          String?   @db.Text
+  isDelete        Boolean   @default(false)
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+  createdBy       Int?      @map("created_by")
+
+  @@map("customer_reconciliation")
+}
+
+// 对账明细表
+model ReconciliationItem {
+  id              Int       @id @default(autoincrement())
+  reconId         Int       @map("recon_id")
+  orderId         Int       @map("order_id")
+  orderNo         String    @map("order_no") @db.VarChar(50)
+  customerOrderNo String?   @map("customer_order_no") @db.VarChar(50)
+  quantity        Int
+  unitPrice       Decimal   @map("unit_price") @db.Decimal(12, 2)
+  amount          Decimal   @map("amount") @db.Decimal(12, 2)
+  status          String    @default("unpaid") @db.VarChar(20)
+  isDelete        Boolean   @default(false)
+  createdAt       DateTime  @default(now()) @map("created_at")
+
+  @@map("reconciliation_item")
+}
+
+// 发票表
+model Invoice {
+  id              Int       @id @default(autoincrement())
+  invoiceNo       String    @unique @map("invoice_no") @db.VarChar(50)
+  reconId         Int       @map("recon_id")
+  customerId      Int       @map("customer_id")
+  invoiceType     String    @map("invoice_type") @db.VarChar(20)
+  invoiceAmount   Decimal   @map("invoice_amount") @db.Decimal(12, 2)
+  taxRate         Decimal   @default(13) @map("tax_rate") @db.Decimal(5, 2)
+  taxAmount       Decimal   @default(0) @map("tax_amount") @db.Decimal(12, 2)
+  totalAmount     Decimal   @map("total_amount") @db.Decimal(12, 2)
+  invoiceDate     DateTime  @map("invoice_date") @db.Date
+  status          String    @default("issued") @db.VarChar(20)
+  isDelete        Boolean   @default(false)
+  createdAt       DateTime  @default(now()) @map("created_at")
+  createdBy       Int?      @map("created_by")
+
+  @@map("invoice")
+}
+
+// 回款记录表
+model PaymentRecord {
+  id              Int       @id @default(autoincrement())
+  reconId         Int       @map("recon_id")
+  customerId      Int       @map("customer_id")
+  paymentAmount   Decimal   @map("payment_amount") @db.Decimal(12, 2)
+  paymentDate     DateTime  @map("payment_date") @db.Date
+  paymentMethod   String    @map("payment_method") @db.VarChar(20)
+  paymentAccount  String?   @map("payment_account") @db.VarChar(100)
+  status          String    @default("confirmed") @db.VarChar(20)
+  confirmedBy     Int?      @map("confirmed_by")
+  remark          String?   @db.Text
+  isDelete        Boolean   @default(false)
+  createdAt       DateTime  @default(now()) @map("created_at")
+
+  @@map("payment_record")
+}
+
+// =============================================================================
+// 工资结算
+// =============================================================================
+
+// 工资结算表
+model WageSettlement {
+  id              Int       @id @default(autoincrement())
+  settleMonth     String    @map("settle_month") @db.VarChar(7)
+  totalAmount     Decimal   @default(0) @map("total_amount") @db.Decimal(12, 2)
+  workerCount     Int       @default(0) @map("worker_count")
+  status          String    @default("draft") @db.VarChar(20)
+  paymentDate     DateTime? @map("payment_date")
+  paymentMethod   String?   @map("payment_method") @db.VarChar(20)
+  paymentAccount  String?   @map("payment_account") @db.VarChar(100)
+  remark          String?   @db.Text
+  isDelete        Boolean   @default(false)
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+  createdBy       Int?      @map("created_by")
+
+  @@unique([settleMonth], name: "uk_settle_month")
+  @@map("wage_settlement")
+}
+
+// 工资结算明细表
+model WageSettlementItem {
+  id                Int       @id @default(autoincrement())
+  settlementId      Int       @map("settlement_id")
+  workerId          Int       @map("worker_id")
+  pieceWorkAmount   Decimal   @default(0) @map("piece_work_amount") @db.Decimal(12, 2)
+  timeWorkAmount    Decimal   @default(0) @map("time_work_amount") @db.Decimal(12, 2)
+  overtimeAmount   Decimal   @default(0) @map("overtime_amount") @db.Decimal(12, 2)
+  allowance         Decimal   @default(0) @db.Decimal(12, 2)
+  deduction         Decimal   @default(0) @db.Decimal(12, 2)
+  socialSecurity    Decimal   @default(0) @map("social_security") @db.Decimal(12, 2)
+  housingFund       Decimal   @default(0) @map("housing_fund") @db.Decimal(12, 2)
+  personalTax       Decimal   @default(0) @map("personal_tax") @db.Decimal(12, 2)
+  grossAmount       Decimal   @default(0) @map("gross_amount") @db.Decimal(12, 2)
+  netAmount         Decimal   @map("net_amount") @db.Decimal(12, 2)
+  remark            String?   @db.Text
+  isDelete          Boolean   @default(false)
+  createdAt         DateTime  @default(now()) @map("created_at")
+
+  @@map("wage_settlement_item")
+}
+
+// 工资发放记录表
+model WagePaymentRecord {
+  id                Int       @id @default(autoincrement())
+  settlementId      Int       @map("settlement_id")
+  workerId          Int       @map("worker_id")
+  grossAmount       Decimal   @map("gross_amount") @db.Decimal(12, 2)
+  socialSecurity    Decimal   @default(0) @map("social_security") @db.Decimal(12, 2)
+  housingFund       Decimal   @default(0) @map("housing_fund") @db.Decimal(12, 2)
+  personalTax       Decimal   @default(0) @map("personal_tax") @db.Decimal(12, 2)
+  netAmount         Decimal   @map("net_amount") @db.Decimal(12, 2)
+  paymentDate       DateTime  @map("payment_date") @db.Date
+  paymentMethod     String    @map("payment_method") @db.VarChar(20)
+  status            String    @default("paid") @db.VarChar(20)
+  isDelete          Boolean   @default(false)
+  createdAt         DateTime  @default(now()) @map("created_at")
+  createdBy         Int?      @map("created_by")
+
+  @@map("wage_payment_record")
+}
