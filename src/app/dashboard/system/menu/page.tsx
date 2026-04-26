@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { moduleConfig, actionConfig, getModulePermissions, getAllPermissions, generatePermission } from "@/lib/permissions";
 
 interface Menu {
   id: number;
@@ -18,26 +19,70 @@ interface Menu {
   children?: Menu[];
 }
 
+interface PermissionNode {
+  module: string;
+  moduleName: string;
+  tables: Array<{
+    table: string;
+    tableName: string;
+    permissions: Array<{
+      action: string;
+      label: string;
+      desc: string;
+      permission: string;
+    }>;
+  }>;
+}
+
 const menuTypeOptions = [
   { value: 'directory', label: '目录' },
   { value: 'menu', label: '菜单' },
   { value: 'button', label: '按钮' },
+  { value: 'permission', label: '数据权限' },
 ];
 
-const actionOptions = [
-  { value: 'query', label: '查询', desc: '查看/查询数据' },
-  { value: 'create', label: '新增', desc: '创建新数据' },
-  { value: 'update', label: '编辑', desc: '修改数据' },
-  { value: 'delete', label: '删除', desc: '删除数据' },
-  { value: 'upload', label: '上传', desc: '文件上传功能' },
-  { value: 'download', label: '下载', desc: '文件下载功能' },
-];
+// 将权限配置转换为树形结构
+function buildPermissionTree(): PermissionNode[] {
+  const nodes: PermissionNode[] = [];
+
+  for (const [moduleKey, moduleData] of Object.entries(moduleConfig)) {
+    const tables: PermissionNode['tables'] = [];
+
+    for (const [tableKey, tableData] of Object.entries(moduleData.tables)) {
+      const permissions = tableData.permissions.map(action => {
+        const actionInfo = actionConfig.find(a => a.value === action);
+        return {
+          action,
+          label: actionInfo?.label || action,
+          desc: actionInfo?.desc || '',
+          permission: generatePermission(moduleKey, tableKey, action),
+        };
+      });
+
+      tables.push({
+        table: tableKey,
+        tableName: tableData.name,
+        permissions,
+      });
+    }
+
+    nodes.push({
+      module: moduleKey,
+      moduleName: moduleData.name,
+      tables,
+    });
+  }
+
+  return nodes;
+}
 
 export default function SystemMenuPage() {
   const [menuTree, setMenuTree] = useState<Menu[]>([]);
   const [loading, setLoading] = useState(true);
   const [expandedIds, setExpandedIds] = useState<Set<number>>(new Set());
+  const [expandedModules, setExpandedModules] = useState<Set<string>>(new Set());
   const [showForm, setShowForm] = useState(false);
+  const [showPermForm, setShowPermForm] = useState(false);
   const [editingMenu, setEditingMenu] = useState<Menu | null>(null);
   const [form, setForm] = useState({
     parentId: undefined as number | undefined,
@@ -52,6 +97,10 @@ export default function SystemMenuPage() {
     isVisible: true,
     isCache: false,
   });
+  const [selectedPermissions, setSelectedPermissions] = useState<string[]>([]);
+  const [keyword, setKeyword] = useState("");
+  const [filterModule, setFilterModule] = useState("");
+  const permissionTree = buildPermissionTree();
 
   const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
   const headers: any = { "Content-Type": "application/json" };
@@ -64,11 +113,8 @@ export default function SystemMenuPage() {
       const data = await res.json();
       if (data.code === 200) {
         setMenuTree(data.data || []);
-        // 默认展开第一层
         const ids = new Set<number>();
-        data.data?.forEach((menu: Menu) => {
-          ids.add(menu.id);
-        });
+        data.data?.forEach((menu: Menu) => ids.add(menu.id));
         setExpandedIds(ids);
       }
     } catch (e) {
@@ -81,12 +127,14 @@ export default function SystemMenuPage() {
 
   const toggleExpand = (id: number) => {
     const newExpanded = new Set(expandedIds);
-    if (newExpanded.has(id)) {
-      newExpanded.delete(id);
-    } else {
-      newExpanded.add(id);
-    }
+    newExpanded.has(id) ? newExpanded.delete(id) : newExpanded.add(id);
     setExpandedIds(newExpanded);
+  };
+
+  const toggleModuleExpand = (module: string) => {
+    const newExpanded = new Set(expandedModules);
+    newExpanded.has(module) ? newExpanded.delete(module) : newExpanded.add(module);
+    setExpandedModules(newExpanded);
   };
 
   const handleOpenForm = (menu?: Menu, parentId?: number) => {
@@ -124,34 +172,54 @@ export default function SystemMenuPage() {
     setShowForm(true);
   };
 
+  const handleOpenPermissionForm = (menu?: Menu) => {
+    if (menu) {
+      setEditingMenu(menu);
+      // 解析已有的权限
+      const perms = menu.permission ? menu.permission.split(',').filter(Boolean) : [];
+      setSelectedPermissions(perms);
+    } else {
+      setEditingMenu(null);
+      setSelectedPermissions([]);
+    }
+    setShowPermForm(true);
+  };
+
   const handleSubmit = async () => {
     if (!form.menuName) {
       alert("请输入菜单名称");
       return;
     }
-    if (form.menuType === 'menu' && !form.path) {
-      alert("菜单类型为菜单时，路由地址不能为空");
-      return;
-    }
     try {
       let res;
-      if (editingMenu) {
-        res = await fetch(`/api/system/menu/${editingMenu.id}`, {
-          method: "PUT",
-          headers,
-          body: JSON.stringify(form),
-        });
-      } else {
-        res = await fetch("/api/system/menu", {
-          method: "POST",
-          headers,
-          body: JSON.stringify(form),
-        });
-      }
+      const url = editingMenu ? `/api/system/menu/${editingMenu.id}` : "/api/system/menu";
+      const method = editingMenu ? "PUT" : "POST";
+      res = await fetch(url, { method, headers, body: JSON.stringify(form) });
       const data = await res.json();
       if (data.code === 200) {
         setShowForm(false);
         fetchMenus();
+      } else {
+        alert(data.message);
+      }
+    } catch (e) {
+      alert("保存失败");
+    }
+  };
+
+  const handleSubmitPermission = async () => {
+    if (!editingMenu) return;
+    try {
+      const res = await fetch(`/api/system/menu/${editingMenu.id}`, {
+        method: "PUT",
+        headers,
+        body: JSON.stringify({ permission: selectedPermissions.join(',') }),
+      });
+      const data = await res.json();
+      if (data.code === 200) {
+        setShowPermForm(false);
+        fetchMenus();
+        alert("权限配置保存成功");
       } else {
         alert(data.message);
       }
@@ -169,11 +237,8 @@ export default function SystemMenuPage() {
     try {
       const res = await fetch(`/api/system/menu/${menu.id}`, { method: "DELETE", headers });
       const data = await res.json();
-      if (data.code === 200) {
-        fetchMenus();
-      } else {
-        alert(data.message);
-      }
+      if (data.code === 200) fetchMenus();
+      else alert(data.message);
     } catch (e) {
       alert("删除失败");
     }
@@ -188,17 +253,31 @@ export default function SystemMenuPage() {
         body: JSON.stringify({ status: newStatus }),
       });
       const data = await res.json();
-      if (data.code === 200) {
-        fetchMenus();
-      } else {
-        alert(data.message);
-      }
+      if (data.code === 200) fetchMenus();
+      else alert(data.message);
     } catch (e) {
       alert("操作失败");
     }
   };
 
-  // 扁平化菜单树（用于选择父菜单）
+  const handleTogglePermission = (permission: string) => {
+    if (selectedPermissions.includes(permission)) {
+      setSelectedPermissions(selectedPermissions.filter(p => p !== permission));
+    } else {
+      setSelectedPermissions([...selectedPermissions, permission]);
+    }
+  };
+
+  const handleSelectAllInTable = (tablePermissions: string[]) => {
+    const allSelected = tablePermissions.every(p => selectedPermissions.includes(p));
+    if (allSelected) {
+      setSelectedPermissions(selectedPermissions.filter(p => !tablePermissions.includes(p)));
+    } else {
+      const newPerms = new Set([...selectedPermissions, ...tablePermissions]);
+      setSelectedPermissions(Array.from(newPerms));
+    }
+  };
+
   const flattenMenus = (menus: Menu[], result: Menu[] = [], level: number = 0): Menu[] => {
     for (const menu of menus) {
       result.push({ ...menu, sortOrder: level });
@@ -211,12 +290,12 @@ export default function SystemMenuPage() {
 
   const flatMenuList = flattenMenus(menuTree, []);
 
-  // 根据菜单类型获取图标
   const getMenuTypeIcon = (type: string) => {
     switch (type) {
       case 'directory': return "📁";
       case 'menu': return "📄";
       case 'button': return "🔘";
+      case 'permission': return "🔐";
       default: return "📄";
     }
   };
@@ -226,11 +305,11 @@ export default function SystemMenuPage() {
       case 'directory': return '目录';
       case 'menu': return '菜单';
       case 'button': return '按钮';
+      case 'permission': return '数据权限';
       default: return type;
     }
   };
 
-  // 渲染菜单树节点
   const renderMenuNode = (menu: Menu, level: number = 0) => {
     const hasChildren = menu.children && menu.children.length > 0;
     const isExpanded = expandedIds.has(menu.id);
@@ -242,103 +321,154 @@ export default function SystemMenuPage() {
           style={{ marginLeft: level * 24 }}
         >
           <div className="flex items-center gap-2 flex-1">
-            {/* 展开/收起按钮 */}
             {hasChildren ? (
-              <button
-                onClick={() => toggleExpand(menu.id)}
-                className="w-5 h-5 flex items-center justify-center text-gray-400 hover:text-gray-600"
-              >
+              <button onClick={() => toggleExpand(menu.id)} className="w-5 h-5 flex items-center justify-center text-gray-400 hover:text-gray-600">
                 {isExpanded ? "−" : "+"}
               </button>
             ) : (
               <span className="w-5" />
             )}
-            {/* 图标 */}
             <span>{getMenuTypeIcon(menu.menuType)}</span>
-            {/* 菜单信息 */}
             <span className="font-medium">{menu.menuName}</span>
             {menu.path && <span className="text-xs text-gray-400 font-mono">{menu.path}</span>}
-            {menu.permission && <span className="text-xs text-orange-500">权限: {menu.permission}</span>}
-            {/* 类型标签 */}
+            {menu.permission && (
+              <span className="text-xs text-orange-500 truncate max-w-xs" title={menu.permission}>
+                权限: {menu.permission}
+              </span>
+            )}
             <span className={`px-1.5 py-0.5 text-xs rounded ${
               menu.menuType === 'directory' ? 'bg-blue-100 text-blue-600' :
               menu.menuType === 'menu' ? 'bg-green-100 text-green-600' :
+              menu.menuType === 'permission' ? 'bg-purple-100 text-purple-600' :
               'bg-orange-100 text-orange-600'
             }`}>
               {getMenuTypeName(menu.menuType)}
             </span>
-            {/* 状态 */}
             <span className={`px-1.5 py-0.5 text-xs rounded ${menu.status === 'active' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
               {menu.status === 'active' ? '正常' : '禁用'}
             </span>
-            {/* 可见性 */}
-            {!menu.isVisible && <span className="px-1.5 py-0.5 text-xs bg-gray-100 text-gray-400 rounded">隐藏</span>}
           </div>
-          {/* 操作按钮 */}
           <div className="flex items-center gap-2">
+            {menu.menuType === 'permission' && (
+              <button onClick={() => handleOpenPermissionForm(menu)} className="text-purple-600 hover:underline text-sm">
+                配置权限
+              </button>
+            )}
             {menu.menuType !== 'button' && (
-              <button
-                onClick={() => handleOpenForm(undefined, menu.id)}
-                className="text-blue-600 hover:underline text-sm"
-              >
+              <button onClick={() => handleOpenForm(undefined, menu.id)} className="text-blue-600 hover:underline text-sm">
                 添加子菜单
               </button>
             )}
-            <button
-              onClick={() => handleOpenForm(menu)}
-              className="text-gray-600 hover:underline text-sm"
-            >
-              编辑
-            </button>
-            <button
-              onClick={() => handleToggleStatus(menu)}
-              className="text-yellow-600 hover:underline text-sm"
-            >
+            <button onClick={() => handleOpenForm(menu)} className="text-gray-600 hover:underline text-sm">编辑</button>
+            <button onClick={() => handleToggleStatus(menu)} className="text-yellow-600 hover:underline text-sm">
               {menu.status === 'active' ? '禁用' : '启用'}
             </button>
-            <button
-              onClick={() => handleDelete(menu)}
-              className="text-red-600 hover:underline text-sm"
-            >
-              删除
-            </button>
+            <button onClick={() => handleDelete(menu)} className="text-red-600 hover:underline text-sm">删除</button>
           </div>
         </div>
-        {/* 子菜单 */}
         {hasChildren && isExpanded && menu.children!.map(child => renderMenuNode(child, level + 1))}
       </div>
     );
   };
 
+  // 过滤权限树
+  const filteredPermissionTree = filterModule
+    ? permissionTree.filter(node => node.module === filterModule)
+    : permissionTree;
+
   return (
     <div>
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-lg font-semibold text-gray-800">菜单管理</h2>
-        <button
-          onClick={() => handleOpenForm()}
-          className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700"
-        >
-          + 新增菜单
-        </button>
+        <div className="flex items-center gap-2">
+          <select
+            className="border rounded px-3 py-2 text-sm"
+            value={filterModule}
+            onChange={e => setFilterModule(e.target.value)}
+          >
+            <option value="">全部模块</option>
+            {Object.entries(moduleConfig).map(([key, data]) => (
+              <option key={key} value={key}>{data.name}</option>
+            ))}
+          </select>
+          <button onClick={() => handleOpenForm()} className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700">
+            + 新增菜单
+          </button>
+        </div>
       </div>
 
       {/* 提示信息 */}
       <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4 text-sm">
         <p className="text-blue-700">
-          <strong>权限说明：</strong>权限由数据表操作（查询、新增、编辑、删除）和文件操作（上传、下载）构成。
-          <span className="text-blue-600">目录</span>用于分组，
-          <span className="text-green-600">菜单</span>对应具体页面，
-          <span className="text-orange-600">按钮</span>用于配置操作权限。
-          按钮权限标识格式：<code className="bg-blue-100 px-1">模块:操作</code>，如 <code className="bg-blue-100 px-1">user:query</code>、<code className="bg-blue-100 px-1">file:upload</code>、<code className="bg-blue-100 px-1">file:download</code>。
+          <strong>权限说明：</strong>权限标识细化到数据表的增删改查操作（query/create/update/delete）和文件操作（upload/download）。
+          使用"数据权限"类型的菜单来管理表级权限，权限标识格式：<code className="bg-blue-100 px-1">模块:表名:操作</code>，如 <code className="bg-blue-100 px-1">system:user:query</code>。
         </p>
+      </div>
+
+      {/* 权限配置说明 */}
+      <div className="bg-white rounded-lg border overflow-hidden mb-4">
+        <div className="p-3 border-b bg-gray-50">
+          <h3 className="font-medium text-sm">可用数据表权限清单</h3>
+        </div>
+        <div className="max-h-64 overflow-auto">
+          {filteredPermissionTree.map(node => (
+            <div key={node.module} className="border-b last:border-b-0">
+              <div
+                className="flex items-center gap-2 px-3 py-2 bg-gray-100 cursor-pointer hover:bg-gray-200"
+                onClick={() => toggleModuleExpand(node.module)}
+              >
+                <span className="text-gray-400">{expandedModules.has(node.module) ? "−" : "+"}</span>
+                <span className="font-medium">{node.moduleName}</span>
+                <span className="text-xs text-gray-500">({node.tables.length} 张表)</span>
+              </div>
+              {expandedModules.has(node.module) && (
+                <div className="px-4 py-2 bg-white">
+                  <table className="w-full text-xs">
+                    <thead>
+                      <tr className="text-left text-gray-500">
+                        <th className="pb-1 w-24">表名</th>
+                        <th className="pb-1">可用权限</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {node.tables.map(table => (
+                        <tr key={table.table} className="border-t">
+                          <td className="py-1 font-medium">{table.tableName}</td>
+                          <td className="py-1">
+                            <div className="flex flex-wrap gap-1">
+                              {table.permissions.map(p => (
+                                <code key={p.permission} className="px-1 bg-gray-100 rounded text-orange-600">
+                                  {p.permission}
+                                </code>
+                              ))}
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
       </div>
 
       {/* 菜单树 */}
       <div className="bg-white rounded-lg border overflow-hidden">
+        <div className="p-3 border-b bg-gray-50">
+          <input
+            type="text"
+            placeholder="搜索菜单名称..."
+            className="border rounded px-3 py-1.5 text-sm w-64"
+            value={keyword}
+            onChange={e => setKeyword(e.target.value)}
+          />
+        </div>
         {loading ? (
           <div className="px-4 py-8 text-center text-gray-400">加载中...</div>
         ) : menuTree.length === 0 ? (
-          <div className="px-4 py-8 text-center text-gray-400">暂无数据</div>
+          <div className="px-4 py-8 text-center text-gray-400">暂无数据，请先添加菜单</div>
         ) : (
           <div>
             {menuTree.map(menu => renderMenuNode(menu, 0))}
@@ -418,7 +548,7 @@ export default function SystemMenuPage() {
                     onChange={e => setForm({...form, permission: e.target.value})}
                     placeholder="user:query"
                   />
-                  <p className="text-xs text-gray-400 mt-1">格式：模块:操作，如 user:query、file:upload</p>
+                  <p className="text-xs text-gray-400 mt-1">格式：模块:表名:操作，如 user:query、file:upload</p>
                 </div>
               )}
               <div className="grid grid-cols-2 gap-4">
@@ -428,7 +558,6 @@ export default function SystemMenuPage() {
                     className="w-full border rounded px-3 py-2 text-sm"
                     value={form.icon}
                     onChange={e => setForm({...form, icon: e.target.value})}
-                    placeholder="Icon name"
                   />
                 </div>
                 <div>
@@ -444,19 +573,11 @@ export default function SystemMenuPage() {
               {form.menuType === 'menu' && (
                 <div className="flex items-center gap-4">
                   <label className="flex items-center gap-1">
-                    <input
-                      type="checkbox"
-                      checked={form.isVisible}
-                      onChange={e => setForm({...form, isVisible: e.target.checked})}
-                    />
+                    <input type="checkbox" checked={form.isVisible} onChange={e => setForm({...form, isVisible: e.target.checked})} />
                     <span className="text-sm">显示菜单</span>
                   </label>
                   <label className="flex items-center gap-1">
-                    <input
-                      type="checkbox"
-                      checked={form.isCache}
-                      onChange={e => setForm({...form, isCache: e.target.checked})}
-                    />
+                    <input type="checkbox" checked={form.isCache} onChange={e => setForm({...form, isCache: e.target.checked})} />
                     <span className="text-sm">缓存页面</span>
                   </label>
                 </div>
@@ -465,6 +586,94 @@ export default function SystemMenuPage() {
             <div className="flex justify-end gap-2 mt-4">
               <button onClick={() => setShowForm(false)} className="px-4 py-2 border rounded text-sm hover:bg-gray-50">取消</button>
               <button onClick={handleSubmit} className="px-4 py-2 bg-blue-600 text-white rounded text-sm hover:bg-blue-700">保存</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 数据权限配置弹窗 */}
+      {showPermForm && editingMenu && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
+            <div className="p-4 border-b">
+              <h3 className="text-lg font-semibold">数据权限配置 - {editingMenu.menuName}</h3>
+              <p className="text-sm text-gray-500 mt-1">勾选该角色可访问的数据表操作权限</p>
+            </div>
+            <div className="flex-1 overflow-auto p-4">
+              <div className="space-y-4">
+                {permissionTree.map(node => (
+                  <div key={node.module} className="border rounded-lg overflow-hidden">
+                    <div className="px-4 py-2 bg-gray-100 font-medium text-sm">
+                      {node.moduleName}
+                    </div>
+                    <div className="p-3">
+                      <table className="w-full text-sm">
+                        <thead>
+                          <tr className="text-left text-gray-500 text-xs">
+                            <th className="pb-2 w-32">表名</th>
+                            <th className="pb-2">权限操作</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {node.tables.map(table => {
+                            const tablePerms = table.permissions.map(p => p.permission);
+                            const allSelected = tablePerms.every(p => selectedPermissions.includes(p));
+                            const someSelected = tablePerms.some(p => selectedPermissions.includes(p));
+
+                            return (
+                              <tr key={table.table} className="border-t">
+                                <td className="py-2">
+                                  <label className="flex items-center gap-1">
+                                    <input
+                                      type="checkbox"
+                                      checked={allSelected}
+                                      ref={el => { if (el) el.indeterminate = someSelected && !allSelected; }}
+                                      onChange={() => handleSelectAllInTable(tablePerms)}
+                                    />
+                                    <span className="font-medium">{table.tableName}</span>
+                                  </label>
+                                </td>
+                                <td className="py-2">
+                                  <div className="flex flex-wrap gap-2">
+                                    {table.permissions.map(p => (
+                                      <label
+                                        key={p.permission}
+                                        className={`flex items-center gap-1 px-2 py-1 rounded cursor-pointer text-xs ${
+                                          selectedPermissions.includes(p.permission)
+                                            ? 'bg-blue-100 text-blue-700 border border-blue-300'
+                                            : 'bg-gray-50 text-gray-600 border border-gray-200 hover:bg-gray-100'
+                                        }`}
+                                      >
+                                        <input
+                                          type="checkbox"
+                                          checked={selectedPermissions.includes(p.permission)}
+                                          onChange={() => handleTogglePermission(p.permission)}
+                                          className="hidden"
+                                        />
+                                        <span>{p.label}</span>
+                                        <span className="text-gray-400">({p.action})</span>
+                                      </label>
+                                    ))}
+                                  </div>
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div className="p-4 border-t flex justify-between items-center">
+              <div className="text-sm text-gray-500">
+                已选 {selectedPermissions.length} 个权限
+              </div>
+              <div className="flex gap-2">
+                <button onClick={() => setShowPermForm(false)} className="px-4 py-2 border rounded text-sm hover:bg-gray-50">取消</button>
+                <button onClick={handleSubmitPermission} className="px-4 py-2 bg-blue-600 text-white rounded text-sm hover:bg-blue-700">保存配置</button>
+              </div>
             </div>
           </div>
         </div>

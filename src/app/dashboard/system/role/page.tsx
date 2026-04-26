@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { moduleConfig, actionConfig, generatePermission } from "@/lib/permissions";
 
 interface Role {
   id: number;
@@ -13,22 +14,57 @@ interface Role {
   userCount: number;
 }
 
-interface Menu {
-  id: number;
-  parentId?: number;
-  menuName: string;
-  menuType: string;
-  path?: string;
-  permission?: string;
-  children?: Menu[];
-  checked?: boolean;
-  halfChecked?: boolean;
-}
-
 interface Dept {
   id: number;
   deptName: string;
   children?: Dept[];
+}
+
+interface PermissionNode {
+  module: string;
+  moduleName: string;
+  tables: Array<{
+    table: string;
+    tableName: string;
+    permissions: Array<{
+      action: string;
+      label: string;
+      permission: string;
+    }>;
+  }>;
+}
+
+function buildPermissionTree(): PermissionNode[] {
+  const nodes: PermissionNode[] = [];
+
+  for (const [moduleKey, moduleData] of Object.entries(moduleConfig)) {
+    const tables: PermissionNode['tables'] = [];
+
+    for (const [tableKey, tableData] of Object.entries(moduleData.tables)) {
+      const permissions = tableData.permissions.map(action => {
+        const actionInfo = actionConfig.find(a => a.value === action);
+        return {
+          action,
+          label: actionInfo?.label || action,
+          permission: generatePermission(moduleKey, tableKey, action),
+        };
+      });
+
+      tables.push({
+        table: tableKey,
+        tableName: tableData.name,
+        permissions,
+      });
+    }
+
+    nodes.push({
+      module: moduleKey,
+      moduleName: moduleData.name,
+      tables,
+    });
+  }
+
+  return nodes;
 }
 
 const dataScopeOptions = [
@@ -37,16 +73,6 @@ const dataScopeOptions = [
   { value: 'deptAndChild', label: '本部门及子部门数据权限' },
   { value: 'custom', label: '自定义数据权限' },
 ];
-
-const actionOptions = ['query', 'create', 'update', 'delete', 'upload', 'download'];
-const actionLabels: Record<string, string> = {
-  query: '查询',
-  create: '新增',
-  update: '编辑',
-  delete: '删除',
-  upload: '上传',
-  download: '下载',
-};
 
 export default function SystemRolePage() {
   const [roles, setRoles] = useState<Role[]>([]);
@@ -63,38 +89,17 @@ export default function SystemRolePage() {
     remark: "",
   });
   const [keyword, setKeyword] = useState("");
-  // 权限配置相关
-  const [menuTree, setMenuTree] = useState<Menu[]>([]);
+  const [menuTree, setMenuTree] = useState<any[]>([]);
   const [selectedMenuIds, setSelectedMenuIds] = useState<number[]>([]);
-  const [menuPermissions, setMenuPermissions] = useState<Record<number, string[]>>({});
   const [selectedDeptIds, setSelectedDeptIds] = useState<number[]>([]);
   const [deptTree, setDeptTree] = useState<Dept[]>([]);
+  const [selectedPermissions, setSelectedPermissions] = useState<Set<string>>(new Set());
+  const [activeTab, setActiveTab] = useState<'menu' | 'data'>('menu');
+  const permissionTree = buildPermissionTree();
 
   const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
   const headers: any = { "Content-Type": "application/json" };
   if (token) headers.Authorization = `Bearer ${token}`;
-
-  // 扁平化菜单树
-  const flattenMenus = (menus: Menu[], result: Menu[] = []): Menu[] => {
-    for (const menu of menus) {
-      result.push(menu);
-      if (menu.children && menu.children.length > 0) {
-        flattenMenus(menu.children, result);
-      }
-    }
-    return result;
-  };
-
-  // 扁平化部门树
-  const flattenDepts = (depts: Dept[], result: Dept[] = []): Dept[] => {
-    for (const dept of depts) {
-      result.push(dept);
-      if (dept.children && dept.children.length > 0) {
-        flattenDepts(dept.children, result);
-      }
-    }
-    return result;
-  };
 
   const fetchRoles = async () => {
     setLoading(true);
@@ -169,11 +174,8 @@ export default function SystemRolePage() {
     try {
       const res = await fetch(`/api/system/role/${role.id}`, { method: "DELETE", headers });
       const data = await res.json();
-      if (data.code === 200) {
-        fetchRoles();
-      } else {
-        alert(data.message);
-      }
+      if (data.code === 200) fetchRoles();
+      else alert(data.message);
     } catch (e) {
       alert("删除失败");
     }
@@ -186,30 +188,39 @@ export default function SystemRolePage() {
       return;
     }
     setEditingRole(role);
+    setSelectedPermissions(new Set());
 
-    // 获取菜单树和角色权限
+    // 获取角色已有的权限
     try {
-      const [menuRes, roleDetailRes] = await Promise.all([
-        fetch(`/api/system/menu?type=perms&roleId=${role.id}`, { headers }),
-        fetch(`/api/system/role/${role.id}`, { headers }),
-      ]);
-      const menuData = await menuRes.json();
+      const roleDetailRes = await fetch(`/api/system/role/${role.id}`, { headers });
       const roleData = await roleDetailRes.json();
 
-      if (menuData.code === 200) {
-        setMenuTree(menuData.data?.tree || []);
-        setSelectedMenuIds(menuData.data?.selectedMenuIds || []);
+      if (roleData.code === 200) {
+        const perms = roleData.data?.permissions || [];
+        const permSet = new Set<string>();
+        perms.forEach((p: any) => {
+          if (p.menuId) {
+            // 菜单权限
+            if (!selectedMenuIds.includes(p.menuId)) {
+              setSelectedMenuIds([...selectedMenuIds, p.menuId]);
+            }
+          }
+          if (p.permission) {
+            permSet.add(p.permission);
+          }
+          if (p.actions && Array.isArray(p.actions)) {
+            p.actions.forEach((a: string) => permSet.add(a));
+          }
+        });
+        setSelectedPermissions(permSet);
+        setSelectedDeptIds(roleData.data?.deptIds || []);
       }
 
-      if (roleData.code === 200) {
-        // 设置操作权限
-        const perms = roleData.data?.permissions || [];
-        const permMap: Record<number, string[]> = {};
-        perms.forEach((p: any) => {
-          permMap[p.menuId] = p.actions;
-        });
-        setMenuPermissions(permMap);
-        setSelectedDeptIds(roleData.data?.deptIds || []);
+      // 获取菜单树
+      const menuRes = await fetch("/api/system/menu", { headers });
+      const menuData = await menuRes.json();
+      if (menuData.code === 200) {
+        setMenuTree(menuData.data || []);
       }
 
       // 获取部门树
@@ -220,51 +231,43 @@ export default function SystemRolePage() {
       }
 
       setShowPermForm(true);
+      setActiveTab('menu');
     } catch (e) {
       alert("加载权限配置失败");
     }
   };
 
-  const handleToggleMenu = (menuId: number, checked: boolean) => {
-    if (checked) {
-      setSelectedMenuIds([...selectedMenuIds, menuId]);
+  const handleTogglePermission = (permission: string) => {
+    const newSet = new Set(selectedPermissions);
+    if (newSet.has(permission)) {
+      newSet.delete(permission);
     } else {
-      setSelectedMenuIds(selectedMenuIds.filter(id => id !== menuId));
+      newSet.add(permission);
     }
+    setSelectedPermissions(newSet);
   };
 
-  const handleToggleAction = (menuId: number, action: string) => {
-    const current = menuPermissions[menuId] || [];
-    if (current.includes(action)) {
-      setMenuPermissions({
-        ...menuPermissions,
-        [menuId]: current.filter(a => a !== action),
-      });
+  const handleSelectAllInTable = (tablePermissions: string[]) => {
+    const allSelected = tablePermissions.every(p => selectedPermissions.has(p));
+    const newSet = new Set(selectedPermissions);
+    if (allSelected) {
+      tablePermissions.forEach(p => newSet.delete(p));
     } else {
-      setMenuPermissions({
-        ...menuPermissions,
-        [menuId]: [...current, action],
-      });
+      tablePermissions.forEach(p => newSet.add(p));
     }
+    setSelectedPermissions(newSet);
   };
 
   const handleSubmitPermission = async () => {
     if (!editingRole) return;
     try {
-      // 收集权限配置
-      const permissions = Object.entries(menuPermissions)
-        .filter(([_, actions]) => actions.length > 0)
-        .map(([menuId, actions]) => ({
-          menuId: parseInt(menuId),
-          actions,
-        }));
+      const permissions = Array.from(selectedPermissions);
 
       const res = await fetch(`/api/system/role/${editingRole.id}`, {
         method: "PUT",
         headers,
         body: JSON.stringify({
           action: "assignPermission",
-          menuIds: selectedMenuIds,
           permissions,
           deptIds: selectedDeptIds,
         }),
@@ -279,50 +282,6 @@ export default function SystemRolePage() {
     } catch (e) {
       alert("保存权限失败");
     }
-  };
-
-  // 渲染菜单树节点
-  const renderMenuNode = (menu: Menu, level: number = 0) => {
-    const isSelected = selectedMenuIds.includes(menu.id);
-    const hasChildren = menu.children && menu.children.length > 0;
-
-    return (
-      <div key={menu.id} style={{ marginLeft: level * 20 }}>
-        <div className="flex items-center gap-2 py-1.5 border-b border-gray-100 hover:bg-gray-50">
-          {hasChildren && <span className="text-gray-400">├─</span>}
-          <input
-            type="checkbox"
-            checked={isSelected}
-            onChange={e => handleToggleMenu(menu.id, e.target.checked)}
-            className="rounded"
-          />
-          <span className="text-sm">{menu.menuName}</span>
-          {menu.menuType === 'button' && (
-            <span className="px-1.5 py-0.5 bg-orange-100 text-orange-600 text-xs rounded">按钮</span>
-          )}
-          {menu.menuType === 'directory' && (
-            <span className="px-1.5 py-0.5 bg-blue-100 text-blue-600 text-xs rounded">目录</span>
-          )}
-        </div>
-        {/* 操作权限 */}
-        {isSelected && menu.menuType === 'menu' && (
-          <div className="flex items-center gap-2 py-1 ml-8" style={{ marginLeft: (level + 1) * 20 }}>
-            {actionOptions.map(action => (
-              <label key={action} className="flex items-center gap-1 px-2 py-0.5 bg-gray-100 rounded cursor-pointer hover:bg-gray-200">
-                <input
-                  type="checkbox"
-                  checked={(menuPermissions[menu.id] || []).includes(action)}
-                  onChange={() => handleToggleAction(menu.id, action)}
-                />
-                <span className="text-xs">{actionLabels[action]}</span>
-              </label>
-            ))}
-          </div>
-        )}
-        {/* 子菜单 */}
-        {hasChildren && menu.children!.map(child => renderMenuNode(child, level + 1))}
-      </div>
-    );
   };
 
   // 渲染部门树节点
@@ -366,7 +325,6 @@ export default function SystemRolePage() {
         </button>
       </div>
 
-      {/* 搜索 */}
       <div className="flex items-center gap-2 mb-4">
         <input
           type="text"
@@ -377,7 +335,6 @@ export default function SystemRolePage() {
         />
       </div>
 
-      {/* 角色列表 */}
       <div className="bg-white rounded-lg border overflow-hidden">
         <table className="w-full text-sm">
           <thead className="bg-gray-50 border-b">
@@ -461,33 +418,112 @@ export default function SystemRolePage() {
       {/* 权限配置弹窗 */}
       {showPermForm && editingRole && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
+          <div className="bg-white rounded-lg w-full max-w-5xl max-h-[90vh] overflow-hidden flex flex-col">
             <div className="p-4 border-b">
               <h3 className="text-lg font-semibold">权限配置 - {editingRole.roleName}</h3>
-              <p className="text-sm text-gray-500 mt-1">勾选菜单分配权限，按钮可配置具体操作权限（查询、新增、编辑、删除、上传、下载）</p>
+              <p className="text-sm text-gray-500 mt-1">配置该角色可访问的数据表操作权限</p>
+            </div>
+            <div className="border-b">
+              <div className="flex">
+                <button
+                  onClick={() => setActiveTab('menu')}
+                  className={`px-4 py-2 text-sm ${activeTab === 'menu' ? 'border-b-2 border-blue-600 text-blue-600' : 'text-gray-500'}`}
+                >
+                  数据表权限
+                </button>
+                <button
+                  onClick={() => setActiveTab('data')}
+                  className={`px-4 py-2 text-sm ${activeTab === 'data' ? 'border-b-2 border-blue-600 text-blue-600' : 'text-gray-500'}`}
+                >
+                  数据范围
+                </button>
+              </div>
             </div>
             <div className="flex-1 overflow-auto p-4">
-              <div className="grid grid-cols-2 gap-4">
-                {/* 菜单权限 */}
-                <div className="border rounded p-3">
-                  <h4 className="font-medium mb-2 text-sm">菜单权限</h4>
-                  <div className="max-h-80 overflow-auto">
-                    {menuTree.map(menu => renderMenuNode(menu, 0))}
-                  </div>
+              {activeTab === 'menu' ? (
+                <div className="space-y-4">
+                  {permissionTree.map(node => (
+                    <div key={node.module} className="border rounded-lg overflow-hidden">
+                      <div className="px-4 py-2 bg-gray-100 font-medium text-sm">
+                        {node.moduleName}
+                      </div>
+                      <div className="p-3">
+                        <table className="w-full text-sm">
+                          <thead>
+                            <tr className="text-left text-gray-500 text-xs">
+                              <th className="pb-2 w-32">表名</th>
+                              <th className="pb-2">权限操作</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {node.tables.map(table => {
+                              const tablePerms = table.permissions.map(p => p.permission);
+                              const allSelected = tablePerms.every(p => selectedPermissions.has(p));
+                              const someSelected = tablePerms.some(p => selectedPermissions.has(p));
+
+                              return (
+                                <tr key={table.table} className="border-t">
+                                  <td className="py-2">
+                                    <label className="flex items-center gap-1">
+                                      <input
+                                        type="checkbox"
+                                        checked={allSelected}
+                                        ref={el => { if (el) el.indeterminate = someSelected && !allSelected; }}
+                                        onChange={() => handleSelectAllInTable(tablePerms)}
+                                      />
+                                      <span className="font-medium">{table.tableName}</span>
+                                    </label>
+                                  </td>
+                                  <td className="py-2">
+                                    <div className="flex flex-wrap gap-2">
+                                      {table.permissions.map(p => (
+                                        <label
+                                          key={p.permission}
+                                          className={`flex items-center gap-1 px-2 py-1 rounded cursor-pointer text-xs ${
+                                            selectedPermissions.has(p.permission)
+                                              ? 'bg-blue-100 text-blue-700 border border-blue-300'
+                                              : 'bg-gray-50 text-gray-600 border border-gray-200 hover:bg-gray-100'
+                                          }`}
+                                        >
+                                          <input
+                                            type="checkbox"
+                                            checked={selectedPermissions.has(p.permission)}
+                                            onChange={() => handleTogglePermission(p.permission)}
+                                            className="hidden"
+                                          />
+                                          <span>{p.label}</span>
+                                          <code className="text-xs text-gray-400">({p.action})</code>
+                                        </label>
+                                      ))}
+                                    </div>
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  ))}
                 </div>
-                {/* 数据权限 */}
-                <div className="border rounded p-3">
-                  <h4 className="font-medium mb-2 text-sm">数据权限（部门范围）</h4>
-                  <p className="text-xs text-gray-500 mb-2">选择可访问数据的部门范围</p>
+              ) : (
+                <div className="border rounded-lg p-4">
+                  <h4 className="font-medium mb-2">数据权限（部门范围）</h4>
+                  <p className="text-xs text-gray-500 mb-3">选择该角色可查看哪些部门的数据</p>
                   <div className="max-h-80 overflow-auto">
                     {deptTree.map(dept => renderDeptNode(dept, 0))}
                   </div>
                 </div>
-              </div>
+              )}
             </div>
-            <div className="p-4 border-t flex justify-end gap-2">
-              <button onClick={() => setShowPermForm(false)} className="px-4 py-2 border rounded text-sm hover:bg-gray-50">取消</button>
-              <button onClick={handleSubmitPermission} className="px-4 py-2 bg-blue-600 text-white rounded text-sm hover:bg-blue-700">保存配置</button>
+            <div className="p-4 border-t flex justify-between items-center">
+              <div className="text-sm text-gray-500">
+                已选 {selectedPermissions.size} 个数据表操作权限
+              </div>
+              <div className="flex gap-2">
+                <button onClick={() => setShowPermForm(false)} className="px-4 py-2 border rounded text-sm hover:bg-gray-50">取消</button>
+                <button onClick={handleSubmitPermission} className="px-4 py-2 bg-blue-600 text-white rounded text-sm hover:bg-blue-700">保存配置</button>
+              </div>
             </div>
           </div>
         </div>
