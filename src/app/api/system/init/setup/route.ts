@@ -257,6 +257,26 @@ export async function POST(request: NextRequest) {
           }),
         },
       });
+
+      // 4.8 保存主库配置到系统配置中（用于前端展示）
+      await tx.systemConfig.upsert({
+        where: { paramKey: 'db_master_config' },
+        update: {},
+        create: {
+          paramKey: 'db_master_config',
+          paramValue: JSON.stringify({
+            moduleName: '系统主库',
+            moduleCode: 'MASTER_DB',
+            host: process.env.DB_HOST || 'localhost',
+            port: parseInt(process.env.DB_PORT || '3306'),
+            database: process.env.DB_NAME || 'tengxi',
+            username: process.env.DB_USER || 'root',
+            // 密码不保存到配置中
+          }),
+          paramType: 'string',
+          remark: '系统主库配置',
+        },
+      });
     });
 
     return successResponse(null, '系统初始化完成');
