@@ -23,7 +23,7 @@ const menuConfig = [
       { key: "system-user", label: "用户管理", path: "/dashboard/system/user" },
       { key: "system-role", label: "角色管理", path: "/dashboard/system/role" },
       { key: "system-dept", label: "部门管理", path: "/dashboard/system/dept" },
-      { key: "system-menu", label: "菜单权限", path: "/dashboard/system/menu" },
+      { key: "system-menu", label: "菜单管理", path: "/dashboard/system/menu" },
       { key: "system-log", label: "操作日志", path: "/dashboard/system/log" },
       { key: "system-database", label: "数据库配置", path: "/dashboard/system/database" },
       { key: "system-storage", label: "存储管理", path: "/dashboard/system/storage" },

@@ -25,12 +25,12 @@ const menuTypeOptions = [
 ];
 
 const actionOptions = [
-  { value: 'view', label: '查看', desc: '列表/详情' },
-  { value: 'add', label: '新增', desc: '新增数据' },
-  { value: 'edit', label: '编辑', desc: '修改数据' },
+  { value: 'query', label: '查询', desc: '查看/查询数据' },
+  { value: 'create', label: '新增', desc: '创建新数据' },
+  { value: 'update', label: '编辑', desc: '修改数据' },
   { value: 'delete', label: '删除', desc: '删除数据' },
-  { value: 'export', label: '导出', desc: '导出数据' },
-  { value: 'import', label: '导入', desc: '导入数据' },
+  { value: 'upload', label: '上传', desc: '文件上传功能' },
+  { value: 'download', label: '下载', desc: '文件下载功能' },
 ];
 
 export default function SystemMenuPage() {
@@ -325,11 +325,11 @@ export default function SystemMenuPage() {
       {/* 提示信息 */}
       <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4 text-sm">
         <p className="text-blue-700">
-          <strong>说明：</strong>菜单结构分为三种类型——
-          <span className="text-blue-600">目录</span>（用于分组，不对应具体页面）、
-          <span className="text-green-600">菜单</span>（对应具体页面，可分配操作权限）、
-          <span className="text-orange-600">按钮</span>（页面内的操作按钮）。
-          按钮类型的菜单需要设置权限标识（如 <code className="bg-blue-100 px-1">system:user:add</code>）。
+          <strong>权限说明：</strong>权限由数据表操作（查询、新增、编辑、删除）和文件操作（上传、下载）构成。
+          <span className="text-blue-600">目录</span>用于分组，
+          <span className="text-green-600">菜单</span>对应具体页面，
+          <span className="text-orange-600">按钮</span>用于配置操作权限。
+          按钮权限标识格式：<code className="bg-blue-100 px-1">模块:操作</code>，如 <code className="bg-blue-100 px-1">user:query</code>、<code className="bg-blue-100 px-1">file:upload</code>、<code className="bg-blue-100 px-1">file:download</code>。
         </p>
       </div>
 
@@ -416,9 +416,9 @@ export default function SystemMenuPage() {
                     className="w-full border rounded px-3 py-2 text-sm font-mono"
                     value={form.permission}
                     onChange={e => setForm({...form, permission: e.target.value})}
-                    placeholder="system:user:add"
+                    placeholder="user:query"
                   />
-                  <p className="text-xs text-gray-400 mt-1">格式：模块:资源:操作，如 system:user:add</p>
+                  <p className="text-xs text-gray-400 mt-1">格式：模块:操作，如 user:query、file:upload</p>
                 </div>
               )}
               <div className="grid grid-cols-2 gap-4">

@@ -38,14 +38,14 @@ const dataScopeOptions = [
   { value: 'custom', label: '自定义数据权限' },
 ];
 
-const actionOptions = ['view', 'add', 'edit', 'delete', 'export', 'import'];
+const actionOptions = ['query', 'create', 'update', 'delete', 'upload', 'download'];
 const actionLabels: Record<string, string> = {
-  view: '查看',
-  add: '新增',
-  edit: '编辑',
+  query: '查询',
+  create: '新增',
+  update: '编辑',
   delete: '删除',
-  export: '导出',
-  import: '导入',
+  upload: '上传',
+  download: '下载',
 };
 
 export default function SystemRolePage() {
@@ -464,7 +464,7 @@ export default function SystemRolePage() {
           <div className="bg-white rounded-lg w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
             <div className="p-4 border-b">
               <h3 className="text-lg font-semibold">权限配置 - {editingRole.roleName}</h3>
-              <p className="text-sm text-gray-500 mt-1">勾选菜单分配权限，按钮可配置具体操作权限</p>
+              <p className="text-sm text-gray-500 mt-1">勾选菜单分配权限，按钮可配置具体操作权限（查询、新增、编辑、删除、上传、下载）</p>
             </div>
             <div className="flex-1 overflow-auto p-4">
               <div className="grid grid-cols-2 gap-4">
