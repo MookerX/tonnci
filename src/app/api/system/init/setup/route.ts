@@ -60,51 +60,68 @@ export async function POST(request: NextRequest) {
 
     // 4. 开启事务执行初始化
     await prisma.$transaction(async (tx) => {
-      // 4.1 创建超级管理员角色
-      const superAdminRole = await tx.role.create({
-        data: {
-          roleCode: 'super_admin',
-          roleName: '超级管理员',
-          dataScope: 'all',
-          status: 'active',
-          sortOrder: 1,
-          remark: '系统内置超级管理员角色，拥有全部权限',
-        },
+      // 4.1 获取或创建超级管理员角色
+      let superAdminRole = await tx.role.findFirst({
+        where: { roleCode: 'super_admin' }
       });
+      if (!superAdminRole) {
+        superAdminRole = await tx.role.create({
+          data: {
+            roleCode: 'super_admin',
+            roleName: '超级管理员',
+            dataScope: 'all',
+            status: 'active',
+            sortOrder: 1,
+            remark: '系统内置超级管理员角色，拥有全部权限',
+          },
+        });
+      }
 
-      // 4.2 创建默认部门（公司总部）
-      const defaultDept = await tx.dept.create({
-        data: {
-          deptCode: 'HQ',
-          deptName: '公司总部',
-          sortOrder: 0,
-          status: 'active',
-          remark: '系统默认顶级部门',
-        },
+      // 4.2 获取或创建默认部门（公司总部）
+      let defaultDept = await tx.dept.findFirst({
+        where: { deptCode: 'HQ' }
       });
+      if (!defaultDept) {
+        defaultDept = await tx.dept.create({
+          data: {
+            deptCode: 'HQ',
+            deptName: '公司总部',
+            sortOrder: 0,
+            status: 'active',
+            remark: '系统默认顶级部门',
+          },
+        });
+      }
 
-      // 4.3 创建超级管理员用户
+      // 4.3 检查用户是否已存在
       const username = data.adminUsername || data.admin?.username;
-      const password = data.adminPassword || data.admin?.password;
-      const realName = data.adminRealName || data.admin?.realName;
-      const phone = data.adminPhone || data.admin?.phone;
-      const email = data.adminEmail || data.admin?.email;
-      
-      const hashedPassword = await hashPassword(password);
-      await tx.user.create({
-        data: {
-          uuid: crypto.randomUUID(),
-          username: username,
-          password: hashedPassword,
-          realName: realName,
-          phone: phone || null,
-          email: email || null,
-          deptId: defaultDept.id,
-          roleIds: JSON.stringify([superAdminRole.id]),
-          userType: 'internal',
-          status: 'active',
-        },
+      const existingUser = await tx.user.findFirst({
+        where: { username, isDelete: false }
       });
+      
+      if (!existingUser) {
+        // 4.3 创建超级管理员用户
+        const password = data.adminPassword || data.admin?.password;
+        const realName = data.adminRealName || data.admin?.realName;
+        const phone = data.adminPhone || data.admin?.phone;
+        const email = data.adminEmail || data.admin?.email;
+        
+        const hashedPassword = await hashPassword(password);
+        await tx.user.create({
+          data: {
+            uuid: crypto.randomUUID(),
+            username: username,
+            password: hashedPassword,
+            realName: realName,
+            phone: phone || null,
+            email: email || null,
+            deptId: defaultDept.id,
+            roleIds: JSON.stringify([superAdminRole.id]),
+            userType: 'internal',
+            status: 'active',
+          },
+        });
+      }
 
       // 4.4 创建默认菜单
       const menus = [
@@ -128,17 +145,22 @@ export async function POST(request: NextRequest) {
       ];
 
       for (const menu of menus) {
-        await tx.menu.create({
-          data: {
-            menuName: menu.menuName,
-            menuCode: menu.menuCode,
-            menuType: 'menu',
-            path: menu.path,
-            icon: menu.icon || null,
-            sortOrder: 0,
-            status: 'active',
-          },
+        const existingMenu = await tx.menu.findFirst({
+          where: { menuCode: menu.menuCode }
         });
+        if (!existingMenu) {
+          await tx.menu.create({
+            data: {
+              menuName: menu.menuName,
+              menuCode: menu.menuCode,
+              menuType: 'menu',
+              path: menu.path,
+              icon: menu.icon || null,
+              sortOrder: 0,
+              status: 'active',
+            },
+          });
+        }
       }
 
       // 4.5 创建默认数据字典
@@ -165,15 +187,20 @@ export async function POST(request: NextRequest) {
       ];
 
       for (const dict of dictData) {
-        await tx.systemDict.create({
-          data: {
-            dictType: dict.dictType,
-            dictLabel: dict.dictLabel,
-            dictValue: dict.dictValue,
-            sortOrder: dict.sortOrder,
-            status: 'active',
-          },
+        const existingDict = await tx.systemDict.findFirst({
+          where: { dictType: dict.dictType, dictValue: dict.dictValue }
         });
+        if (!existingDict) {
+          await tx.systemDict.create({
+            data: {
+              dictType: dict.dictType,
+              dictLabel: dict.dictLabel,
+              dictValue: dict.dictValue,
+              sortOrder: dict.sortOrder,
+              status: 'active',
+            },
+          });
+        }
       }
 
       // 4.6 创建系统参数配置
@@ -188,25 +215,35 @@ export async function POST(request: NextRequest) {
       ];
 
       for (const config of configs) {
-        await tx.systemConfig.create({
-          data: {
-            paramKey: config.paramKey,
-            paramValue: config.paramValue,
-            paramType: config.paramType,
-            remark: config.remark,
-          },
+        const existingConfig = await tx.systemConfig.findFirst({
+          where: { paramKey: config.paramKey }
         });
+        if (!existingConfig) {
+          await tx.systemConfig.create({
+            data: {
+              paramKey: config.paramKey,
+              paramValue: config.paramValue,
+              paramType: config.paramType,
+              remark: config.remark,
+            },
+          });
+        }
       }
 
       // 4.7 创建默认客户（用于测试）
-      await tx.customer.create({
-        data: {
-          customerCode: 'KH000001',
-          customerName: '测试客户',
-          customerType: 'enterprise',
-          status: 'active',
-        },
+      const existingCustomer = await tx.customer.findFirst({
+        where: { customerCode: 'KH000001' }
       });
+      if (!existingCustomer) {
+        await tx.customer.create({
+          data: {
+            customerCode: 'KH000001',
+            customerName: '测试客户',
+            customerType: 'enterprise',
+            status: 'active',
+          },
+        });
+      }
 
       // 4.8 更新系统初始化状态
       await tx.systemInitStatus.create({
