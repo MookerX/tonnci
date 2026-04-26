@@ -11,8 +11,8 @@ import { operationLog } from '@/lib/services/operation-log';
 import { extractToken } from '@/lib/auth/jwt';
 import { generateMaterialCode, getClientIp } from '@/lib/utils';
 
- * GET /api/bom/material - 获取物料列表
- */
+/** GET /api/bom/material - 获取物料列表
+/**/
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);

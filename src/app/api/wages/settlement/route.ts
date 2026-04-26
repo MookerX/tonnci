@@ -10,8 +10,8 @@ import { extractToken } from '@/lib/auth/jwt';
 import { getClientIp } from '@/lib/utils';
 import { operationLog } from '@/lib/services/operation-log';
 
- * GET /api/wages/settlement - 获取工资结算详情
- */
+/** GET /api/wages/settlement - 获取工资结算详情
+/**/
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);

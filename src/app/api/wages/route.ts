@@ -10,14 +10,14 @@ import { extractToken } from '@/lib/auth/jwt';
 import { getClientIp } from '@/lib/utils';
 import { operationLog } from '@/lib/services/operation-log';
 
- * 生成工资单号
- */
+/** 生成工资单号
+/**/
 async function generateWageNo(settleMonth: string): Promise<string> {
   return `GZ${settleMonth.replace('-', '')}${String(Date.now()).slice(-6)}`;
 }
 
- * POST /api/wages - 创建工资结算
- */
+/** POST /api/wages - 创建工资结算
+/**/
 export async function POST(request: NextRequest) {
   try {
     const auth = await extractToken(request);

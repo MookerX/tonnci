@@ -11,8 +11,8 @@ import { extractToken } from '@/lib/auth/jwt';
 import { getClientIp } from '@/lib/utils';
 import { operationLog } from '@/lib/services/operation-log';
 
- * GET /api/quality/qc - 获取质检记录列表
- */
+/** GET /api/quality/qc - 获取质检记录列表
+/**/
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);

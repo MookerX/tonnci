@@ -9,8 +9,8 @@ import { successResponse, badRequestResponse, serverErrorResponse } from '@/lib/
 import { extractToken } from '@/lib/auth/jwt';
 
 /**
- * GET /api/customer-portal - 获取客户订单进度
- */
+/** GET /api/customer-portal - 获取客户订单进度
+/**/
 export async function GET(request: NextRequest) {
   try {
     const auth = await extractToken(request);

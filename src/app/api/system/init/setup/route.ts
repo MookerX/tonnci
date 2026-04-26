@@ -4,9 +4,9 @@ import { successResponse, errorResponse, serverErrorResponse } from '@/lib/respo
 import { jwtTokenManager, hashPassword } from '@/lib/auth/jwt';
 
 /**
- * 系统初始化设置接口
- * 首次启动时配置超级管理员等信息
- */
+/** 系统初始化设置接口
+/** 首次启动时配置超级管理员等信息
+/**/
 
 // 参数校验
 function validateParams(data: any): { valid: boolean; message?: string } {

@@ -11,8 +11,8 @@ import { getClientIp } from '@/lib/utils';
 import { operationLog } from '@/lib/services/operation-log';
 
 /**
- * GET /api/system/database - 获取数据库配置列表
- */
+/** GET /api/system/database - 获取数据库配置列表
+/**/
 export async function GET(request: NextRequest) {
   try {
     const list = await prisma.databaseConfig.findMany({

@@ -10,8 +10,8 @@ import { extractToken } from '@/lib/auth/jwt';
 import { getClientIp } from '@/lib/utils';
 import { operationLog } from '@/lib/services/operation-log';
 
- * 生成对账单号
- */
+/** 生成对账单号
+/**/
 async function generateReconciliationNo(): Promise<string> {
   const date = new Date();
   const year = date.getFullYear();
@@ -22,8 +22,8 @@ async function generateReconciliationNo(): Promise<string> {
   return `DZ${year}${month}${String(count + 1).padStart(4, '0')}`;
 }
 
- * GET /api/accounting - 获取对账开票数据
- */
+/** GET /api/accounting - 获取对账开票数据
+/**/
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);

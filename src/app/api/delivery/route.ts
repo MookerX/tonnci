@@ -10,8 +10,8 @@ import { extractToken } from '@/lib/auth/jwt';
 import { getClientIp } from '@/lib/utils';
 import { operationLog } from '@/lib/services/operation-log';
 
- * 生成发货单号
- */
+/** 生成发货单号
+/**/
 async function generateDeliveryNo(): Promise<string> {
   const date = new Date();
   const year = date.getFullYear();
@@ -20,8 +20,8 @@ async function generateDeliveryNo(): Promise<string> {
   return `FH${year}${month}${String(count + 1).padStart(4, '0')}`;
 }
 
- * POST /api/delivery - 创建发货计划
- */
+/** POST /api/delivery - 创建发货计划
+/**/
 export async function POST(request: NextRequest) {
   try {
     const auth = await extractToken(request);

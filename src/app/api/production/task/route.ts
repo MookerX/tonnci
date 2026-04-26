@@ -10,8 +10,8 @@ import { extractToken } from '@/lib/auth/jwt';
 import { getClientIp } from '@/lib/utils';
 import { operationLog } from '@/lib/services/operation-log';
 
- * GET /api/production/task - 获取生产任务列表
- */
+/** GET /api/production/task - 获取生产任务列表
+/**/
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
@@ -67,8 +67,8 @@ export async function GET(request: NextRequest) {
   }
 }
 
- * 锁定库存
- */
+/** 锁定库存
+/**/
 async function lockInventoryForTask(
   taskId: number,
   materialId: number,

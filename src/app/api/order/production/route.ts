@@ -11,8 +11,8 @@ import { extractToken } from '@/lib/auth/jwt';
 import { getClientIp, generateOrderNo } from '@/lib/utils';
 import { operationLog } from '@/lib/services/operation-log';
 
- * 生成订单号
- */
+/** 生成订单号
+/**/
 async function generateOrderNo(): Promise<string> {
   const date = new Date();
   const year = date.getFullYear();
@@ -32,8 +32,8 @@ async function generateOrderNo(): Promise<string> {
   return `DD${year}${month}${day}${sequence}`;
 }
 
- * POST /api/order/production - 创建订单
- */
+/** POST /api/order/production - 创建订单
+/**/
 export async function POST(request: NextRequest) {
   try {
     const auth = await extractToken(request);

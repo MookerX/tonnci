@@ -11,15 +11,15 @@ import { extractToken } from '@/lib/auth/jwt';
 import { getClientIp } from '@/lib/utils';
 import { operationLog } from '@/lib/services/operation-log';
 
- * 生成客户编码
- */
+/** 生成客户编码
+/**/
 async function generateCustomerCode(): Promise<string> {
   const count = await prisma.customer.count({ where: { isDelete: false } });
   return `KH${String(count + 1).padStart(6, '0')}`;
 }
 
- * POST /api/customer - 创建客户
- */
+/** POST /api/customer - 创建客户
+/**/
 export async function POST(request: NextRequest) {
   try {
     const auth = await extractToken(request);

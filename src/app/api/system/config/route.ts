@@ -12,8 +12,8 @@ import { getClientIp } from '@/lib/utils';
 import { operationLog } from '@/lib/services/operation-log';
 
 /**
- * GET /api/system/config - 获取配置数据
- */
+/** GET /api/system/config - 获取配置数据
+/**/
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
@@ -43,8 +43,8 @@ export async function GET(request: NextRequest) {
 }
 
 /**
- * POST /api/system/config - 创建/更新配置
- */
+/** POST /api/system/config - 创建/更新配置
+/**/
 export async function POST(request: NextRequest) {
   try {
     const auth = await extractToken(request);

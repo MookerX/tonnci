@@ -12,8 +12,8 @@ import { getClientIp } from '@/lib/utils';
 import { operationLog } from '@/lib/services/operation-log';
 
 /**
- * GET /api/system/storage - 获取NAS存储列表
- */
+/** GET /api/system/storage - 获取NAS存储列表
+/**/
 export async function GET(request: NextRequest) {
   try {
     const list = await prisma.nasDevice.findMany({
@@ -29,8 +29,8 @@ export async function GET(request: NextRequest) {
 }
 
 /**
- * POST /api/system/storage - 创建/测试NAS存储
- */
+/** POST /api/system/storage - 创建/测试NAS存储
+/**/
 export async function POST(request: NextRequest) {
   try {
     const auth = await extractToken(request);

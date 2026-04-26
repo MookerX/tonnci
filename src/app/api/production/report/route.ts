@@ -11,8 +11,8 @@ import { extractToken } from '@/lib/auth/jwt';
 import { getClientIp } from '@/lib/utils';
 import { operationLog } from '@/lib/services/operation-log';
 
- * GET /api/production/report - 获取报工记录列表
- */
+/** GET /api/production/report - 获取报工记录列表
+/**/
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);

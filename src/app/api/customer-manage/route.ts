@@ -10,8 +10,8 @@ import { extractToken } from '@/lib/auth/jwt';
 import { getClientIp } from '@/lib/utils';
 import { operationLog } from '@/lib/services/operation-log';
 
- * GET /api/customer-manage - 获取客户账号列表
- */
+/** GET /api/customer-manage - 获取客户账号列表
+/**/
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);

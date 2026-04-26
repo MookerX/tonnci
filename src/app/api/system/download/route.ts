@@ -8,8 +8,8 @@ import { extractToken } from '@/lib/auth/jwt';
 import { getClientIp } from '@/lib/utils';
 import { operationLog } from '@/lib/services/operation-log';
 
- * GET /api/system/download - 下载文件
- */
+/** GET /api/system/download - 下载文件
+/**/
 export async function GET(request: NextRequest) {
   try {
     const auth = await extractToken(request);
