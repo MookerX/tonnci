@@ -22,7 +22,7 @@ export default function SystemUserPage() {
     try {
       const res = await fetch(`/api/system/user?keyword=${keyword}`, { headers });
       const data = await res.json();
-      if (data.code === 200) setUsers(data.data || []);
+      if (data.code === 200) setUsers(data.data?.list || data.data || []);
     } catch (e) { console.error(e); }
     setLoading(false);
   };
