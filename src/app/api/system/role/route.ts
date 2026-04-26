@@ -1,34 +1,43 @@
 // =============================================================================
 // 腾曦生产管理系统 - 角色管理API
-// 描述: 角色CRUD、权限分配
+// 描述: 角色CRUD、权限分配、数据权限设置
 // =============================================================================
 
-import { NextRequest } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { 
-  successResponse, 
-  badRequestResponse, 
-  forbiddenResponse,
-  serverErrorResponse 
-} from '@/lib/response';
+import { successResponse, paginatedResponse, badRequestResponse, notFoundResponse, serverErrorResponse, errorResponse } from '@/lib/response';
 import { requireAuth } from '@/lib/auth/middleware';
-import { operationLog } from '@/lib/services/operation-log';
 import { getClientIp } from '@/lib/utils';
+import { operationLog } from '@/lib/services/operation-log';
 import { z } from 'zod';
 
+// 创建角色验证
 const createRoleSchema = z.object({
-  roleCode: z.string().min(1, '角色编码不能为空'),
-  roleName: z.string().min(1, '角色名称不能为空'),
-  roleType: z.enum(['system', 'custom']).default('custom'),
-  dataScope: z.enum(['all', 'dept', 'self']).default('self'),
-  remark: z.string().optional(),
+  roleName: z.string().min(1, '角色名称不能为空').max(100),
+  roleCode: z.string().min(1, '角色代码不能为空').max(50),
+  dataScope: z.enum(['all', 'dept', 'deptAndChild', 'custom']).optional().default('custom'),
+  status: z.enum(['active', 'disabled']).optional().default('active'),
+  sortOrder: z.number().int().optional().default(0),
+  remark: z.string().optional().nullable(),
 });
 
+// 更新角色验证
 const updateRoleSchema = z.object({
-  roleName: z.string().min(1).optional(),
-  dataScope: z.enum(['all', 'dept', 'self']).optional(),
+  roleName: z.string().min(1, '角色名称不能为空').max(100).optional(),
+  dataScope: z.enum(['all', 'dept', 'deptAndChild', 'custom']).optional(),
   status: z.enum(['active', 'disabled']).optional(),
+  sortOrder: z.number().int().optional(),
   remark: z.string().optional().nullable(),
+});
+
+// 分配权限验证
+const assignPermissionSchema = z.object({
+  menuIds: z.array(z.number().int().positive()).optional().default([]),
+  permissions: z.array(z.object({
+    menuId: z.number().int().positive(),
+    actions: z.array(z.enum(['view', 'add', 'edit', 'delete', 'export', 'import'])),
+  })).optional().default([]),
+  deptIds: z.array(z.number().int().positive()).optional().default([]),
 });
 
 // =============================================================================
@@ -42,50 +51,76 @@ export async function GET(request: NextRequest) {
       return authResult;
     }
 
-    const url = new URL(request.url);
-    const page = parseInt(url.searchParams.get('page') || '1');
-    const pageSize = parseInt(url.searchParams.get('pageSize') || '20');
-    const keyword = url.searchParams.get('keyword') || '';
-    const roleType = url.searchParams.get('roleType');
+    const { searchParams } = new URL(request.url);
+    const page = parseInt(searchParams.get('page') || '1');
+    const pageSize = parseInt(searchParams.get('pageSize') || '20');
+    const keyword = searchParams.get('keyword') || '';
+    const status = searchParams.get('status');
 
-    const where: any = {
-      isDelete: false,
-    };
-
+    // 构建查询条件
+    const where: any = { isDelete: false };
+    
     if (keyword) {
       where.OR = [
-        { roleCode: { contains: keyword } },
         { roleName: { contains: keyword } },
+        { roleCode: { contains: keyword } },
       ];
     }
-
-    if (roleType) {
-      
+    
+    if (status) {
+      where.status = status;
     }
 
-    const [total, roles] = await Promise.all([
-      prisma.role.count({ where }),
+    const [roles, total] = await Promise.all([
       prisma.role.findMany({
         where,
-        orderBy: [{ sortOrder: 'asc' }, { createdAt: 'desc' }],
+        select: {
+          id: true,
+          roleName: true,
+          roleCode: true,
+          dataScope: true,
+          status: true,
+          sortOrder: true,
+          remark: true,
+          createdAt: true,
+        },
+        orderBy: [{ sortOrder: 'asc' }, { id: 'asc' }],
         skip: (page - 1) * pageSize,
         take: pageSize,
       }),
+      prisma.role.count({ where }),
     ]);
 
-    return successResponse({
-      list: roles,
-      pagination: {
-        page,
-        pageSize,
-        total,
-        totalPages: Math.ceil(total / pageSize),
+    // 获取每个角色的用户数量
+    const roleIds = roles.map(r => r.id);
+    const userRoles = await prisma.user.findMany({
+      where: { 
+        isDelete: false,
+        roleIds: { not: null },
       },
+      select: { roleIds: true },
     });
 
-  } catch (error) {
+    const userCountMap = new Map<number, number>();
+    userRoles.forEach(u => {
+      try {
+        const ids = JSON.parse(u.roleIds || '[]');
+        ids.forEach((id: number) => {
+          userCountMap.set(id, (userCountMap.get(id) || 0) + 1);
+        });
+      } catch {}
+    });
+
+    const rolesWithCount = roles.map(r => ({
+      ...r,
+      userCount: userCountMap.get(r.id) || 0,
+    }));
+
+    return paginatedResponse(rolesWithCount, { page, pageSize, total });
+
+  } catch (error: any) {
     console.error('Get roles error:', error);
-    return serverErrorResponse('获取角色列表失败');
+    return serverErrorResponse('查询角色列表失败');
   }
 }
 
@@ -100,14 +135,6 @@ export async function POST(request: NextRequest) {
       return authResult;
     }
 
-    const auth = authResult;
-    const clientIp = getClientIp(request);
-
-    // 只有管理员可以创建角色
-    if (!auth.roles.includes('admin') && !auth.roles.includes('super_admin')) {
-      return forbiddenResponse('只有管理员可以创建角色');
-    }
-
     let body;
     try {
       body = await request.json();
@@ -117,121 +144,45 @@ export async function POST(request: NextRequest) {
 
     const validationResult = createRoleSchema.safeParse(body);
     if (!validationResult.success) {
-      return badRequestResponse('参数验证失败');
+      return badRequestResponse(validationResult.error.errors[0].message);
     }
 
     const data = validationResult.data;
+    const clientIp = getClientIp(request);
 
-    // 检查角色编码唯一性
-    const existing = await prisma.role.findUnique({
+    // 检查角色代码是否已存在
+    const existingRole = await prisma.role.findFirst({
       where: { roleCode: data.roleCode, isDelete: false },
     });
 
-    if (existing) {
-      return badRequestResponse('角色编码已存在');
+    if (existingRole) {
+      return errorResponse(400, '角色代码已存在');
     }
 
-    // 创建角色
-    const newRole = await prisma.role.create({
+    const role = await prisma.role.create({
       data: {
-        roleCode: data.roleCode,
         roleName: data.roleName,
-        roleType: data.roleType,
+        roleCode: data.roleCode,
         dataScope: data.dataScope,
-        status: 'active',
-        createdBy: auth.userId,
+        status: data.status,
+        sortOrder: data.sortOrder,
+        remark: data.remark || null,
+        createdBy: authResult.userId,
       },
     });
 
-    await operationLog.logCreate('角色管理', auth.userId, auth.username, {
-      id: newRole.id,
-      roleCode: newRole.roleCode,
-      roleName: newRole.roleName,
-    }, clientIp);
+    await operationLog.logCreate(
+      '角色管理',
+      authResult.userId,
+      authResult.username,
+      { roleId: role.id, roleName: role.roleName, roleCode: role.roleCode },
+      clientIp
+    );
 
-    return successResponse(newRole, '角色创建成功');
+    return successResponse({ id: role.id, roleCode: role.roleCode }, '角色创建成功');
 
-  } catch (error) {
+  } catch (error: any) {
     console.error('Create role error:', error);
-    return serverErrorResponse('创建角色失败');
-  }
-}
-
-// =============================================================================
-// 批量删除角色
-// =============================================================================
-
-export async function DELETE(request: NextRequest) {
-  try {
-    const authResult = await requireAuth(request);
-    if (authResult instanceof NextResponse) {
-      return authResult;
-    }
-
-    const auth = authResult;
-    const clientIp = getClientIp(request);
-
-    if (!auth.roles.includes('admin') && !auth.roles.includes('super_admin')) {
-      return forbiddenResponse('只有管理员可以删除角色');
-    }
-
-    let body;
-    try {
-      body = await request.json();
-    } catch {
-      return badRequestResponse('请求参数格式错误');
-    }
-
-    const { ids } = body;
-    if (!ids || !Array.isArray(ids) || ids.length === 0) {
-      return badRequestResponse('请选择要删除的角色');
-    }
-
-    // 不能删除系统角色
-    const systemRoles = await prisma.role.findMany({
-      where: { id: { in: ids }, roleType: 'system', isDelete: false },
-    });
-
-    if (systemRoles.length > 0) {
-      return badRequestResponse('系统角色不能删除');
-    }
-
-    // 检查是否被用户使用
-    const usedByUsers = await prisma.user.findFirst({
-      where: {
-        roleIds: { contains: ids[0].toString() },
-        isDelete: false,
-      },
-    });
-
-    if (usedByUsers) {
-      return badRequestResponse('该角色已被用户使用，请先移除');
-    }
-
-    await prisma.role.updateMany({
-      where: { id: { in: ids }, isDelete: false },
-      data: {
-        isDelete: true,
-        updatedBy: auth.userId,
-        updatedAt: new Date(),
-      },
-    });
-
-    await operationLog.log({
-      moduleName: '角色管理',
-      businessType: 'delete',
-      operatorId: auth.userId,
-      operatorName: auth.username,
-      operationDesc: '批量删除角色',
-      requestParams: { ids },
-      ipAddress: clientIp,
-      status: 'success',
-    });
-
-    return successResponse({ deletedCount: ids.length }, `成功删除 ${ids.length} 个角色`);
-
-  } catch (error) {
-    console.error('Delete roles error:', error);
-    return serverErrorResponse('删除角色失败');
+    return serverErrorResponse(error.message);
   }
 }

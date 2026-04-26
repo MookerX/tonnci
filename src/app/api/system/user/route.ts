@@ -1,82 +1,76 @@
 // =============================================================================
 // 腾曦生产管理系统 - 用户管理API
-// 描述: 用户CRUD操作
+// 描述: 用户CRUD操作、重置密码、批量操作等
 // =============================================================================
 
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { 
-  successResponse, 
-  badRequestResponse, 
-  unauthorizedResponse,
-  forbiddenResponse,
-  notFoundResponse,
-  serverErrorResponse,
-  paginatedResponse 
-} from '@/lib/response';
+import { successResponse, paginatedResponse, badRequestResponse, notFoundResponse, serverErrorResponse, errorResponse } from '@/lib/response';
 import { requireAuth } from '@/lib/auth/middleware';
-import { hashPassword, generateRandomPassword } from '@/lib/auth/jwt';
+import { getClientIp } from '@/lib/utils';
 import { operationLog } from '@/lib/services/operation-log';
-import { getClientIp, generateUuid } from '@/lib/utils';
+import { hashPassword } from '@/lib/auth/jwt';
 import { z } from 'zod';
 
-// =============================================================================
-// Schema定义
-// =============================================================================
-
+// 创建用户验证
 const createUserSchema = z.object({
-  username: z.string().min(3, '用户名至少3位').max(20, '用户名最多20位'),
-  password: z.string().min(6, '密码至少6位').max(32, '密码最多32位'),
-  realName: z.string().min(1, '姓名不能为空'),
-  email: z.string().email('邮箱格式不正确').optional().or(z.literal('')),
-  phone: z.string().regex(/^1[3-9]\d{9}$/, '手机号格式不正确').optional().or(z.literal('')),
-  gender: z.enum(['male', 'female', 'unknown']).optional(),
-  deptId: z.number().int().positive().optional(),
-  roleIds: z.array(z.number().int().positive()),
-  userType: z.enum(['internal', 'customer']).optional(),
-  customerId: z.number().int().positive().optional(),
-  remark: z.string().optional(),
-});
-
-const updateUserSchema = z.object({
-  realName: z.string().min(1, '姓名不能为空').optional(),
-  email: z.string().email('邮箱格式不正确').optional().or(z.literal('')),
-  phone: z.string().regex(/^1[3-9]\d{9}$/, '手机号格式不正确').optional().or(z.literal('')),
-  gender: z.enum(['male', 'female', 'unknown']).optional(),
-  deptId: z.number().int().positive().optional(),
+  username: z.string().min(2, '用户名至少2个字符').max(50),
+  password: z.string().min(6, '密码至少6个字符').max(50),
+  realName: z.string().min(1, '姓名不能为空').max(50).optional().nullable(),
+  phone: z.string().max(20).optional().nullable(),
+  email: z.string().email('邮箱格式不正确').optional().nullable(),
+  deptId: z.number().int().positive().optional().nullable(),
   roleIds: z.array(z.number().int().positive()).optional(),
   status: z.enum(['active', 'disabled', 'locked']).optional(),
-  remark: z.string().optional(),
+  remark: z.string().optional().nullable(),
+});
+
+// 更新用户验证
+const updateUserSchema = z.object({
+  realName: z.string().max(50).optional().nullable(),
+  phone: z.string().max(20).optional().nullable(),
+  email: z.string().email('邮箱格式不正确').optional().nullable(),
+  gender: z.enum(['male', 'female', 'unknown']).optional().nullable(),
+  deptId: z.number().int().positive().optional().nullable(),
+  roleIds: z.array(z.number().int().positive()).optional(),
+  status: z.enum(['active', 'disabled', 'locked']).optional(),
+  remark: z.string().optional().nullable(),
+});
+
+// 重置密码验证
+const resetPasswordSchema = z.object({
+  userId: z.number().int().positive(),
+  newPassword: z.string().min(6, '密码至少6个字符').max(50).optional(),
+});
+
+// 批量操作验证
+const batchOperateSchema = z.object({
+  userIds: z.array(z.number().int().positive()).min(1, '至少选择一个用户'),
+  action: z.enum(['enable', 'disable', 'delete']),
 });
 
 // =============================================================================
-// 查询用户列表
+// 获取用户列表
 // =============================================================================
 
 export async function GET(request: NextRequest) {
   try {
-    // 1. 验证登录状态
     const authResult = await requireAuth(request);
     if (authResult instanceof NextResponse) {
       return authResult;
     }
 
-    // 2. 解析查询参数
-    const url = new URL(request.url);
-    const page = Math.max(1, parseInt(url.searchParams.get('page') || '1'));
-    const pageSize = Math.min(100, Math.max(1, parseInt(url.searchParams.get('pageSize') || '20')));
-    const keyword = url.searchParams.get('keyword') || '';
-    const deptId = url.searchParams.get('deptId');
-    const status = url.searchParams.get('status');
-    const userType = url.searchParams.get('userType');
-    const sortField = url.searchParams.get('sortField') || 'createdAt';
-    const sortOrder = (url.searchParams.get('sortOrder') || 'desc') as 'asc' | 'desc';
+    const { searchParams } = new URL(request.url);
+    const page = parseInt(searchParams.get('page') || '1');
+    const pageSize = parseInt(searchParams.get('pageSize') || '20');
+    const keyword = searchParams.get('keyword') || '';
+    const deptId = searchParams.get('deptId');
+    const status = searchParams.get('status');
+    const roleId = searchParams.get('roleId');
 
-    // 3. 构建查询条件
-    const where: any = {
-      isDelete: false,
-    };
-
+    // 构建查询条件
+    const where: any = { isDelete: false };
+    
     if (keyword) {
       where.OR = [
         { username: { contains: keyword } },
@@ -85,20 +79,16 @@ export async function GET(request: NextRequest) {
         { email: { contains: keyword } },
       ];
     }
-
+    
     if (deptId) {
       where.deptId = parseInt(deptId);
     }
-
+    
     if (status) {
       where.status = status;
     }
 
-    if (userType) {
-      where.userType = userType;
-    }
-
-    // 4. 查询数据
+    // 查询数据
     const [users, total] = await Promise.all([
       prisma.user.findMany({
         where,
@@ -118,16 +108,14 @@ export async function GET(request: NextRequest) {
           lastLoginAt: true,
           createdAt: true,
         },
-        orderBy: {
-          [sortField]: sortOrder,
-        },
+        orderBy: { id: 'asc' },
         skip: (page - 1) * pageSize,
         take: pageSize,
       }),
       prisma.user.count({ where }),
     ]);
 
-    // 5. 获取角色信息
+    // 获取角色信息
     const allRoleIds = users.flatMap(u => {
       try {
         return u.roleIds ? JSON.parse(u.roleIds as any) : [];
@@ -141,30 +129,19 @@ export async function GET(request: NextRequest) {
         id: { in: [...new Set(allRoleIds)] },
         isDelete: false,
       },
-      select: {
-        id: true,
-        roleCode: true,
-        roleName: true,
-      },
+      select: { id: true, roleCode: true, roleName: true },
     });
-
     const roleMap = new Map(roles.map(r => [r.id, r]));
 
-    // 6. 获取部门信息
+    // 获取部门信息
     const allDeptIds = users.map(u => u.deptId).filter((id): id is number => id !== null);
     const depts = await prisma.dept.findMany({
-      where: {
-        id: { in: allDeptIds },
-        isDelete: false,
-      },
-      select: {
-        id: true,
-        deptName: true,
-      },
+      where: { id: { in: allDeptIds }, isDelete: false },
+      select: { id: true, deptName: true },
     });
     const deptMap = new Map(depts.map(d => [d.id, d]));
 
-    // 7. 格式化返回数据
+    // 格式化返回数据
     const formattedUsers = users.map(user => {
       const userRoleIds = user.roleIds ? JSON.parse(user.roleIds as any) : [];
       const userRoles = userRoleIds.map((id: number) => roleMap.get(id)).filter(Boolean);
@@ -178,11 +155,7 @@ export async function GET(request: NextRequest) {
       };
     });
 
-    return paginatedResponse(formattedUsers, {
-      page,
-      pageSize,
-      total,
-    });
+    return paginatedResponse(formattedUsers, { page, pageSize, total });
 
   } catch (error) {
     console.error('Get users error:', error);
@@ -196,15 +169,11 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    // 1. 验证登录状态
     const authResult = await requireAuth(request);
     if (authResult instanceof NextResponse) {
       return authResult;
     }
 
-    const auth = authResult;
-
-    // 2. 解析请求参数
     let body;
     try {
       body = await request.json();
@@ -214,108 +183,70 @@ export async function POST(request: NextRequest) {
 
     const validationResult = createUserSchema.safeParse(body);
     if (!validationResult.success) {
-      return badRequestResponse('参数验证失败');
+      return badRequestResponse(validationResult.error.errors[0].message);
     }
 
     const data = validationResult.data;
     const clientIp = getClientIp(request);
 
-    // 3. 检查用户名唯一性
-    const existingUser = await prisma.user.findUnique({
+    // 检查用户名是否已存在
+    const existingUser = await prisma.user.findFirst({
       where: { username: data.username, isDelete: false },
     });
 
     if (existingUser) {
-      return badRequestResponse('用户名已存在');
+      return errorResponse(400, '用户名已存在');
     }
 
-    // 4. 验证部门存在
-    if (data.deptId) {
-      const dept = await prisma.department.findUnique({
-        where: { id: data.deptId, isDelete: false },
-      });
-      if (!dept) {
-        return notFoundResponse('指定的部门不存在');
-      }
-    }
-
-    // 5. 验证角色存在
-    if (data.roleIds.length > 0) {
-      const existingRoles = await prisma.role.findMany({
-        where: { id: { in: data.roleIds }, isDelete: false },
-      });
-      if (existingRoles.length !== data.roleIds.length) {
-        return badRequestResponse('部分角色不存在');
-      }
-    }
-
-    // 6. 创建用户
+    // 密码加密
     const hashedPassword = await hashPassword(data.password);
-    
-    const newUser = await prisma.user.create({
+
+    // 创建用户
+    const user = await prisma.user.create({
       data: {
-        uuid: generateUuid(),
+        uuid: crypto.randomUUID(),
         username: data.username,
         password: hashedPassword,
-        realName: data.realName,
-        email: data.email || null,
+        realName: data.realName || null,
         phone: data.phone || null,
-        gender: data.gender || 'unknown',
+        email: data.email || null,
         deptId: data.deptId || null,
-        roleIds: JSON.stringify(data.roleIds),
-        userType: data.userType || 'internal',
-        customerId: data.customerId || null,
-        status: 'active',
-        isFirstLogin: true,
+        roleIds: data.roleIds ? JSON.stringify(data.roleIds) : null,
+        userType: 'internal',
+        status: data.status || 'active',
         remark: data.remark || null,
-        createdBy: auth.userId,
-      },
-      select: {
-        id: true,
-        uuid: true,
-        username: true,
-        realName: true,
-        email: true,
-        phone: true,
-        deptId: true,
-        roleIds: true,
-        userType: true,
-        status: true,
-        createdAt: true,
+        createdBy: authResult.userId,
       },
     });
 
-    // 7. 记录日志
-    await operationLog.logCreate('用户管理', auth.userId, auth.username, {
-      userId: newUser.id,
-      username: newUser.username,
-      realName: newUser.realName,
-    }, clientIp);
+    // 记录日志
+    await operationLog.logCreate(
+      '用户管理',
+      authResult.userId,
+      authResult.username,
+      { username: user.username, realName: user.realName },
+      clientIp
+    );
 
-    return successResponse(newUser, '用户创建成功');
+    return successResponse({ id: user.id, username: user.username }, '用户创建成功');
 
-  } catch (error) {
+  } catch (error: any) {
     console.error('Create user error:', error);
-    return serverErrorResponse('创建用户失败');
+    return serverErrorResponse(error.message);
   }
 }
 
 // =============================================================================
-// 批量删除用户
+// 批量操作
 // =============================================================================
 
-export async function DELETE(request: NextRequest) {
+export async function PUT(request: NextRequest) {
   try {
-    // 1. 验证登录状态
     const authResult = await requireAuth(request);
     if (authResult instanceof NextResponse) {
       return authResult;
     }
 
-    const auth = authResult;
-    const clientIp = getClientIp(request);
-
-    // 2. 解析请求参数
     let body;
     try {
       body = await request.json();
@@ -323,45 +254,98 @@ export async function DELETE(request: NextRequest) {
       return badRequestResponse('请求参数格式错误');
     }
 
-    const { ids } = body;
-    if (!ids || !Array.isArray(ids) || ids.length === 0) {
-      return badRequestResponse('请选择要删除的用户');
+    // 检查是否是批量操作
+    if (body.action) {
+      const validationResult = batchOperateSchema.safeParse(body);
+      if (!validationResult.success) {
+        return badRequestResponse(validationResult.error.errors[0].message);
+      }
+
+      const { userIds, action } = validationResult.data;
+      const clientIp = getClientIp(request);
+
+      let updateData: any = {};
+      let logDesc = '';
+
+      switch (action) {
+        case 'enable':
+          updateData = { status: 'active' };
+          logDesc = '批量启用用户';
+          break;
+        case 'disable':
+          updateData = { status: 'disabled' };
+          logDesc = '批量禁用用户';
+          break;
+        case 'delete':
+          updateData = { isDelete: true };
+          logDesc = '批量删除用户';
+          break;
+      }
+
+      updateData.modifiedBy = authResult.userId;
+
+      await prisma.user.updateMany({
+        where: { id: { in: userIds }, isDelete: false },
+        data: updateData,
+      });
+
+      await operationLog.log(
+        '用户管理',
+        logDesc,
+        authResult.userId,
+        authResult.username,
+        { userIds, action },
+        clientIp,
+        'success'
+      );
+
+      return successResponse(null, `${logDesc}成功`);
     }
 
-    // 3. 检查是否包含当前登录用户
-    if (ids.includes(auth.userId)) {
-      return badRequestResponse('不能删除当前登录用户');
+    // 否则是重置密码操作
+    const validationResult = resetPasswordSchema.safeParse(body);
+    if (!validationResult.success) {
+      return badRequestResponse(validationResult.error.errors[0].message);
     }
 
-    // 4. 执行软删除
-    const result = await prisma.user.updateMany({
-      where: {
-        id: { in: ids },
-        isDelete: false,
-      },
+    const { userId, newPassword } = validationResult.data;
+    const clientIp = getClientIp(request);
+
+    // 检查用户是否存在
+    const user = await prisma.user.findUnique({
+      where: { id: userId, isDelete: false },
+    });
+
+    if (!user) {
+      return notFoundResponse('用户不存在');
+    }
+
+    // 生成新密码（如果未提供）
+    const password = newPassword || '123456';
+    const hashedPassword = await hashPassword(password);
+
+    await prisma.user.update({
+      where: { id: userId },
       data: {
-        isDelete: true,
-        updatedBy: auth.userId,
-        updatedAt: new Date(),
+        password: hashedPassword,
+        modifiedBy: authResult.userId,
       },
     });
 
-    // 5. 记录日志
-    await operationLog.log({
-      moduleName: '用户管理',
-      businessType: 'delete',
-      operatorId: auth.userId,
-      operatorName: auth.username,
-      operationDesc: `批量删除用户`,
-      requestParams: { deletedIds: ids, count: result.count },
-      ipAddress: clientIp,
-      status: 'success',
-    });
+    await operationLog.log(
+      '用户管理',
+      '重置密码',
+      authResult.userId,
+      authResult.username,
+      { userId, username: user.username },
+      clientIp,
+      'success'
+    );
 
-    return successResponse({ deletedCount: result.count }, `成功删除 ${result.count} 个用户`);
+    return successResponse({ defaultPassword: newPassword ? undefined : password }, '密码重置成功' + (newPassword ? '' : '，默认密码为123456'));
 
-  } catch (error) {
-    console.error('Delete users error:', error);
-    return serverErrorResponse('删除用户失败');
+  } catch (error: any) {
+    console.error('Batch operate error:', error);
+    return serverErrorResponse(error.message);
   }
 }

@@ -1,45 +1,38 @@
 // =============================================================================
 // 腾曦生产管理系统 - 部门管理API
-// 描述: 部门CRUD操作，支持树形结构
+// 描述: 部门树形结构CRUD
 // =============================================================================
 
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { 
-  successResponse, 
-  badRequestResponse, 
-  notFoundResponse,
-  serverErrorResponse 
-} from '@/lib/response';
+import { successResponse, paginatedResponse, badRequestResponse, notFoundResponse, serverErrorResponse, errorResponse } from '@/lib/response';
 import { requireAuth } from '@/lib/auth/middleware';
-import { operationLog } from '@/lib/services/operation-log';
 import { getClientIp } from '@/lib/utils';
+import { operationLog } from '@/lib/services/operation-log';
 import { z } from 'zod';
 
 const createDeptSchema = z.object({
-  deptCode: z.string().min(1, '部门编码不能为空'),
-  deptName: z.string().min(1, '部门名称不能为空'),
   parentId: z.number().int().positive().optional().nullable(),
-  deptSort: z.number().int().min(0).default(0),
-  leaderId: z.number().int().positive().optional().nullable(),
-  contactPhone: z.string().optional(),
-  contactEmail: z.string().email().optional().or(z.literal('')),
-  remark: z.string().optional(),
+  deptName: z.string().min(1, '部门名称不能为空').max(100),
+  deptCode: z.string().max(50).optional().nullable(),
+  leaderName: z.string().max(50).optional().nullable(),
+  sortOrder: z.number().int().optional().default(0),
+  status: z.enum(['active', 'disabled']).optional().default('active'),
+  remark: z.string().optional().nullable(),
 });
 
 const updateDeptSchema = z.object({
-  deptName: z.string().min(1).optional(),
   parentId: z.number().int().positive().optional().nullable(),
-  deptSort: z.number().int().min(0).optional(),
-  leaderId: z.number().int().positive().optional().nullable(),
-  contactPhone: z.string().optional().nullable(),
-  contactEmail: z.string().email().optional().nullable(),
-  deptStatus: z.enum(['active', 'disabled']).optional(),
+  deptName: z.string().min(1, '部门名称不能为空').max(100).optional(),
+  deptCode: z.string().max(50).optional().nullable(),
+  leaderName: z.string().max(50).optional().nullable(),
+  sortOrder: z.number().int().optional(),
+  status: z.enum(['active', 'disabled']).optional(),
   remark: z.string().optional().nullable(),
 });
 
 // =============================================================================
-// 获取部门列表（树形）
+// 获取部门树形结构
 // =============================================================================
 
 export async function GET(request: NextRequest) {
@@ -49,28 +42,65 @@ export async function GET(request: NextRequest) {
       return authResult;
     }
 
-    const url = new URL(request.url);
-    const flat = url.searchParams.get('flat') === 'true';
+    const { searchParams } = new URL(request.url);
+    const type = searchParams.get('type') || 'tree'; // tree=树形, list=列表
 
-    // 查询所有部门
-    const departments = await prisma.department.findMany({
+    // 获取所有部门
+    const depts = await prisma.dept.findMany({
       where: { isDelete: false },
-      orderBy: [{ deptLevel: 'asc' }, { deptSort: 'asc' }],
+      select: {
+        id: true,
+        parentId: true,
+        deptName: true,
+        deptCode: true,
+        leaderName: true,
+        sortOrder: true,
+        status: true,
+        remark: true,
+        createdAt: true,
+      },
+      orderBy: [{ sortOrder: 'asc' }, { id: 'asc' }],
     });
 
-    if (flat) {
-      // 返回扁平列表
-      return successResponse(departments);
+    // 获取每个部门的用户数量
+    const users = await prisma.user.findMany({
+      where: { isDelete: false, deptId: { not: null } },
+      select: { deptId: true },
+    });
+
+    const userCountMap = new Map<number, number>();
+    users.forEach(u => {
+      if (u.deptId) {
+        userCountMap.set(u.deptId, (userCountMap.get(u.deptId) || 0) + 1);
+      }
+    });
+
+    const deptsWithCount = depts.map(d => ({
+      ...d,
+      userCount: userCountMap.get(d.id) || 0,
+    }));
+
+    if (type === 'list') {
+      return successResponse(deptsWithCount);
     }
 
-    // 转换为树形结构
-    const tree = buildDeptTree(departments);
+    // 构建树形结构
+    const buildTree = (parentId: number | null): any[] => {
+      return deptsWithCount
+        .filter(d => d.parentId === parentId)
+        .map(d => ({
+          ...d,
+          children: buildTree(d.id),
+        }));
+    };
+
+    const tree = buildTree(null);
 
     return successResponse(tree);
 
-  } catch (error) {
-    console.error('Get departments error:', error);
-    return serverErrorResponse('获取部门列表失败');
+  } catch (error: any) {
+    console.error('Get depts error:', error);
+    return serverErrorResponse('查询部门列表失败');
   }
 }
 
@@ -85,10 +115,6 @@ export async function POST(request: NextRequest) {
       return authResult;
     }
 
-    const auth = authResult;
-    const clientIp = getClientIp(request);
-
-    // 解析请求参数
     let body;
     try {
       body = await request.json();
@@ -98,180 +124,57 @@ export async function POST(request: NextRequest) {
 
     const validationResult = createDeptSchema.safeParse(body);
     if (!validationResult.success) {
-      return badRequestResponse('参数验证失败');
+      return badRequestResponse(validationResult.error.errors[0].message);
     }
 
     const data = validationResult.data;
-
-    // 检查部门编码唯一性
-    const existing = await prisma.department.findUnique({
-      where: { deptCode: data.deptCode, isDelete: false },
-    });
-
-    if (existing) {
-      return badRequestResponse('部门编码已存在');
-    }
-
-    // 计算部门层级和路径
-    let deptLevel = 1;
-    let deptPath = '/0';
-
-    if (data.parentId) {
-      const parent = await prisma.department.findUnique({
-        where: { id: data.parentId, isDelete: false },
-      });
-
-      if (!parent) {
-        return notFoundResponse('父部门不存在');
-      }
-
-      deptLevel = parent.deptLevel + 1;
-      deptPath = `${parent.deptPath}/${parent.id}`;
-    }
-
-    // 创建部门
-    const newDept = await prisma.department.create({
-      data: {
-        deptCode: data.deptCode,
-        deptName: data.deptName,
-        parentId: data.parentId || null,
-        deptLevel,
-        deptPath,
-        deptSort: data.deptSort,
-        leaderId: data.leaderId || null,
-        contactPhone: data.contactPhone || null,
-        contactEmail: data.contactEmail || null,
-        deptStatus: 'active',
-        createdBy: auth.userId,
-      },
-    });
-
-    // 记录日志
-    await operationLog.logCreate('部门管理', auth.userId, auth.username, {
-      id: newDept.id,
-      deptCode: newDept.deptCode,
-      deptName: newDept.deptName,
-    }, clientIp);
-
-    return successResponse(newDept, '部门创建成功');
-
-  } catch (error) {
-    console.error('Create department error:', error);
-    return serverErrorResponse('创建部门失败');
-  }
-}
-
-// =============================================================================
-// 批量删除部门
-// =============================================================================
-
-export async function DELETE(request: NextRequest) {
-  try {
-    const authResult = await requireAuth(request);
-    if (authResult instanceof NextResponse) {
-      return authResult;
-    }
-
-    const auth = authResult;
     const clientIp = getClientIp(request);
 
-    let body;
-    try {
-      body = await request.json();
-    } catch {
-      return badRequestResponse('请求参数格式错误');
+    // 如果设置了父部门，检查父部门是否存在
+    if (data.parentId) {
+      const parentDept = await prisma.dept.findUnique({
+        where: { id: data.parentId, isDelete: false },
+      });
+      if (!parentDept) {
+        return badRequestResponse('父部门不存在');
+      }
     }
 
-    const { ids } = body;
-    if (!ids || !Array.isArray(ids) || ids.length === 0) {
-      return badRequestResponse('请选择要删除的部门');
+    // 检查部门代码是否已存在（如果提供了）
+    if (data.deptCode) {
+      const existing = await prisma.dept.findFirst({
+        where: { deptCode: data.deptCode, isDelete: false },
+      });
+      if (existing) {
+        return errorResponse(400, '部门代码已存在');
+      }
     }
 
-    // 检查是否有子部门
-    const hasChildren = await prisma.department.findFirst({
-      where: {
-        parentId: { in: ids },
-        isDelete: false,
-      },
-    });
-
-    if (hasChildren) {
-      return badRequestResponse('请先删除子部门');
-    }
-
-    // 检查是否有关联用户
-    const hasUsers = await prisma.user.findFirst({
-      where: {
-        deptId: { in: ids },
-        isDelete: false,
-      },
-    });
-
-    if (hasUsers) {
-      return badRequestResponse('请先移除部门下的用户');
-    }
-
-    // 执行软删除
-    await prisma.department.updateMany({
-      where: { id: { in: ids }, isDelete: false },
+    const dept = await prisma.dept.create({
       data: {
-        isDelete: true,
-        updatedBy: auth.userId,
-        updatedAt: new Date(),
+        parentId: data.parentId || null,
+        deptName: data.deptName,
+        deptCode: data.deptCode || null,
+        leaderName: data.leaderName || null,
+        sortOrder: data.sortOrder,
+        status: data.status,
+        remark: data.remark || null,
+        createdBy: authResult.userId,
       },
     });
 
-    await operationLog.log({
-      moduleName: '部门管理',
-      businessType: 'delete',
-      operatorId: auth.userId,
-      operatorName: auth.username,
-      operationDesc: '批量删除部门',
-      requestParams: { ids },
-      ipAddress: clientIp,
-      status: 'success',
-    });
+    await operationLog.logCreate(
+      '部门管理',
+      authResult.userId,
+      authResult.username,
+      { id: dept.id, deptName: dept.deptName },
+      clientIp
+    );
 
-    return successResponse({ deletedCount: ids.length }, `成功删除 ${ids.length} 个部门`);
+    return successResponse({ id: dept.id, deptName: dept.deptName }, '部门创建成功');
 
-  } catch (error) {
-    console.error('Delete departments error:', error);
-    return serverErrorResponse('删除部门失败');
+  } catch (error: any) {
+    console.error('Create dept error:', error);
+    return serverErrorResponse(error.message);
   }
-}
-
-// =============================================================================
-// 辅助函数：构建部门树
-// =============================================================================
-
-interface DeptNode {
-  id: number;
-  deptCode: string;
-  deptName: string;
-  parentId: number | null;
-  deptLevel: number;
-  deptPath: string;
-  children?: DeptNode[];
-}
-
-function buildDeptTree(departments: any[]): DeptNode[] {
-  const map = new Map<number, DeptNode>();
-  const roots: DeptNode[] = [];
-
-  // 转换为节点
-  departments.forEach(dept => {
-    map.set(dept.id, { ...dept, children: [] });
-  });
-
-  // 构建树
-  departments.forEach(dept => {
-    const node = map.get(dept.id)!;
-    if (dept.parentId && map.has(dept.parentId)) {
-      map.get(dept.parentId)!.children!.push(node);
-    } else {
-      roots.push(node);
-    }
-  });
-
-  return roots;
 }
