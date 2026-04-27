@@ -8,6 +8,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { hashPassword } from "@/lib/auth/jwt";
 
+// 创建者ID：0 表示系统创建
+const SYSTEM_CREATOR_ID = 0;
+
 // 参数校验
 function validateParams(data: any): { valid: boolean; message?: string } {
   const username = data.admin?.username || data.adminUsername;
@@ -73,22 +76,24 @@ export async function POST(request: NextRequest) {
           dataScope: "all",
           status: "active",
           sortOrder: 1,
+          createdBy: SYSTEM_CREATOR_ID,
           remark: "系统内置超级管理员角色，拥有全部权限",
         },
       });
 
-      // 4.3 创建默认部门
-      const defaultDept = await tx.dept.create({
+      // 4.3 创建IT部门
+      const itDept = await tx.dept.create({
         data: {
-          deptCode: "HQ",
-          deptName: "公司总部",
+          deptCode: "IT",
+          deptName: "IT部",
           sortOrder: 0,
           status: "active",
-          remark: "系统默认顶级部门",
+          createdBy: SYSTEM_CREATOR_ID,
+          remark: "系统默认IT部门",
         },
       });
 
-      // 4.4 创建超级管理员用户
+      // 4.4 创建超级管理员用户（属于IT部）
       const hashedPassword = await hashPassword(password);
       const adminUser = await tx.user.create({
         data: {
@@ -96,9 +101,9 @@ export async function POST(request: NextRequest) {
           username,
           password: hashedPassword,
           realName,
-          deptId: defaultDept.id,
+          deptId: itDept.id,
           status: "active",
-          createdBy: 0,
+          createdBy: SYSTEM_CREATOR_ID,
         },
       });
 
@@ -120,6 +125,7 @@ export async function POST(request: NextRequest) {
           icon: "Setting",
           sortOrder: 100,
           status: "active",
+          createdBy: SYSTEM_CREATOR_ID,
         },
       });
 
@@ -137,6 +143,7 @@ export async function POST(request: NextRequest) {
             ...menu,
             parentId: systemDir.id,
             status: "active",
+            createdBy: SYSTEM_CREATOR_ID,
           },
         });
       }
