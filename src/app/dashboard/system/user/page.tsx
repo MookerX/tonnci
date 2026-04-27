@@ -119,6 +119,7 @@ export default function SystemUserPage() {
   const handleSubmit = async () => {
     if (!editingUser && !form.username) { warning("请输入用户名"); return; }
     if (!editingUser && (!form.password || form.password.length < 6)) { warning("密码至少6个字符"); return; }
+    if (form.phone && !/^1[3-9]\d{9}$|^0\d{2,3}-?\d{7,8}$/.test(form.phone)) { warning("电话号码格式不正确"); return; }
     try {
       let res;
       if (editingUser) {
