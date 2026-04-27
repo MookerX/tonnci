@@ -247,6 +247,7 @@ export default function SystemUserPage() {
               <th className="px-4 py-2.5 text-left font-medium text-gray-600">部门</th>
               <th className="px-4 py-2.5 text-left font-medium text-gray-600">角色</th>
               <th className="px-4 py-2.5 text-left font-medium text-gray-600">电话</th>
+              <th className="px-4 py-2.5 text-left font-medium text-gray-600">邮箱</th>
               <th className="px-4 py-2.5 text-left font-medium text-gray-600">状态</th>
               <th className="px-4 py-2.5 text-left font-medium text-gray-600">操作</th>
             </tr>
@@ -273,6 +274,7 @@ export default function SystemUserPage() {
                   <td className="px-4 py-2.5">{user.dept?.deptName || "-"}</td>
                   <td className="px-4 py-2.5">{user.roles?.map(r => r.roleName).join(", ") || "-"}</td>
                   <td className="px-4 py-2.5">{user.phone || "-"}</td>
+                  <td className="px-4 py-2.5">{user.email || "-"}</td>
                   <td className="px-4 py-2.5">
                     <span className={`px-2 py-0.5 text-xs rounded ${user.status === "active" ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-500"}`}>
                       {user.status === "active" ? "正常" : "禁用"}
