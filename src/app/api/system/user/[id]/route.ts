@@ -186,6 +186,7 @@ export async function PUT(
     if (data.realName !== undefined) updateData.realName = data.realName;
     if (data.phone !== undefined) updateData.phone = data.phone;
     if (data.email !== undefined) updateData.email = data.email;
+    if (data.avatar !== undefined) updateData.avatar = data.avatar;
     if (data.gender !== undefined) updateData.gender = data.gender;
     if (data.deptId !== undefined) updateData.deptId = data.deptId;
     if (data.status !== undefined) updateData.status = data.status;
