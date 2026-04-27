@@ -6,6 +6,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { usePathname, useRouter } from "next/navigation";
+import { useToast } from "@/components/ToastProvider";
 
 // 菜单配置 - 对应需求规格说明书12大功能模块
 const menuConfig = [
@@ -133,6 +134,7 @@ export default function DashboardLayout({
 }) {
   const pathname = usePathname();
   const router = useRouter();
+  const { success, error, warning } = useToast();
   const [collapsed, setCollapsed] = useState(false);
   const [openKeys, setOpenKeys] = useState<string[]>([]);
   const [user, setUser] = useState<any>(null);
@@ -175,6 +177,31 @@ export default function DashboardLayout({
 
     setSaving(true);
     try {
+      // 先上传头像（如果有新头像且是base64格式）
+      let avatarUrl = editForm.avatar;
+      if (avatarUrl && avatarUrl.startsWith("data:")) {
+        // 将base64转为文件上传
+        const res = await fetch(avatarUrl);
+        const blob = await res.blob();
+        const file = new File([blob], `avatar-${userId}.png`, { type: "image/png" });
+        const formData = new FormData();
+        formData.append("file", file);
+
+        const uploadRes = await fetch("/api/upload", {
+          method: "POST",
+          headers: { Authorization: `Bearer ${token}` },
+          body: formData,
+        });
+        const uploadData = await uploadRes.json();
+        if (uploadData.code === 200) {
+          avatarUrl = uploadData.data.url;
+        } else {
+          error(uploadData.message || "头像上传失败");
+          setSaving(false);
+          return;
+        }
+      }
+
       const res = await fetch(`/api/system/user/${userId}`, {
         method: "PUT",
         headers: {
@@ -185,21 +212,21 @@ export default function DashboardLayout({
           realName: editForm.realName || null,
           phone: editForm.phone || null,
           email: editForm.email || null,
+          avatar: avatarUrl || null,
         }),
       });
       const data = await res.json();
       if (data.code === 200) {
-        // 更新本地存储
-        const updatedUser = { ...user, ...editForm };
+        const updatedUser = { ...user, realName: editForm.realName, phone: editForm.phone, email: editForm.email, avatar: avatarUrl };
         localStorage.setItem("user", JSON.stringify(updatedUser));
         setUser(updatedUser);
-        alert("保存成功");
+        success("保存成功");
         setShowProfile(false);
       } else {
-        alert(data.message || "保存失败");
+        error(data.message || "保存失败");
       }
     } catch (e) {
-      alert("保存失败");
+      error("保存失败");
     }
     setSaving(false);
   };
@@ -406,9 +433,9 @@ export default function DashboardLayout({
               className="w-8 h-8 bg-white rounded-full flex items-center justify-center text-sm font-bold cursor-pointer hover:bg-gray-100 overflow-hidden border border-gray-200"
             >
               {user?.avatar ? (
-                <img src={user.avatar} alt="头像" className="w-full h-full object-cover" />
+                <img src={user.avatar.startsWith('/') ? user.avatar : user.avatar} alt="头像" className="w-full h-full object-cover" />
               ) : (
-                <img src="/logo.png" alt="默认头像" className="w-full h-full object-contain" />
+                <img src="/logo.png" alt="默认头像" className="w-full h-full object-contain p-0.5" />
               )}
             </div>
             <button

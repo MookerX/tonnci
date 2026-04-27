@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useToast } from "@/components/ToastProvider";
 import { moduleConfig, actionConfig, generatePermission } from "@/lib/permissions";
 
 interface Role {
@@ -135,7 +136,7 @@ export default function SystemRolePage() {
 
   const handleSubmit = async () => {
     if (!form.roleName || !form.roleCode) {
-      alert("请填写完整信息");
+      warning("请填写完整信息");
       return;
     }
     try {
@@ -158,16 +159,16 @@ export default function SystemRolePage() {
         setShowForm(false);
         fetchRoles();
       } else {
-        alert(data.message);
+        error(data.message);
       }
     } catch (e) {
-      alert("保存失败");
+      error("保存失败");
     }
   };
 
   const handleDelete = async (role: Role) => {
     if (role.roleCode === 'super_admin') {
-      alert("不能删除超级管理员角色");
+      warning("不能删除超级管理员角色");
       return;
     }
     if (!confirm(`确认删除角色 "${role.roleName}" 吗？`)) return;
@@ -175,16 +176,16 @@ export default function SystemRolePage() {
       const res = await fetch(`/api/system/role/${role.id}`, { method: "DELETE", headers });
       const data = await res.json();
       if (data.code === 200) fetchRoles();
-      else alert(data.message);
+      else error(data.message);
     } catch (e) {
-      alert("删除失败");
+      error("删除失败");
     }
   };
 
   // 打开权限配置
   const handleOpenPermission = async (role: Role) => {
     if (role.roleCode === 'super_admin') {
-      alert("超级管理员拥有全部权限，无需配置");
+      warning("超级管理员拥有全部权限，无需配置");
       return;
     }
     setEditingRole(role);
@@ -233,7 +234,7 @@ export default function SystemRolePage() {
       setShowPermForm(true);
       setActiveTab('menu');
     } catch (e) {
-      alert("加载权限配置失败");
+      warning("加载权限配置失败");
     }
   };
 
@@ -275,12 +276,12 @@ export default function SystemRolePage() {
       const data = await res.json();
       if (data.code === 200) {
         setShowPermForm(false);
-        alert("权限分配成功");
+        warning("权限分配成功");
       } else {
-        alert(data.message);
+        error(data.message);
       }
     } catch (e) {
-      alert("保存权限失败");
+      warning("保存权限失败");
     }
   };
 

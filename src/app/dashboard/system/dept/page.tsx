@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useToast } from "@/components/ToastProvider";
 
 interface Dept {
   id: number;
@@ -95,7 +96,7 @@ export default function SystemDeptPage() {
 
   const handleSubmit = async () => {
     if (!form.deptName) {
-      alert("请输入部门名称");
+      warning("请输入部门名称");
       return;
     }
     try {
@@ -118,20 +119,20 @@ export default function SystemDeptPage() {
         setShowForm(false);
         fetchDepts();
       } else {
-        alert(data.message);
+        error(data.message);
       }
     } catch (e) {
-      alert("保存失败");
+      error("保存失败");
     }
   };
 
   const handleDelete = async (dept: Dept) => {
     if (dept.childCount > 0) {
-      alert(`该部门下有 ${dept.childCount} 个子部门，请先删除子部门`);
+      warning(`该部门下有 ${dept.childCount} 个子部门，请先删除子部门`);
       return;
     }
     if (dept.userCount > 0) {
-      alert(`该部门下有 ${dept.userCount} 个用户，请先移走用户`);
+      warning(`该部门下有 ${dept.userCount} 个用户，请先移走用户`);
       return;
     }
     if (!confirm(`确认删除部门 "${dept.deptName}" 吗？`)) return;
@@ -141,10 +142,10 @@ export default function SystemDeptPage() {
       if (data.code === 200) {
         fetchDepts();
       } else {
-        alert(data.message);
+        error(data.message);
       }
     } catch (e) {
-      alert("删除失败");
+      error("删除失败");
     }
   };
 
@@ -160,10 +161,10 @@ export default function SystemDeptPage() {
       if (data.code === 200) {
         fetchDepts();
       } else {
-        alert(data.message);
+        error(data.message);
       }
     } catch (e) {
-      alert("操作失败");
+      error("操作失败");
     }
   };
 

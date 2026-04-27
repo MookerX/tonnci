@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useToast } from "@/components/ToastProvider";
 
 export default function SystemDatabasePage() {
   const [masterConfig, setMasterConfig] = useState<any>(null);
@@ -49,8 +50,8 @@ export default function SystemDatabasePage() {
         body: JSON.stringify({ action: "test", data: { host: cfg.host, port: cfg.port, username: cfg.username, password: cfg.password, database: cfg.database } })
       });
       const data = await res.json();
-      alert(data.code === 200 ? "连接成功" : `连接失败: ${data.message}`);
-    } catch (e) { alert("连接失败"); }
+      warning(data.code === 200 ? "连接成功" : `连接失败: ${data.message}`);
+    } catch (e) { warning("连接失败"); }
   };
 
   const handleSubmit = async () => {
@@ -76,9 +77,9 @@ export default function SystemDatabasePage() {
         setForm({ moduleName: "", moduleCode: "", host: "localhost", port: 3306, database: "", username: "", password: "", remark: "" });
         fetchData();
       } else {
-        alert(data.message);
+        error(data.message);
       }
-    } catch (e) { alert("保存失败"); }
+    } catch (e) { error("保存失败"); }
   };
 
   const handleEdit = (cfg: any) => {
@@ -102,8 +103,8 @@ export default function SystemDatabasePage() {
       const res = await fetch(`/api/system/database/${id}`, { method: "DELETE", headers });
       const data = await res.json();
       if (data.code === 200) fetchData();
-      else alert(data.message);
-    } catch (e) { alert("删除失败"); }
+      else error(data.message);
+    } catch (e) { error("删除失败"); }
   };
 
   return (

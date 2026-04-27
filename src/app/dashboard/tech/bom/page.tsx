@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useToast } from "@/components/ToastProvider";
 
 export default function BomManagementPage() {
   const [materials, setMaterials] = useState<any[]>([]);
@@ -44,8 +45,8 @@ export default function BomManagementPage() {
       const res = await fetch("/api/bom/material", { method: "POST", headers, body: JSON.stringify(form) });
       const data = await res.json();
       if (data.code === 200) { setShowForm(false); fetchData(); }
-      else alert(data.message);
-    } catch (e) { alert("保存失败"); }
+      else error(data.message);
+    } catch (e) { error("保存失败"); }
   };
 
   return (

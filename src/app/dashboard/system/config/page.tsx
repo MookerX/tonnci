@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useToast } from "@/components/ToastProvider";
 
 export default function SystemConfigPage() {
   const [configs, setConfigs] = useState<Record<string, string>>({});
@@ -28,8 +29,8 @@ export default function SystemConfigPage() {
     try {
       const res = await fetch("/api/system/config", { method: "PUT", headers, body: JSON.stringify(configs) });
       const data = await res.json();
-      alert(data.code === 200 ? "保存成功" : `保存失败: ${data.message}`);
-    } catch (e) { alert("保存失败"); }
+      warning(data.code === 200 ? "保存成功" : `保存失败: ${data.message}`);
+    } catch (e) { error("保存失败"); }
     setSaving(false);
   };
 

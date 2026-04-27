@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useToast } from "@/components/ToastProvider";
 
 interface StorageItem {
   id: number;
@@ -99,8 +100,8 @@ export default function SystemStoragePage() {
   };
 
   const handleSubmit = async () => {
-    if (!form.storageName) { alert("请输入存储名称"); return; }
-    if (!form.fileTypes) { alert("请输入绑定文件类型"); return; }
+    if (!form.storageName) { warning("请输入存储名称"); return; }
+    if (!form.fileTypes) { warning("请输入绑定文件类型"); return; }
     try {
       let res;
       if (editingItem) {
@@ -122,10 +123,10 @@ export default function SystemStoragePage() {
         setEditingItem(null);
         fetchData();
       } else {
-        alert(data.message);
+        error(data.message);
       }
     } catch (e) {
-      alert("保存失败");
+      error("保存失败");
     }
   };
 
@@ -137,10 +138,10 @@ export default function SystemStoragePage() {
       if (data.code === 200) {
         fetchData();
       } else {
-        alert(data.message);
+        error(data.message);
       }
     } catch (e) {
-      alert("删除失败");
+      error("删除失败");
     }
   };
 
@@ -158,10 +159,10 @@ export default function SystemStoragePage() {
       if (data.code === 200) {
         fetchData();
       } else {
-        alert(data.message);
+        error(data.message);
       }
     } catch (e) {
-      alert("操作失败");
+      error("操作失败");
     }
   };
 

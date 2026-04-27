@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useToast } from "@/components/ToastProvider";
 import { moduleConfig, actionConfig, getModulePermissions, getAllPermissions, generatePermission } from "@/lib/permissions";
 
 interface Menu {
@@ -187,7 +188,7 @@ export default function SystemMenuPage() {
 
   const handleSubmit = async () => {
     if (!form.menuName) {
-      alert("请输入菜单名称");
+      warning("请输入菜单名称");
       return;
     }
     try {
@@ -200,10 +201,10 @@ export default function SystemMenuPage() {
         setShowForm(false);
         fetchMenus();
       } else {
-        alert(data.message);
+        error(data.message);
       }
     } catch (e) {
-      alert("保存失败");
+      error("保存失败");
     }
   };
 
@@ -219,18 +220,18 @@ export default function SystemMenuPage() {
       if (data.code === 200) {
         setShowPermForm(false);
         fetchMenus();
-        alert("权限配置保存成功");
+        warning("权限配置保存成功");
       } else {
-        alert(data.message);
+        error(data.message);
       }
     } catch (e) {
-      alert("保存失败");
+      error("保存失败");
     }
   };
 
   const handleDelete = async (menu: Menu) => {
     if (menu.children && menu.children.length > 0) {
-      alert("该菜单下有子菜单，请先删除子菜单");
+      warning("该菜单下有子菜单，请先删除子菜单");
       return;
     }
     if (!confirm(`确认删除菜单 "${menu.menuName}" 吗？`)) return;
@@ -238,9 +239,9 @@ export default function SystemMenuPage() {
       const res = await fetch(`/api/system/menu/${menu.id}`, { method: "DELETE", headers });
       const data = await res.json();
       if (data.code === 200) fetchMenus();
-      else alert(data.message);
+      else error(data.message);
     } catch (e) {
-      alert("删除失败");
+      error("删除失败");
     }
   };
 
@@ -254,9 +255,9 @@ export default function SystemMenuPage() {
       });
       const data = await res.json();
       if (data.code === 200) fetchMenus();
-      else alert(data.message);
+      else error(data.message);
     } catch (e) {
-      alert("操作失败");
+      error("操作失败");
     }
   };
 
