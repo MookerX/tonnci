@@ -61,7 +61,7 @@ export async function POST(request: NextRequest) {
       const buffer = Buffer.from(await file.arrayBuffer());
       await writeFile(filePath, buffer);
       // 构建访问URL - 通过 /api/upload/[filename] 访问
-      accessUrl = `/storage/images/${filename}`;
+      accessUrl = `/api/upload/${filename}`;
     } else {
       return badRequestResponse('暂不支持该存储类型');
     }
