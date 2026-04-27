@@ -1,12 +1,17 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  // 禁用Turbopack，使用传统的webpack
+  // 禁用Turbopack以避免Prisma客户端缓存问题
   experimental: {
-    // 不使用turbopack
+    turbo: {
+      // 禁用Turbo
+    },
   },
-  // 确保使用webpack
-  webpack: (config) => {
-    return config;
+  // 设置编译选项
+  typescript: {
+    ignoreBuildErrors: false,
+  },
+  eslint: {
+    ignoreDuringBuilds: false,
   },
 };
 

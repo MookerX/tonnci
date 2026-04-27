@@ -1,36 +1,133 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
-import { successResponse, errorResponse, serverErrorResponse } from '@/lib/response';
-import { jwtTokenManager, hashPassword } from '@/lib/auth/jwt';
-
 /**
-/** 系统初始化设置接口
-/** 首次启动时配置超级管理员等信息
-/**/
+ * 系统初始化设置接口
+ * 支持首次初始化和重新初始化
+ * 重新初始化时支持：重用数据（保留业务数据）或清空数据（全部重置）
+ */
+
+import { NextRequest, NextResponse } from "next/server";
+import { prisma } from "@/lib/prisma";
+import { successResponse, errorResponse } from "@/lib/response";
+import { hashPassword } from "@/lib/auth/jwt";
+import { Prisma } from "@prisma/client";
+
+// 业务表列表（重新初始化时根据模式决定是否清空）
+const BUSINESS_TABLES = [
+  // 采购相关
+  "PurchaseInvoice", "PurchaseReceive", "PurchaseOrderItem", "PurchaseOrder", "PurchaseRequirement",
+  // 发货相关
+  "AfterSalesRecord", "DeliveryItem", "DeliveryPlan",
+  // 财务相关
+  "PaymentRecord", "Invoice", "ReconciliationItem", "CustomerReconciliation",
+  // 工资相关
+  "WagePaymentRecord", "WageSettlementItem", "WageSettlement",
+  // 生产相关
+  "WorkReport", "TaskProcess", "ProductionTask", "Nesting",
+  // 库存相关
+  "InventoryLog", "InventoryLock", "Inventory",
+  // 质量相关
+  "ReworkPlan", "QcRecord",
+  // 员工相关
+  "Worker",
+  // 工序相关
+  "RouteProcess", "ProcessRoute", "Process",
+  // 班组相关
+  "Team",
+  // BOM相关
+  "TechBomItem", "TechTaskTransfer", "TechTask", "BomItem",
+  // 订单相关
+  "ProductionOrder",
+  // 客户相关
+  "CustomerFeedback", "CustomerPermission", "Customer",
+  // 物料相关
+  "Material",
+  // 权限相关
+  "RolePermission", "RoleDeptScope", "UserRole",
+];
+
+// 初始化相关表（始终保留或重建）
+const INIT_TABLES = [
+  "User", "Role", "Dept", "Menu",
+];
+
+// 所有表列表
+const ALL_TABLES = [...INIT_TABLES, ...BUSINESS_TABLES];
 
 // 参数校验
-function validateParams(data: any): { valid: boolean; message?: string } {
-  // 支持两种数据格式：扁平结构 adminUsername 或嵌套结构 admin.username
-  const username = data.adminUsername || data.admin?.username;
-  const password = data.adminPassword || data.admin?.password;
-  const realName = data.adminRealName || data.admin?.realName;
-  const phone = data.adminPhone || data.admin?.phone;
-  const email = data.adminEmail || data.admin?.email;
-  
+function validateParams(data: any, hasExistingData: boolean): { valid: boolean; message?: string } {
+  const username = data.admin?.username || data.adminUsername;
+  const password = data.admin?.password || data.adminPassword;
+  const realName = data.admin?.realName || data.adminRealName;
+
   if (!username || username.length < 2) {
-    return { valid: false, message: '管理员用户名至少2个字符' };
+    return { valid: false, message: "管理员用户名至少2个字符" };
   }
+
+  // 如果有现有数据且选择重用模式，可以不填密码（保持原密码）
   if (!password || password.length < 6) {
-    return { valid: false, message: '管理员密码至少6个字符' };
+    if (hasExistingData && data.mode === "reuse") {
+      // 重用模式可以不填密码
+    } else {
+      return { valid: false, message: "管理员密码至少6个字符" };
+    }
   }
+
   if (!realName) {
-    return { valid: false, message: '请输入管理员姓名' };
+    return { valid: false, message: "请输入管理员姓名" };
   }
-  // 手机号格式校验（可选）
-  if (phone && !/^1[3-9]\d{9}$/.test(phone)) {
-    return { valid: false, message: '手机号格式不正确' };
-  }
+
   return { valid: true };
+}
+
+// 清空所有业务数据（软删除）
+async function clearBusinessData(tx: any) {
+  console.log("清空所有业务数据...");
+
+  for (const modelName of BUSINESS_TABLES) {
+    try {
+      // 检查模型是否存在
+      if (!(tx as any)[modelName]) {
+        console.log(`模型 ${modelName} 不存在，跳过`);
+        continue;
+      }
+
+      // 使用 updateMany 进行软删除
+      await (tx as any)[modelName].updateMany({
+        where: { isDelete: false },
+        data: { isDelete: true },
+      });
+      console.log(`已软删除 ${modelName}`);
+    } catch (e) {
+      console.log(`处理 ${modelName} 时出错:`, e);
+    }
+  }
+}
+
+// 清空所有数据（硬删除 - 危险操作）
+async function clearAllData(tx: any) {
+  console.log("清空所有数据...");
+
+  for (const table of ALL_TABLES) {
+    try {
+      // 使用原生SQL进行硬删除
+      await tx.$executeRawUnsafe(`DELETE FROM \`${table}\``);
+      console.log(`已删除 ${table} 表数据`);
+    } catch (e) {
+      console.log(`处理 ${table} 时出错:`, e);
+    }
+  }
+}
+
+// 获取所有表名（用于数据库检查）
+async function getAllTableNames(tx: any): Promise<string[]> {
+  try {
+    const result = await tx.$queryRaw`
+      SELECT TABLE_NAME FROM information_schema.TABLES
+      WHERE TABLE_SCHEMA = DATABASE() AND TABLE_TYPE = 'BASE TABLE'
+    `;
+    return (result as any[]).map((row: any) => row.TABLE_NAME);
+  } catch (e) {
+    return [];
+  }
 }
 
 export async function POST(request: NextRequest) {
@@ -40,254 +137,169 @@ export async function POST(request: NextRequest) {
     try {
       data = await request.json();
     } catch {
-      return errorResponse('无效的请求参数', 400);
+      return errorResponse("无效的请求参数", 400);
     }
 
-    // 2. 参数校验
-    const validation = validateParams(data);
-    if (!validation.valid) {
-      return errorResponse(400, validation.message!);
-    }
-
-    // 3. 检查系统是否已初始化
+    // 2. 检查是否有现有数据
     const existingInit = await prisma.systemInitStatus.findFirst({
-      orderBy: { id: 'desc' },
+      orderBy: { id: "desc" },
     });
 
-    if (existingInit?.stepStatus === 'completed') {
-      return errorResponse(403, '系统已初始化，无法重复配置');
+    let hasExistingData = false;
+    try {
+      const userCount = await prisma.user.count({ where: { isDelete: false } });
+      hasExistingData = userCount > 0;
+    } catch (e) {
+      hasExistingData = false;
     }
 
-    // 4. 开启事务执行初始化
+    // 3. 参数校验
+    const validation = validateParams(data, hasExistingData);
+    if (!validation.valid) {
+      return errorResponse(validation.message || "参数校验失败", 400);
+    }
+
+    // 4. 获取或解析模式
+    const mode = data.mode || (hasExistingData ? null : "new");
+    if (hasExistingData && !mode) {
+      return errorResponse("请选择初始化模式", 400);
+    }
+
+    // 5. 执行初始化
     await prisma.$transaction(async (tx) => {
-      // 4.1 获取或创建超级管理员角色
-      let superAdminRole = await tx.role.findFirst({
-        where: { roleCode: 'super_admin' }
-      });
-      if (!superAdminRole) {
-        superAdminRole = await tx.role.create({
-          data: {
-            roleCode: 'super_admin',
-            roleName: '超级管理员',
-            dataScope: 'all',
-            status: 'active',
-            sortOrder: 1,
-            remark: '系统内置超级管理员角色，拥有全部权限',
-          },
-        });
-      }
+      // 检查数据库表是否存在，不存在则创建
+      const existingTables = await getAllTableNames(tx);
 
-      // 4.2 获取或创建默认部门（公司总部）
-      let defaultDept = await tx.dept.findFirst({
-        where: { deptCode: 'HQ' }
-      });
-      if (!defaultDept) {
-        defaultDept = await tx.dept.create({
-          data: {
-            deptCode: 'HQ',
-            deptName: '公司总部',
-            sortOrder: 0,
-            status: 'active',
-            remark: '系统默认顶级部门',
-          },
-        });
-      }
-
-      // 4.3 检查用户是否已存在
-      const username = data.adminUsername || data.admin?.username;
-      const existingUser = await tx.user.findFirst({
-        where: { username, isDelete: false }
-      });
-      
-      if (!existingUser) {
-        // 4.3 创建超级管理员用户
-        const password = data.adminPassword || data.admin?.password;
-        const realName = data.adminRealName || data.admin?.realName;
-        const phone = data.adminPhone || data.admin?.phone;
-        const email = data.adminEmail || data.admin?.email;
-        
-        const hashedPassword = await hashPassword(password);
-        await tx.user.create({
-          data: {
-            uuid: crypto.randomUUID(),
-            username: username,
-            password: hashedPassword,
-            realName: realName,
-            phone: phone || null,
-            email: email || null,
-            deptId: defaultDept.id,
-            roleIds: JSON.stringify([superAdminRole.id]),
-            userType: 'internal',
-            status: 'active',
-          },
-        });
-      }
-
-      // 4.4 创建默认菜单
-      const menus = [
-        { menuName: '首页', menuCode: 'home', path: '/dashboard', icon: 'Home' },
-        { menuName: '系统管理', menuCode: 'system', path: '/system', icon: 'Setting' },
-        { menuName: '用户管理', menuCode: 'system:user', path: '/system/user', icon: 'User' },
-        { menuName: '角色管理', menuCode: 'system:role', path: '/system/role', icon: 'Key' },
-        { menuName: '部门管理', menuCode: 'system:dept', path: '/system/dept', icon: 'Office' },
-        { menuName: '技术管理', menuCode: 'tech', path: '/tech', icon: 'Tools' },
-        { menuName: 'BOM管理', menuCode: 'tech:bom', path: '/tech/bom', icon: 'Document' },
-        { menuName: '工艺管理', menuCode: 'tech:process', path: '/tech/process', icon: 'Process' },
-        { menuName: '订单管理', menuCode: 'order', path: '/order', icon: 'Document' },
-        { menuName: '生产管理', menuCode: 'production', path: '/production', icon: 'Factory' },
-        { menuName: '质量管理', menuCode: 'quality', path: '/quality', icon: 'Check' },
-        { menuName: '采购管理', menuCode: 'purchase', path: '/purchase', icon: 'ShoppingCart' },
-        { menuName: '仓库管理', menuCode: 'warehouse', path: '/warehouse', icon: 'Warehouse' },
-        { menuName: '发货管理', menuCode: 'delivery', path: '/delivery', icon: 'Van' },
-        { menuName: '财务对账', menuCode: 'finance', path: '/finance', icon: 'Money' },
-        { menuName: '工资管理', menuCode: 'wage', path: '/wage', icon: 'Salary' },
-        { menuName: '客户管理', menuCode: 'customer', path: '/customer', icon: 'User' },
-      ];
-
-      for (const menu of menus) {
-        const existingMenu = await tx.menu.findFirst({
-          where: { menuCode: menu.menuCode }
-        });
-        if (!existingMenu) {
-          await tx.menu.create({
-            data: {
-              menuName: menu.menuName,
-              menuCode: menu.menuCode,
-              menuType: 'menu',
-              path: menu.path,
-              icon: menu.icon || null,
-              sortOrder: 0,
-              status: 'active',
-            },
-          });
+      // 5.1 清空数据（根据模式）
+      if (hasExistingData) {
+        if (mode === "clear") {
+          // 清空所有数据
+          await clearAllData(tx);
+        } else if (mode === "reuse") {
+          // 只清空初始化相关表（User, Role, Dept, Menu）
+          for (const table of INIT_TABLES) {
+            try {
+              await tx.$executeRawUnsafe(`DELETE FROM \`${table}\``);
+            } catch (e) {
+              console.log(`清空 ${table} 失败:`, e);
+            }
+          }
         }
       }
 
-      // 4.5 创建默认数据字典
-      const dictData = [
-        { dictType: 'material_type', dictLabel: '零件', dictValue: 'part', sortOrder: 1 },
-        { dictType: 'material_type', dictLabel: '组件', dictValue: 'component', sortOrder: 2 },
-        { dictType: 'material_type', dictLabel: '原材料', dictValue: 'raw_material', sortOrder: 3 },
-        { dictType: 'material_type', dictLabel: '外购件', dictValue: 'purchased', sortOrder: 4 },
-        { dictType: 'material_type', dictLabel: '标准件', dictValue: 'standard', sortOrder: 5 },
-        { dictType: 'material_type', dictLabel: '辅材', dictValue: 'auxiliary', sortOrder: 6 },
-        { dictType: 'order_status', dictLabel: '待处理', dictValue: 'pending', sortOrder: 1 },
-        { dictType: 'order_status', dictLabel: '在制中', dictValue: 'in_production', sortOrder: 2 },
-        { dictType: 'order_status', dictLabel: '暂停中', dictValue: 'paused', sortOrder: 3 },
-        { dictType: 'order_status', dictLabel: '已完成', dictValue: 'completed', sortOrder: 4 },
-        { dictType: 'order_status', dictLabel: '已取消', dictValue: 'cancelled', sortOrder: 5 },
-        { dictType: 'task_status', dictLabel: '待处理', dictValue: 'pending', sortOrder: 1 },
-        { dictType: 'task_status', dictLabel: '处理中', dictValue: 'processing', sortOrder: 2 },
-        { dictType: 'task_status', dictLabel: '已完成', dictValue: 'completed', sortOrder: 3 },
-        { dictType: 'gender', dictLabel: '男', dictValue: 'male', sortOrder: 1 },
-        { dictType: 'gender', dictLabel: '女', dictValue: 'female', sortOrder: 2 },
-        { dictType: 'gender', dictLabel: '未知', dictValue: 'unknown', sortOrder: 3 },
-        { dictType: 'customer_type', dictLabel: '企业', dictValue: 'enterprise', sortOrder: 1 },
-        { dictType: 'customer_type', dictLabel: '个人', dictValue: 'personal', sortOrder: 2 },
-      ];
-
-      for (const dict of dictData) {
-        const existingDict = await tx.systemDict.findFirst({
-          where: { dictType: dict.dictType, dictValue: dict.dictValue }
-        });
-        if (!existingDict) {
-          await tx.systemDict.create({
-            data: {
-              dictType: dict.dictType,
-              dictLabel: dict.dictLabel,
-              dictValue: dict.dictValue,
-              sortOrder: dict.sortOrder,
-              status: 'active',
-            },
-          });
-        }
-      }
-
-      // 4.6 创建系统参数配置
-      const configs = [
-        { paramKey: 'storage_path', paramValue: data.storagePath || '/workspace/projects/storage', paramType: 'string', remark: '本地存储路径' },
-        { paramKey: 'order_no_prefix', paramValue: 'DD', paramType: 'string', remark: '订单号前缀' },
-        { paramKey: 'material_no_prefix', paramValue: 'M', paramType: 'string', remark: '物料编码前缀规则' },
-        { paramKey: 'customer_no_prefix', paramValue: 'KH', paramType: 'string', remark: '客户编码前缀' },
-        { paramKey: 'tech_task_enabled', paramValue: 'true', paramType: 'boolean', remark: '是否开启技术任务流程' },
-        { paramKey: 'quality_check_enabled', paramValue: 'true', paramType: 'boolean', remark: '是否开启质检流程' },
-        { paramKey: 'auto_lock_material', paramValue: 'true', paramType: 'boolean', remark: '是否自动锁定原材料' },
-      ];
-
-      for (const config of configs) {
-        const existingConfig = await tx.systemConfig.findFirst({
-          where: { paramKey: config.paramKey }
-        });
-        if (!existingConfig) {
-          await tx.systemConfig.create({
-            data: {
-              paramKey: config.paramKey,
-              paramValue: config.paramValue,
-              paramType: config.paramType,
-              remark: config.remark,
-            },
-          });
-        }
-      }
-
-      // 4.7 创建默认客户（用于测试）
-      const existingCustomer = await tx.customer.findFirst({
-        where: { customerCode: 'KH000001' }
-      });
-      if (!existingCustomer) {
-        await tx.customer.create({
-          data: {
-            customerCode: 'KH000001',
-            customerName: '测试客户',
-            customerType: 'enterprise',
-            status: 'active',
-          },
-        });
-      }
-
-      // 4.8 更新系统初始化状态
-      await tx.systemInitStatus.create({
+      // 5.2 创建超级管理员角色
+      const superAdminRole = await tx.role.create({
         data: {
-          initStep: 'complete',
-          stepStatus: 'completed',
+          roleCode: "super_admin",
+          roleName: "超级管理员",
+          dataScope: "all",
+          status: "active",
+          sortOrder: 1,
+          remark: "系统内置超级管理员角色，拥有全部权限",
+        },
+      });
+
+      // 5.3 创建默认部门
+      const defaultDept = await tx.dept.create({
+        data: {
+          deptCode: "HQ",
+          deptName: "公司总部",
+          sortOrder: 0,
+          status: "active",
+          remark: "系统默认顶级部门",
+        },
+      });
+
+      // 5.4 创建超级管理员用户
+      const username = data.admin?.username || data.adminUsername;
+      let password = data.admin?.password || data.adminPassword;
+      const realName = data.admin?.realName || data.adminRealName;
+      const phone = data.admin?.phone || data.adminPhone;
+      const email = data.admin?.email || data.adminEmail;
+
+      // 如果是重用模式且没有提供密码，从现有用户获取
+      if (hasExistingData && mode === "reuse" && !password) {
+        const existingUser = await tx.user.findFirst({
+          where: { username, isDelete: true },
+          orderBy: { id: "desc" },
+        });
+        if (existingUser) {
+          password = existingUser.password; // 复用原密码的哈希值
+        } else {
+          password = "123456"; // 默认密码
+        }
+      }
+
+      const hashedPassword = password ? await hashPassword(password) : await hashPassword("123456");
+
+      const adminUser = await tx.user.create({
+        data: {
+          uuid: crypto.randomUUID(),
+          username,
+          password: hashedPassword,
+          realName,
+          phone: phone || null,
+          email: email || null,
+          deptId: defaultDept.id,
+          status: "active",
+          createdBy: 0,
+        },
+      });
+
+      // 5.5 绑定用户角色
+      await tx.userRole.create({
+        data: {
+          userId: adminUser.id,
+          roleId: superAdminRole.id,
+        },
+      });
+
+      // 5.6 创建默认菜单
+      const menuData = [
+        // 系统管理
+        { menuName: "系统管理", menuType: "directory", path: "/dashboard/system", icon: "Setting", sortOrder: 100 },
+      ];
+
+      for (const menu of menuData) {
+        await tx.menu.create({
+          data: {
+            ...menu,
+            status: "active",
+          },
+        });
+      }
+
+      // 5.7 记录初始化状态
+      await tx.systemInitStatus.upsert({
+        where: { id: existingInit?.id || 0 },
+        create: {
+          initStep: "completed",
+          stepStatus: "completed",
           completedAt: new Date(),
           configData: JSON.stringify({
-            adminUsername: data.adminUsername,
-            storagePath: data.storagePath || '/workspace/projects/storage',
+            database: data.database,
+            admin: { username, realName },
+          }),
+        },
+        update: {
+          stepStatus: "completed",
+          completedAt: new Date(),
+          configData: JSON.stringify({
+            database: data.database,
+            admin: { username, realName },
           }),
         },
       });
 
-      // 4.8 保存主库配置到系统配置中（用于前端展示）
-      await tx.systemConfig.upsert({
-        where: { paramKey: 'db_master_config' },
-        update: {},
-        create: {
-          paramKey: 'db_master_config',
-          paramValue: JSON.stringify({
-            moduleName: '系统主库',
-            moduleCode: 'MASTER_DB',
-            host: process.env.DB_HOST || 'localhost',
-            port: parseInt(process.env.DB_PORT || '3306'),
-            database: process.env.DB_NAME || 'tengxi',
-            username: process.env.DB_USER || 'root',
-            // 密码不保存到配置中
-          }),
-          paramType: 'string',
-          remark: '系统主库配置',
-        },
-      });
+      console.log("系统初始化完成");
     });
 
-    return successResponse(null, '系统初始化完成');
+    return successResponse({
+      message: mode === "reuse" ? "系统配置已更新，保留现有业务数据" : "系统初始化完成",
+      mode,
+    });
   } catch (error: any) {
-    console.error('System init error:', error);
-    
-    // 处理 Prisma 验证错误
-    if (error.code === 'P2009' || error.code === 'P2012') {
-      return errorResponse(400, `数据验证错误: ${error.message}`);
-    }
-    
-    return serverErrorResponse();
+    console.error("系统初始化失败", error);
+    return errorResponse(error.message || "系统初始化失败", 500);
   }
 }
