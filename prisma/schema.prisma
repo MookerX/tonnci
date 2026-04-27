@@ -157,6 +157,31 @@ model NasDevice {
   @@map("nas_device")
 }
 
+// 存储配置表
+model StorageConfig {
+  id             Int       @id @default(autoincrement())
+  storageName    String    @map("storage_name") @db.VarChar(100)
+  storageType    String    @map("storage_type") @db.VarChar(20)  // local=本地存储, nas=NAS存储, oss=对象存储
+  basePath       String?   @map("base_path") @db.VarChar(500)    // 本地存储路径
+  nasDeviceId    Int?      @map("nas_device_id")                  // 关联NAS设备
+  ossEndpoint    String?   @map("oss_endpoint") @db.VarChar(255) // OSS端点
+  ossBucket      String?   @map("oss_bucket") @db.VarChar(100)   // OSS桶名
+  ossAccessKey   String?   @map("oss_access_key") @db.VarChar(100)
+  ossSecretKey   String?   @map("oss_secret_key") @db.Text
+  fileTypes      String    @map("file_types") @db.Text            // 绑定文件类型，逗号分隔
+  maxFileSize    Int       @default(10485760) @map("max_file_size") // 最大文件大小(字节)，默认10MB
+  isDefault      Boolean   @default(false) @map("is_default")
+  status         String    @default("active") @db.VarChar(20)
+  remark         String?   @db.Text
+  isDelete       Boolean   @default(false)
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
+  createdBy      Int?      @map("created_by")
+  modifiedBy     Int?      @map("modified_by")
+
+  @@map("storage_config")
+}
+
 // 数据库配置表
 model DatabaseConfig {
   id           Int       @id @default(autoincrement())

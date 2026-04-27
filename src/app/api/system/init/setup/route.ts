@@ -165,6 +165,27 @@ export async function POST(request: NextRequest) {
         });
       }
 
+      // ===== 存储：系统图片存储 =====
+      let imageStorage = await tx.storageConfig.findFirst({
+        where: { storageName: "系统图片存储", isDelete: false }
+      });
+      
+      if (!imageStorage) {
+        await tx.storageConfig.create({
+          data: {
+            storageName: "系统图片存储",
+            storageType: "local",
+            basePath: "/workspace/projects/storage/images",
+            fileTypes: ".png,.gif,.jpg,.jpeg,.webp,.avif,.svg",
+            maxFileSize: 10485760,
+            isDefault: true,
+            status: "active",
+            createdBy: SYSTEM_CREATOR_ID,
+            remark: "系统默认图片存储，绑定常用图片格式",
+          },
+        });
+      }
+
       // ===== 菜单：系统管理 =====
       // 首次初始化才创建菜单
       if (!reuseData) {
