@@ -65,10 +65,7 @@ export default function SetupPage() {
       const data = await res.json();
       if (data.code === 200) {
         setInitStatus(data.data);
-        if (data.data?.isInitialized) {
-          setStep(2);
-          setConnectionTested(true);
-        }
+        // 始终从步骤1开始，用户可以选择继续或重新初始化
       } else {
         setError(data.message || "检查初始化状态失败");
       }
@@ -93,7 +90,7 @@ export default function SetupPage() {
       });
       if (data.code === 200) {
         setConnectionTested(true);
-        setStep(2);
+        // 让用户手动点击继续
       }
     } catch (e) {
       setDbTestResult({ success: false, message: "测试连接失败" });
@@ -270,13 +267,30 @@ export default function SetupPage() {
                 {error && <div className="p-3 bg-red-50 text-red-700 rounded-lg">{error}</div>}
               </div>
 
-              <div className="mt-6 flex justify-end">
-                <button
-                  onClick={testDatabase}
-                  className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-                >
-                  测试并继续
-                </button>
+              <div className="mt-6 flex justify-end gap-2">
+                {initStatus?.isInitialized && (
+                  <button
+                    onClick={goToLogin}
+                    className="px-4 py-2 border rounded-lg hover:bg-gray-50"
+                  >
+                    返回登录
+                  </button>
+                )}
+                {!connectionTested ? (
+                  <button
+                    onClick={testDatabase}
+                    className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                  >
+                    测试连接
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => setStep(2)}
+                    className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                  >
+                    继续
+                  </button>
+                )}
               </div>
             </div>
           )}
