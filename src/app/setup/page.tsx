@@ -13,8 +13,13 @@ interface InitStatus {
     password: string;
     database: string;
   };
+  connectionTest?: {
+    success: boolean;
+    message: string;
+  };
   adminUser?: {
     username: string;
+    realName: string;
   };
 }
 
@@ -221,7 +226,16 @@ export default function SetupPage() {
                   <p className="text-yellow-600 text-sm mt-1">
                     数据库: {initStatus.databaseConfig?.host}:{initStatus.databaseConfig?.port}/{initStatus.databaseConfig?.database}
                   </p>
-                  <p className="text-yellow-600 text-sm mt-1">当前管理员: {initStatus.adminUser?.username || '未知'}</p>
+                  {initStatus.adminUser && (
+                    <p className="text-yellow-600 text-sm mt-1">
+                      当前管理员: {initStatus.adminUser.username} {initStatus.adminUser.realName && `(${initStatus.adminUser.realName})`}
+                    </p>
+                  )}
+                  {initStatus.hasData && (
+                    <p className="text-yellow-700 text-sm mt-2 font-medium">
+                      检测到主数据库中已有数据，重新初始化将覆盖用户和角色信息
+                    </p>
+                  )}
                 </div>
               )}
 

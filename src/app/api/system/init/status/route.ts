@@ -19,6 +19,7 @@ export async function GET(request: NextRequest) {
     let isInitialized = false;
     let connectionTest = { success: false, message: "未测试" };
     let adminUser: any = null;
+    let hasData = false; // 主数据库是否有数据
 
     if (initStatus?.configData) {
       try {
@@ -37,8 +38,9 @@ export async function GET(request: NextRequest) {
               database: config.database.database,
               connectTimeout: 5000,
             });
-            // 连接成功，查询当前管理员信息
-            const [rows]: any = await connection.query(`
+            
+            // 连接成功，查询当前管理员信息和数据量
+            const [userRows]: any = await connection.query(`
               SELECT u.username, u.real_name as realName, u.status, u.dept_id as deptId
               FROM user u
               INNER JOIN user_role ur ON u.id = ur.user_id
@@ -46,13 +48,20 @@ export async function GET(request: NextRequest) {
               WHERE r.role_code = 'super_admin' AND u.isDelete = 0
               LIMIT 1
             `);
+            
+            // 查询用户数量判断是否有数据
+            const [countResult]: any = await connection.query(`
+              SELECT COUNT(*) as count FROM user WHERE isDelete = 0
+            `);
+            hasData = countResult && countResult[0]?.count > 0;
+            
             await connection.end();
             
             connectionTest = { success: true, message: "连接成功" };
-            if (rows && rows.length > 0) {
+            if (userRows && userRows.length > 0) {
               adminUser = {
-                username: rows[0].username,
-                realName: rows[0].realName,
+                username: userRows[0].username,
+                realName: userRows[0].realName,
               };
             }
           } catch (dbError: any) {
@@ -75,6 +84,7 @@ export async function GET(request: NextRequest) {
         databaseConfig,
         connectionTest,
         adminUser,
+        hasData,
       },
     });
   } catch (error: any) {

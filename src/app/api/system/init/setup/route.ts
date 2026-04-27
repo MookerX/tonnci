@@ -103,6 +103,7 @@ export async function POST(request: NextRequest) {
           realName,
           deptId: itDept.id,
           status: "active",
+          roleIds: JSON.stringify([superAdminRole.id]), // 同时存储到roleIds字段
           createdBy: SYSTEM_CREATOR_ID,
         },
       });
