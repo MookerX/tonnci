@@ -175,6 +175,16 @@ export default function DashboardLayout({
     const userId = getCurrentUserId();
     if (!token || !userId) return;
 
+    // 校验电话和邮箱
+    if (editForm.phone && !/^1[3-9]\d{9}$|^0\d{2,3}-?\d{7,8}$/.test(editForm.phone)) {
+      warning("电话号码格式不正确");
+      return;
+    }
+    if (editForm.email && !/^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(editForm.email)) {
+      warning("邮箱格式不正确");
+      return;
+    }
+
     setSaving(true);
     try {
       // 先上传头像（如果有新头像且是base64格式）
