@@ -48,7 +48,6 @@ export default function SystemUserPage() {
     email: "",
     deptId: undefined as number | undefined,
     roleIds: [] as number[],
-    status: "active",
   });
   const [keyword, setKeyword] = useState("");
   const [showResetPwd, setShowResetPwd] = useState(false);
@@ -109,11 +108,10 @@ export default function SystemUserPage() {
         email: user.email || "",
         deptId: user.deptId,
         roleIds: user.roleIds || [],
-        status: user.status,
       });
     } else {
       setEditingUser(null);
-      setForm({ username: "", password: "", realName: "", phone: "", email: "", deptId: undefined, roleIds: [], status: "active" });
+      setForm({ username: "", password: "", realName: "", phone: "", email: "", deptId: undefined, roleIds: [] });
     }
     setShowForm(true);
   };
@@ -121,7 +119,6 @@ export default function SystemUserPage() {
   const handleSubmit = async () => {
     if (!editingUser && !form.username) { warning("请输入用户名"); return; }
     if (!editingUser && (!form.password || form.password.length < 6)) { warning("密码至少6个字符"); return; }
-    if (form.password && form.password.length < 6) { warning("密码至少6个字符"); return; }
     try {
       let res;
       if (editingUser) {
@@ -134,7 +131,6 @@ export default function SystemUserPage() {
             email: form.email || null,
             deptId: form.deptId || null,
             roleIds: form.roleIds,
-            status: form.status,
           }),
         });
       } else {
@@ -311,10 +307,12 @@ export default function SystemUserPage() {
                 <label className="block text-xs text-gray-500 mb-1">用户名 {editingUser ? "(不可修改)" : "*"}</label>
                 <input className="w-full border rounded px-3 py-2 text-sm" value={form.username} onChange={e => setForm({...form, username: e.target.value})} disabled={!!editingUser} />
               </div>
-              <div>
-                <label className="block text-xs text-gray-500 mb-1">密码 {editingUser ? "(留空不修改)" : "*"}</label>
-                <input type="password" className="w-full border rounded px-3 py-2 text-sm" value={form.password} onChange={e => setForm({...form, password: e.target.value})} placeholder={editingUser ? "留空不修改" : ""} />
-              </div>
+              {!editingUser && (
+                <div>
+                  <label className="block text-xs text-gray-500 mb-1">密码 *</label>
+                  <input type="password" className="w-full border rounded px-3 py-2 text-sm" value={form.password} onChange={e => setForm({...form, password: e.target.value})} />
+                </div>
+              )}
               <div>
                 <label className="block text-xs text-gray-500 mb-1">姓名</label>
                 <input className="w-full border rounded px-3 py-2 text-sm" value={form.realName} onChange={e => setForm({...form, realName: e.target.value})} />
@@ -332,13 +330,6 @@ export default function SystemUserPage() {
                 <select className="w-full border rounded px-3 py-2 text-sm" value={form.deptId || ""} onChange={e => setForm({...form, deptId: e.target.value ? parseInt(e.target.value) : undefined})}>
                   <option value="">请选择</option>
                   {flatDepts.map(d => <option key={d.id} value={d.id}>{d.deptName}</option>)}
-                </select>
-              </div>
-              <div>
-                <label className="block text-xs text-gray-500 mb-1">状态</label>
-                <select className="w-full border rounded px-3 py-2 text-sm" value={form.status} onChange={e => setForm({...form, status: e.target.value})}>
-                  <option value="active">正常</option>
-                  <option value="disabled">禁用</option>
                 </select>
               </div>
               <div className="col-span-2">
