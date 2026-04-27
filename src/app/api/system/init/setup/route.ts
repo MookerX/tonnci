@@ -1,7 +1,8 @@
 /**
  * 系统初始化设置接口
  * 支持首次初始化和重新初始化
- * 重新初始化时支持：重用数据（保留业务数据）或清空数据（全部重置）
+ * 重用数据模式：保留现有角色、部门、用户，只更新管理员信息
+ * 不重用/首次初始化：清空所有数据后重新创建
  */
 
 import { NextRequest, NextResponse } from "next/server";
@@ -49,7 +50,7 @@ export async function POST(request: NextRequest) {
     }
 
     // 3. 获取参数
-    const mode = data.mode || "new";
+    const mode = data.mode || "new"; // 'reuse' | 'clear' | 'new'
     const username = data.admin?.username;
     const password = data.admin?.password;
     const realName = data.admin?.realName;
@@ -57,99 +58,148 @@ export async function POST(request: NextRequest) {
 
     // 4. 执行初始化
     await prisma.$transaction(async (tx) => {
-      // 4.1 清空相关表（无论什么模式都清空）
-      // 先删除关联表
-      await tx.userRole.deleteMany({});
-      await tx.rolePermission.deleteMany({});
-      await tx.roleDeptScope.deleteMany({});
-      // 清空主表
-      await tx.user.deleteMany({});
-      await tx.role.deleteMany({});
-      await tx.dept.deleteMany({});
-      await tx.menu.deleteMany({});
+      // 判断是否重用数据
+      const reuseData = mode === "reuse";
+      
+      if (!reuseData) {
+        // ===== 不重用数据：清空所有数据 =====
+        // 先删除关联表
+        await tx.userRole.deleteMany({});
+        await tx.rolePermission.deleteMany({});
+        await tx.roleDeptScope.deleteMany({});
+        // 清空主表
+        await tx.user.deleteMany({});
+        await tx.role.deleteMany({});
+        await tx.dept.deleteMany({});
+        await tx.menu.deleteMany({});
+      }
 
-      // 4.2 创建超级管理员角色
-      const superAdminRole = await tx.role.create({
-        data: {
-          roleCode: "super_admin",
-          roleName: "超级管理员",
-          dataScope: "all",
-          status: "active",
-          sortOrder: 1,
-          createdBy: SYSTEM_CREATOR_ID,
-          remark: "系统内置超级管理员角色，拥有全部权限",
-        },
+      // ===== 角色：超级管理员 =====
+      let superAdminRole = await tx.role.findFirst({
+        where: { roleCode: "super_admin", isDelete: false }
       });
-
-      // 4.3 创建IT部门
-      const itDept = await tx.dept.create({
-        data: {
-          deptCode: "IT",
-          deptName: "IT部",
-          sortOrder: 0,
-          status: "active",
-          createdBy: SYSTEM_CREATOR_ID,
-          remark: "系统默认IT部门",
-        },
-      });
-
-      // 4.4 创建超级管理员用户（属于IT部）
-      const hashedPassword = await hashPassword(password);
-      const adminUser = await tx.user.create({
-        data: {
-          uuid: crypto.randomUUID(),
-          username,
-          password: hashedPassword,
-          realName,
-          deptId: itDept.id,
-          status: "active",
-          roleIds: JSON.stringify([superAdminRole.id]), // 同时存储到roleIds字段
-          createdBy: SYSTEM_CREATOR_ID,
-        },
-      });
-
-      // 4.5 绑定用户角色
-      await tx.userRole.create({
-        data: {
-          userId: adminUser.id,
-          roleId: superAdminRole.id,
-        },
-      });
-
-      // 4.6 创建默认菜单结构
-      // 系统管理目录
-      const systemDir = await tx.menu.create({
-        data: {
-          menuName: "系统管理",
-          menuType: "directory",
-          path: "/dashboard/system",
-          icon: "Setting",
-          sortOrder: 100,
-          status: "active",
-          createdBy: SYSTEM_CREATOR_ID,
-        },
-      });
-
-      // 系统管理子菜单
-      const subMenus = [
-        { menuName: "用户管理", menuType: "menu", path: "/dashboard/system/user", component: "dashboard/system/user/page", sortOrder: 1 },
-        { menuName: "角色管理", menuType: "menu", path: "/dashboard/system/role", component: "dashboard/system/role/page", sortOrder: 2 },
-        { menuName: "部门管理", menuType: "menu", path: "/dashboard/system/dept", component: "dashboard/system/dept/page", sortOrder: 3 },
-        { menuName: "菜单管理", menuType: "menu", path: "/dashboard/system/menu", component: "dashboard/system/menu/page", sortOrder: 4 },
-      ];
-
-      for (const menu of subMenus) {
-        await tx.menu.create({
+      
+      if (!superAdminRole) {
+        // 不存在则创建
+        superAdminRole = await tx.role.create({
           data: {
-            ...menu,
-            parentId: systemDir.id,
+            roleCode: "super_admin",
+            roleName: "超级管理员",
+            dataScope: "all",
             status: "active",
+            sortOrder: 1,
             createdBy: SYSTEM_CREATOR_ID,
+            remark: "系统内置超级管理员角色，拥有全部权限",
           },
         });
       }
 
-      // 4.7 记录初始化状态 - 只存储主数据库配置信息
+      // ===== 部门：IT部 =====
+      let itDept = await tx.dept.findFirst({
+        where: { deptCode: "IT", isDelete: false }
+      });
+      
+      if (!itDept) {
+        // 不存在则创建
+        itDept = await tx.dept.create({
+          data: {
+            deptCode: "IT",
+            deptName: "IT部",
+            sortOrder: 0,
+            status: "active",
+            createdBy: SYSTEM_CREATOR_ID,
+            remark: "系统默认IT部门",
+          },
+        });
+      }
+
+      // ===== 用户：超级管理员 =====
+      const hashedPassword = await hashPassword(password);
+      
+      let adminUser = await tx.user.findFirst({
+        where: { username: username, isDelete: false }
+      });
+      
+      if (adminUser) {
+        // 用户已存在，更新信息
+        adminUser = await tx.user.update({
+          where: { id: adminUser.id },
+          data: {
+            password: hashedPassword,
+            realName,
+            deptId: itDept.id,
+            status: "active",
+            roleIds: JSON.stringify([superAdminRole.id]),
+          },
+        });
+        
+        // 更新用户角色关联
+        await tx.userRole.deleteMany({ where: { userId: adminUser.id } });
+        await tx.userRole.create({
+          data: {
+            userId: adminUser.id,
+            roleId: superAdminRole.id,
+          },
+        });
+      } else {
+        // 用户不存在则创建
+        adminUser = await tx.user.create({
+          data: {
+            uuid: crypto.randomUUID(),
+            username,
+            password: hashedPassword,
+            realName,
+            deptId: itDept.id,
+            status: "active",
+            roleIds: JSON.stringify([superAdminRole.id]),
+            createdBy: SYSTEM_CREATOR_ID,
+          },
+        });
+        
+        // 创建用户角色关联
+        await tx.userRole.create({
+          data: {
+            userId: adminUser.id,
+            roleId: superAdminRole.id,
+          },
+        });
+      }
+
+      // ===== 菜单：系统管理 =====
+      // 首次初始化才创建菜单
+      if (!reuseData) {
+        const systemDir = await tx.menu.create({
+          data: {
+            menuName: "系统管理",
+            menuType: "directory",
+            path: "/dashboard/system",
+            icon: "Setting",
+            sortOrder: 100,
+            status: "active",
+            createdBy: SYSTEM_CREATOR_ID,
+          },
+        });
+
+        const subMenus = [
+          { menuName: "用户管理", menuType: "menu", path: "/dashboard/system/user", component: "dashboard/system/user/page", sortOrder: 1 },
+          { menuName: "角色管理", menuType: "menu", path: "/dashboard/system/role", component: "dashboard/system/role/page", sortOrder: 2 },
+          { menuName: "部门管理", menuType: "menu", path: "/dashboard/system/dept", component: "dashboard/system/dept/page", sortOrder: 3 },
+          { menuName: "菜单管理", menuType: "menu", path: "/dashboard/system/menu", component: "dashboard/system/menu/page", sortOrder: 4 },
+        ];
+
+        for (const menu of subMenus) {
+          await tx.menu.create({
+            data: {
+              ...menu,
+              parentId: systemDir.id,
+              status: "active",
+              createdBy: SYSTEM_CREATOR_ID,
+            },
+          });
+        }
+      }
+
+      // ===== 记录初始化状态 =====
       await tx.systemInitStatus.upsert({
         where: { id: 1 },
         create: {
@@ -190,7 +240,6 @@ export async function POST(request: NextRequest) {
   } catch (error: any) {
     console.error("系统初始化失败", error);
     
-    // 处理Prisma唯一约束错误
     if (error.code === 'P2002') {
       return NextResponse.json({
         code: 400,
