@@ -16,12 +16,12 @@ import { z } from 'zod';
 const createUserSchema = z.object({
   username: z.string().min(2, '用户名至少2个字符').max(50),
   password: z.string().min(6, '密码至少6个字符').max(50),
-  realName: z.string().min(1, '姓名不能为空').max(50).optional().nullable(),
+  realName: z.string().max(50).optional().nullable(),
   phone: z.string().max(20).optional().nullable(),
-  email: z.string().email('邮箱格式不正确').optional().nullable(),
-  deptId: z.number().int().positive().optional().nullable(),
-  roleIds: z.array(z.number().int().positive()).optional(),
-  status: z.enum(['active', 'disabled', 'locked']).optional(),
+  email: z.string().email('邮箱格式不正确').or(z.literal('')).optional().nullable(),
+  deptId: z.union([z.number().int().positive(), z.literal("")]).optional().nullable().transform(v => v === "" ? null : v),
+  roleIds: z.array(z.number().int().positive()).optional().default([]),
+  status: z.enum(['active', 'disabled', 'locked']).optional().default('active'),
   remark: z.string().optional().nullable(),
 });
 
@@ -29,9 +29,9 @@ const createUserSchema = z.object({
 const updateUserSchema = z.object({
   realName: z.string().max(50).optional().nullable(),
   phone: z.string().max(20).optional().nullable(),
-  email: z.string().email('邮箱格式不正确').optional().nullable(),
+  email: z.string().email('邮箱格式不正确').or(z.literal('')).optional().nullable(),
   gender: z.enum(['male', 'female', 'unknown']).optional().nullable(),
-  deptId: z.number().int().positive().optional().nullable(),
+  deptId: z.union([z.number().int().positive(), z.literal("")]).optional().nullable().transform(v => v === "" ? null : v),
   roleIds: z.array(z.number().int().positive()).optional(),
   status: z.enum(['active', 'disabled', 'locked']).optional(),
   remark: z.string().optional().nullable(),

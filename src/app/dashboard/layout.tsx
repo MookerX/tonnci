@@ -403,7 +403,7 @@ export default function DashboardLayout({
             </div>
             <div 
               onClick={() => setShowProfile(true)}
-              className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center text-white text-sm font-bold cursor-pointer hover:bg-blue-600 overflow-hidden"
+              className="w-8 h-8 bg-white rounded-full flex items-center justify-center text-sm font-bold cursor-pointer hover:bg-gray-100 overflow-hidden border border-gray-200"
             >
               {user?.avatar ? (
                 <img src={user.avatar} alt="头像" className="w-full h-full object-cover" />
@@ -430,7 +430,7 @@ export default function DashboardLayout({
               <h3 className="text-lg font-semibold mb-4">个人信息</h3>
               <div className="flex flex-col items-center mb-6">
                 <div className="relative">
-                  <div className="w-20 h-20 bg-blue-500 rounded-full flex items-center justify-center text-white text-2xl font-bold overflow-hidden">
+                  <div className="w-20 h-20 bg-white rounded-full flex items-center justify-center text-2xl font-bold overflow-hidden border-2 border-gray-200">
                     {editForm.avatar ? (
                       <img src={editForm.avatar} alt="头像" className="w-full h-full object-cover" />
                     ) : (
