@@ -9,6 +9,8 @@ interface InitStatus {
   databaseConfig?: {
     host: string;
     port: number;
+    username: string;
+    password: string;
     database: string;
   };
   adminUser?: {
@@ -65,7 +67,18 @@ export default function SetupPage() {
       const res = await fetch("/api/system/init/status");
       const data = await res.json();
       if (data.code === 200) {
-        setInitStatus(data.data);
+        const status = data.data;
+        setInitStatus(status);
+        // 如果系统已初始化，自动填充数据库配置信息
+        if (status.isInitialized && status.databaseConfig) {
+          setDbConfig({
+            host: status.databaseConfig.host || "",
+            port: status.databaseConfig.port || 3306,
+            username: status.databaseConfig.username || "",
+            password: status.databaseConfig.password || "",
+            database: status.databaseConfig.database || "",
+          });
+        }
       } else {
         setError(data.message || "检查初始化状态失败");
       }
@@ -205,8 +218,10 @@ export default function SetupPage() {
               {initStatus?.isInitialized && (
                 <div className="mb-4 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
                   <p className="text-yellow-800 font-medium">系统已初始化</p>
+                  <p className="text-yellow-600 text-sm mt-1">
+                    数据库: {initStatus.databaseConfig?.host}:{initStatus.databaseConfig?.port}/{initStatus.databaseConfig?.database}
+                  </p>
                   <p className="text-yellow-600 text-sm mt-1">当前管理员: {initStatus.adminUser?.username || '未知'}</p>
-                  <p className="text-yellow-600 text-sm mt-1">点击"继续"可进行重新初始化配置</p>
                 </div>
               )}
 
@@ -221,7 +236,6 @@ export default function SetupPage() {
                       className="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                       value={dbConfig.host}
                       onChange={e => setDbConfig({ ...dbConfig, host: e.target.value })}
-                      placeholder="127.0.0.1"
                     />
                   </div>
                   <div>
@@ -241,7 +255,7 @@ export default function SetupPage() {
                     className="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     value={dbConfig.username}
                     onChange={e => setDbConfig({ ...dbConfig, username: e.target.value })}
-                    placeholder="root"
+                    placeholder=""
                   />
                 </div>
                 <div>
@@ -251,7 +265,7 @@ export default function SetupPage() {
                     className="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     value={dbConfig.password}
                     onChange={e => setDbConfig({ ...dbConfig, password: e.target.value })}
-                    placeholder="输入密码"
+                    placeholder=""
                   />
                 </div>
                 <div>
@@ -261,7 +275,7 @@ export default function SetupPage() {
                     className="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     value={dbConfig.database}
                     onChange={e => setDbConfig({ ...dbConfig, database: e.target.value })}
-                    placeholder="tengxi_pms"
+                    placeholder=""
                   />
                 </div>
 
@@ -365,7 +379,7 @@ export default function SetupPage() {
                     className="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     value={adminConfig.username}
                     onChange={e => setAdminConfig({ ...adminConfig, username: e.target.value })}
-                    placeholder="admin"
+                    placeholder=""
                   />
                 </div>
                 <div>
@@ -377,7 +391,7 @@ export default function SetupPage() {
                     className="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     value={adminConfig.password}
                     onChange={e => setAdminConfig({ ...adminConfig, password: e.target.value })}
-                    placeholder="请设置密码"
+                    placeholder=""
                   />
                 </div>
                 <div>
@@ -387,7 +401,7 @@ export default function SetupPage() {
                     className="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     value={adminConfig.realName}
                     onChange={e => setAdminConfig({ ...adminConfig, realName: e.target.value })}
-                    placeholder="系统管理员"
+                    placeholder=""
                   />
                 </div>
 
