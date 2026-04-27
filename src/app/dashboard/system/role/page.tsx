@@ -76,6 +76,7 @@ const dataScopeOptions = [
 ];
 
 export default function SystemRolePage() {
+  const { success, error, warning } = useToast();
   const [roles, setRoles] = useState<Role[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
