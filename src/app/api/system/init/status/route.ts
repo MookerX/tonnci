@@ -39,11 +39,11 @@ export async function GET(request: NextRequest) {
             });
             // 连接成功，查询当前管理员信息
             const [rows]: any = await connection.query(`
-              SELECT u.username, u.realName, u.status, u.deptId
+              SELECT u.username, u.real_name as realName, u.status, u.dept_id as deptId
               FROM user u
-              INNER JOIN user_role ur ON u.id = ur.userId
-              INNER JOIN role r ON ur.roleId = r.id
-              WHERE r.roleCode = 'super_admin' AND u.isDelete = 0
+              INNER JOIN user_role ur ON u.id = ur.user_id
+              INNER JOIN role r ON ur.role_id = r.id
+              WHERE r.role_code = 'super_admin' AND u.isDelete = 0
               LIMIT 1
             `);
             await connection.end();
