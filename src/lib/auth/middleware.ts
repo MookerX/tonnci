@@ -85,23 +85,19 @@ async function getUserPermissions(roleIds: number[]): Promise<string[]> {
     return ['*'];
   }
   
-  // 普通用户：获取角色对应的权限
-  const permissions = await prisma.permission.findMany({
+  // 普通用户：从 role_permission 表获取权限字符串
+  const permRecords = await prisma.rolePermission.findMany({
     where: {
+      roleId: { in: roleIds },
       isDelete: false,
-      status: 'active',
-      rolePermissions: {
-        some: {
-          roleId: { in: roleIds },
-        },
-      },
+      permission: { not: null },
     },
     select: {
-      permissionCode: true,
+      permission: true,
     },
   });
   
-  return permissions.map(p => p.permissionCode);
+  return permRecords.map(p => p.permission).filter((p): p is string => p !== null);
 }
 
 /**

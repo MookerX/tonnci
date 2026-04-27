@@ -20,11 +20,7 @@ const updateRoleSchema = z.object({
 });
 
 const assignPermissionSchema = z.object({
-  menuIds: z.array(z.number().int().positive()).optional().default([]),
-  permissions: z.array(z.object({
-    menuId: z.number().int().positive(),
-    actions: z.array(z.enum(['view', 'add', 'edit', 'delete', 'export', 'import'])),
-  })).optional().default([]),
+  permissions: z.array(z.string()).optional().default([]),
   deptIds: z.array(z.number().int().positive()).optional().default([]),
 });
 
@@ -57,44 +53,25 @@ export async function GET(
       return notFoundResponse('角色不存在');
     }
 
-    // 获取角色已分配的菜单ID
-    const menuPermissions = await prisma.$queryRaw<any[]>`
-      SELECT DISTINCT menu_id as menuId 
+    // 获取角色已分配的权限列表（permission字符串，如 "system:user:query"）
+    const permRecords = await prisma.$queryRaw<any[]>`
+      SELECT permission 
       FROM role_permission 
-      WHERE role_id = ${roleId} AND is_delete = false
+      WHERE role_id = ${roleId} AND isDelete = false AND permission IS NOT NULL
     `;
-    const menuIds = menuPermissions.map(p => p.menuId);
-
-    // 获取角色已分配的权限操作
-    const actionPermissions = await prisma.$queryRaw<any[]>`
-      SELECT menu_id as menuId, permission 
-      FROM role_permission 
-      WHERE role_id = ${roleId} AND is_delete = false AND permission IS NOT NULL
-    `;
-
-    const permissionMap = new Map<number, string[]>();
-    actionPermissions.forEach(p => {
-      if (!permissionMap.has(p.menuId)) {
-        permissionMap.set(p.menuId, []);
-      }
-      permissionMap.get(p.menuId)!.push(p.permission);
-    });
+    const permissions = permRecords.map(p => p.permission);
 
     // 获取数据权限部门范围
     const deptScopes = await prisma.$queryRaw<any[]>`
       SELECT dept_id as deptId 
       FROM role_dept_scope 
-      WHERE role_id = ${roleId} AND is_delete = false
+      WHERE role_id = ${roleId} AND isDelete = false
     `;
     const deptIds = deptScopes.map(d => d.deptId);
 
     return successResponse({
       ...role,
-      menuIds,
-      permissions: Array.from(permissionMap.entries()).map(([menuId, actions]) => ({
-        menuId,
-        actions,
-      })),
+      permissions,
       deptIds,
     });
 
@@ -136,49 +113,37 @@ export async function PUT(
     if (body.action === 'assignPermission') {
       const validationResult = assignPermissionSchema.safeParse(body);
       if (!validationResult.success) {
-        return badRequestResponse(validationResult.error.errors[0].message);
+        return badRequestResponse(validationResult.error.errors?.[0]?.message || '参数验证失败');
       }
 
-      const { menuIds, permissions, deptIds } = validationResult.data;
+      const { permissions, deptIds } = validationResult.data;
       const clientIp = getClientIp(request);
 
       await prisma.$transaction(async (tx) => {
-        // 删除旧的权限记录
+        // 删除旧的权限记录（完全删除，因为权限分配是全量替换）
         await tx.$executeRaw`
-          DELETE FROM role_permission WHERE role_id = ${roleId} AND is_delete = false
+          DELETE FROM role_permission WHERE role_id = ${roleId}
         `;
 
         // 删除旧的数据权限范围
         await tx.$executeRaw`
-          DELETE FROM role_dept_scope WHERE role_id = ${roleId} AND is_delete = false
+          DELETE FROM role_dept_scope WHERE role_id = ${roleId}
         `;
 
-        // 批量插入新的菜单权限
-        if (menuIds.length > 0) {
-          const menuPermissionValues = menuIds.map(menuId => `(${roleId}, ${menuId}, NULL, NULL)`).join(',');
-          await tx.$executeRaw(`
-            INSERT INTO role_permission (role_id, menu_id, permission, is_delete, created_at) 
-            VALUES ${menuPermissionValues.replace(/'/g, "''")}
-          `);
-        }
-
-        // 批量插入新的操作权限
+        // 插入新的权限记录
         for (const perm of permissions) {
-          for (const action of perm.actions) {
-            await tx.$executeRaw(`
-              INSERT INTO role_permission (role_id, menu_id, permission, is_delete, created_at) 
-              VALUES (${roleId}, ${perm.menuId}, '${action}', false, NOW())
-            `);
-          }
+          await tx.$executeRaw`
+            INSERT INTO role_permission (role_id, menu_id, permission, action_type, isDelete, created_at) 
+            VALUES (${roleId}, NULL, ${perm}, NULL, false, NOW())
+          `;
         }
 
-        // 批量插入数据权限部门范围
-        if (deptIds.length > 0) {
-          const deptScopeValues = deptIds.map(deptId => `(${roleId}, ${deptId})`).join(',');
-          await tx.$executeRaw(`
-            INSERT INTO role_dept_scope (role_id, dept_id, is_delete, created_at) 
-            VALUES ${deptScopeValues.replace(/'/g, "''")}
-          `);
+        // 插入数据权限部门范围
+        for (const deptId of deptIds) {
+          await tx.$executeRaw`
+            INSERT INTO role_dept_scope (role_id, dept_id, isDelete, created_at) 
+            VALUES (${roleId}, ${deptId}, false, NOW())
+          `;
         }
       });
 
@@ -187,7 +152,7 @@ export async function PUT(
         '分配权限',
         authResult.userId,
         authResult.username,
-        { roleId, menuIds, permissions, deptIds },
+        { roleId, permissions, deptIds },
         clientIp,
         'success'
       );
@@ -198,7 +163,7 @@ export async function PUT(
     // 普通更新
     const validationResult = updateRoleSchema.safeParse(body);
     if (!validationResult.success) {
-      return badRequestResponse(validationResult.error.errors[0].message);
+      return badRequestResponse(validationResult.error.errors?.[0]?.message || '参数验证失败');
     }
 
     const data = validationResult.data;

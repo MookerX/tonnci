@@ -91,8 +91,6 @@ export default function SystemRolePage() {
     remark: "",
   });
   const [keyword, setKeyword] = useState("");
-  const [menuTree, setMenuTree] = useState<any[]>([]);
-  const [selectedMenuIds, setSelectedMenuIds] = useState<number[]>([]);
   const [selectedDeptIds, setSelectedDeptIds] = useState<number[]>([]);
   const [deptTree, setDeptTree] = useState<Dept[]>([]);
   const [selectedPermissions, setSelectedPermissions] = useState<Set<string>>(new Set());
@@ -198,31 +196,10 @@ export default function SystemRolePage() {
       const roleData = await roleDetailRes.json();
 
       if (roleData.code === 200) {
-        const perms = roleData.data?.permissions || [];
-        const permSet = new Set<string>();
-        perms.forEach((p: any) => {
-          if (p.menuId) {
-            // 菜单权限
-            if (!selectedMenuIds.includes(p.menuId)) {
-              setSelectedMenuIds([...selectedMenuIds, p.menuId]);
-            }
-          }
-          if (p.permission) {
-            permSet.add(p.permission);
-          }
-          if (p.actions && Array.isArray(p.actions)) {
-            p.actions.forEach((a: string) => permSet.add(a));
-          }
-        });
-        setSelectedPermissions(permSet);
+        // permissions 现在是字符串数组，如 ["system:user:query", "system:user:create", ...]
+        const perms: string[] = roleData.data?.permissions || [];
+        setSelectedPermissions(new Set(perms));
         setSelectedDeptIds(roleData.data?.deptIds || []);
-      }
-
-      // 获取菜单树
-      const menuRes = await fetch("/api/system/menu", { headers });
-      const menuData = await menuRes.json();
-      if (menuData.code === 200) {
-        setMenuTree(menuData.data || []);
       }
 
       // 获取部门树
@@ -277,12 +254,13 @@ export default function SystemRolePage() {
       const data = await res.json();
       if (data.code === 200) {
         setShowPermForm(false);
-        warning("权限分配成功");
+        success("权限分配成功");
+        fetchRoles();
       } else {
         error(data.message);
       }
     } catch (e) {
-      warning("保存权限失败");
+      error("保存权限失败");
     }
   };
 

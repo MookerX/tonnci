@@ -307,7 +307,7 @@ export async function PUT(request: NextRequest) {
     // 否则是重置密码操作
     const validationResult = resetPasswordSchema.safeParse(body);
     if (!validationResult.success) {
-      return badRequestResponse(validationResult.error.errors[0].message);
+      return badRequestResponse(validationResult.error.errors?.[0]?.message || '参数验证失败');
     }
 
     const { userId, newPassword } = validationResult.data;

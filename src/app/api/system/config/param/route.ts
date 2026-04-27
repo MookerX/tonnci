@@ -37,7 +37,7 @@ export async function PUT(request: NextRequest) {
 
     const validationResult = configParamSchema.safeParse(body);
     if (!validationResult.success) {
-      return badRequestResponse(validationResult.error.errors[0].message);
+      return badRequestResponse(validationResult.error.errors?.[0]?.message || '参数验证失败');
     }
 
     const data = validationResult.data;
