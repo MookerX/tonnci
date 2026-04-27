@@ -5,7 +5,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 
 // 菜单配置 - 对应需求规格说明书12大功能模块
 const menuConfig = [
@@ -132,16 +132,90 @@ export default function DashboardLayout({
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
+  const router = useRouter();
   const [collapsed, setCollapsed] = useState(false);
   const [openKeys, setOpenKeys] = useState<string[]>([]);
   const [user, setUser] = useState<any>(null);
+  const [showProfile, setShowProfile] = useState(false);
+  const [editForm, setEditForm] = useState({ realName: "", phone: "", email: "", avatar: "" });
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     const userStr = localStorage.getItem("user");
     if (userStr) {
-      try { setUser(JSON.parse(userStr)); } catch {}
+      try {
+        const userData = JSON.parse(userStr);
+        setUser(userData);
+        setEditForm({
+          realName: userData.realName || "",
+          phone: userData.phone || "",
+          email: userData.email || "",
+          avatar: userData.avatar || "",
+        });
+      } catch {}
     }
   }, []);
+
+  // 获取当前登录用户ID
+  const getCurrentUserId = () => {
+    const userStr = localStorage.getItem("user");
+    if (userStr) {
+      try {
+        return JSON.parse(userStr).id;
+      } catch {}
+    }
+    return null;
+  };
+
+  // 保存个人信息
+  const handleSaveProfile = async () => {
+    const token = localStorage.getItem("token");
+    const userId = getCurrentUserId();
+    if (!token || !userId) return;
+
+    setSaving(true);
+    try {
+      const res = await fetch(`/api/system/user/${userId}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          realName: editForm.realName,
+          phone: editForm.phone,
+          email: editForm.email,
+        }),
+      });
+      const data = await res.json();
+      if (data.code === 200) {
+        // 更新本地存储
+        const updatedUser = { ...user, ...editForm };
+        localStorage.setItem("user", JSON.stringify(updatedUser));
+        setUser(updatedUser);
+        alert("保存成功");
+        setShowProfile(false);
+      } else {
+        alert(data.message || "保存失败");
+      }
+    } catch (e) {
+      alert("保存失败");
+    }
+    setSaving(false);
+  };
+
+  // 处理头像上传
+  const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        const base64 = ev.target?.result as string;
+        setEditForm({ ...editForm, avatar: base64 });
+      };
+      reader.readAsDataURL(file);
+    }
+  };
 
   // 初始化展开当前路径对应的菜单
   useEffect(() => {
@@ -327,8 +401,15 @@ export default function DashboardLayout({
                 {user?.dept?.deptName || "系统管理员"}
               </p>
             </div>
-            <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center text-white text-sm font-bold">
-              {(user?.realName || user?.username || "A").charAt(0)}
+            <div 
+              onClick={() => setShowProfile(true)}
+              className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center text-white text-sm font-bold cursor-pointer hover:bg-blue-600 overflow-hidden"
+            >
+              {user?.avatar ? (
+                <img src={user.avatar} alt="头像" className="w-full h-full object-cover" />
+              ) : (
+                <img src="/logo.png" alt="默认头像" className="w-full h-full object-contain" />
+              )}
             </div>
             <button
               onClick={handleLogout}
@@ -341,6 +422,82 @@ export default function DashboardLayout({
 
         {/* 页面内容 */}
         <main className="flex-1 overflow-auto p-6">{children}</main>
+
+        {/* 个人信息弹窗 */}
+        {showProfile && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+            <div className="bg-white rounded-lg w-full max-w-md p-6">
+              <h3 className="text-lg font-semibold mb-4">个人信息</h3>
+              <div className="flex flex-col items-center mb-6">
+                <div className="relative">
+                  <div className="w-20 h-20 bg-blue-500 rounded-full flex items-center justify-center text-white text-2xl font-bold overflow-hidden">
+                    {editForm.avatar ? (
+                      <img src={editForm.avatar} alt="头像" className="w-full h-full object-cover" />
+                    ) : (
+                      <img src="/logo.png" alt="默认头像" className="w-full h-full object-contain" />
+                    )}
+                  </div>
+                  <label className="absolute bottom-0 right-0 w-6 h-6 bg-gray-700 rounded-full flex items-center justify-center cursor-pointer hover:bg-gray-600">
+                    <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+                    </svg>
+                    <input type="file" accept="image/*" onChange={handleAvatarChange} className="hidden" />
+                  </label>
+                </div>
+              </div>
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-xs text-gray-500 mb-1">用户名</label>
+                  <input 
+                    className="w-full border rounded px-3 py-2 text-sm bg-gray-100" 
+                    value={user?.username || ""}
+                    disabled
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs text-gray-500 mb-1">姓名</label>
+                  <input 
+                    className="w-full border rounded px-3 py-2 text-sm" 
+                    value={editForm.realName}
+                    onChange={e => setEditForm({...editForm, realName: e.target.value})}
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs text-gray-500 mb-1">电话</label>
+                  <input 
+                    className="w-full border rounded px-3 py-2 text-sm" 
+                    value={editForm.phone}
+                    onChange={e => setEditForm({...editForm, phone: e.target.value})}
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs text-gray-500 mb-1">邮箱</label>
+                  <input 
+                    className="w-full border rounded px-3 py-2 text-sm" 
+                    value={editForm.email}
+                    onChange={e => setEditForm({...editForm, email: e.target.value})}
+                  />
+                </div>
+              </div>
+              <div className="flex justify-end gap-2 mt-6">
+                <button 
+                  onClick={() => setShowProfile(false)} 
+                  className="px-4 py-2 border rounded text-sm hover:bg-gray-50"
+                >
+                  取消
+                </button>
+                <button 
+                  onClick={handleSaveProfile} 
+                  disabled={saving}
+                  className="px-4 py-2 bg-blue-600 text-white rounded text-sm hover:bg-blue-700 disabled:opacity-50"
+                >
+                  {saving ? "保存中..." : "保存"}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

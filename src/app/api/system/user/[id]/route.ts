@@ -154,7 +154,8 @@ export async function PUT(
 
     const validationResult = updateUserSchema.safeParse(body);
     if (!validationResult.success) {
-      return badRequestResponse(validationResult.error.errors[0].message);
+      const errorMessage = validationResult.error.errors?.[0]?.message || '参数验证失败';
+      return badRequestResponse(errorMessage);
     }
 
     const data = validationResult.data;
@@ -167,6 +168,11 @@ export async function PUT(
 
     if (!existingUser) {
       return notFoundResponse('用户不存在');
+    }
+
+    // 不允许禁用/启用自己
+    if (data.status !== undefined && userId === authResult.userId) {
+      return errorResponse(400, '不能对当前登录用户进行状态操作');
     }
 
     // 构建更新数据

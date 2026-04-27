@@ -183,7 +183,8 @@ export async function POST(request: NextRequest) {
 
     const validationResult = createUserSchema.safeParse(body);
     if (!validationResult.success) {
-      return badRequestResponse(validationResult.error.errors[0].message);
+      const errorMessage = validationResult.error.errors?.[0]?.message || '参数验证失败';
+      return badRequestResponse(errorMessage);
     }
 
     const data = validationResult.data;
@@ -258,7 +259,8 @@ export async function PUT(request: NextRequest) {
     if (body.action) {
       const validationResult = batchOperateSchema.safeParse(body);
       if (!validationResult.success) {
-        return badRequestResponse(validationResult.error.errors[0].message);
+        const errorMessage = validationResult.error.errors?.[0]?.message || '参数验证失败';
+        return badRequestResponse(errorMessage);
       }
 
       const { userIds, action } = validationResult.data;

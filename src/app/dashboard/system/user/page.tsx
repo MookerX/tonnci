@@ -205,7 +205,20 @@ export default function SystemUserPage() {
     }
   };
 
+  const currentUserId = typeof window !== "undefined" ? (() => {
+    const userStr = localStorage.getItem("user");
+    if (userStr) {
+      try { return JSON.parse(userStr).id; } catch {}
+    }
+    return null;
+  })() : null;
+
   const handleToggleStatus = async (user: User) => {
+    // 不能对自己进行操作
+    if (user.id === currentUserId) {
+      alert("不能对当前登录用户进行状态操作");
+      return;
+    }
     const newStatus = user.status === "active" ? "disabled" : "active";
     const action = newStatus === "active" ? "启用" : "禁用";
     if (!confirm(`确认${action}用户 "${user.realName || user.username}" 吗？`)) return;
@@ -228,6 +241,11 @@ export default function SystemUserPage() {
   };
 
   const handleDelete = async (user: User) => {
+    // 不能对自己进行操作
+    if (user.id === currentUserId) {
+      alert("不能删除当前登录用户");
+      return;
+    }
     if (!confirm(`确认删除用户 "${user.realName || user.username}" 吗？`)) return;
     try {
       const res = await fetch(`/api/system/user/${user.id}`, { method: "DELETE", headers });
@@ -278,12 +296,12 @@ export default function SystemUserPage() {
         <table className="w-full text-sm">
           <thead className="bg-gray-50 border-b">
             <tr>
+              <th className="px-4 py-2.5 text-left font-medium text-gray-600">头像</th>
               <th className="px-4 py-2.5 text-left font-medium text-gray-600">用户名</th>
               <th className="px-4 py-2.5 text-left font-medium text-gray-600">姓名</th>
               <th className="px-4 py-2.5 text-left font-medium text-gray-600">部门</th>
               <th className="px-4 py-2.5 text-left font-medium text-gray-600">角色</th>
               <th className="px-4 py-2.5 text-left font-medium text-gray-600">电话</th>
-              <th className="px-4 py-2.5 text-left font-medium text-gray-600">邮箱</th>
               <th className="px-4 py-2.5 text-left font-medium text-gray-600">状态</th>
               <th className="px-4 py-2.5 text-left font-medium text-gray-600">操作</th>
             </tr>
@@ -296,6 +314,15 @@ export default function SystemUserPage() {
             ) : (
               filteredUsers.map(user => (
                 <tr key={user.id} className="border-b hover:bg-gray-50">
+                  <td className="px-4 py-2.5">
+                    <div className="w-8 h-8 rounded-full overflow-hidden bg-gray-200 flex items-center justify-center">
+                      {user.avatar ? (
+                        <img src={user.avatar} alt={user.username} className="w-full h-full object-cover" />
+                      ) : (
+                        <img src="/logo.png" alt="默认" className="w-full h-full object-contain" />
+                      )}
+                    </div>
+                  </td>
                   <td className="px-4 py-2.5 font-medium">{user.username}</td>
                   <td className="px-4 py-2.5">{user.realName || "-"}</td>
                   <td className="px-4 py-2.5">{user.dept?.deptName || "-"}</td>
@@ -303,7 +330,6 @@ export default function SystemUserPage() {
                     {user.roles?.map(r => r.roleName).join(", ") || "-"}
                   </td>
                   <td className="px-4 py-2.5">{user.phone || "-"}</td>
-                  <td className="px-4 py-2.5">{user.email || "-"}</td>
                   <td className="px-4 py-2.5">
                     <span className={`px-2 py-0.5 text-xs rounded ${user.status === 'active' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
                       {user.status === 'active' ? '正常' : '禁用'}
@@ -311,11 +337,15 @@ export default function SystemUserPage() {
                   </td>
                   <td className="px-4 py-2.5">
                     <button onClick={() => handleOpenForm(user)} className="text-blue-600 hover:underline text-sm mr-2">编辑</button>
-                    <button onClick={() => handleToggleStatus(user)} className="text-gray-600 hover:underline text-sm mr-2">
-                      {user.status === 'active' ? '禁用' : '启用'}
-                    </button>
-                    <button onClick={() => { setResetPwdUser(user); setShowResetPwd(true); }} className="text-orange-600 hover:underline text-sm mr-2">重置密码</button>
-                    <button onClick={() => handleDelete(user)} className="text-red-600 hover:underline text-sm">删除</button>
+                    {user.id !== currentUserId && (
+                      <>
+                        <button onClick={() => handleToggleStatus(user)} className="text-gray-600 hover:underline text-sm mr-2">
+                          {user.status === 'active' ? '禁用' : '启用'}
+                        </button>
+                        <button onClick={() => { setResetPwdUser(user); setShowResetPwd(true); }} className="text-orange-600 hover:underline text-sm mr-2">重置密码</button>
+                        <button onClick={() => handleDelete(user)} className="text-red-600 hover:underline text-sm">删除</button>
+                      </>
+                    )}
                   </td>
                 </tr>
               ))
