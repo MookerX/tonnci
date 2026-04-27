@@ -24,8 +24,8 @@ export async function GET(request: NextRequest) {
     if (isInitialized && initStatus?.configData) {
       try {
         const config = JSON.parse(initStatus.configData);
-        databaseConfig = config.database;
-        adminUser = config.admin;
+        databaseConfig = config.database || {};
+        adminUser = config.admin || {};
       } catch (e) {
         console.error("解析初始化配置失败", e);
       }
@@ -36,10 +36,6 @@ export async function GET(request: NextRequest) {
       try {
         const userCount = await prisma.user.count({ where: { isDelete: false } });
         hasData = userCount > 0;
-
-        if (adminUser && userCount === 0) {
-          hasData = false;
-        }
       } catch (e) {
         hasData = false;
       }

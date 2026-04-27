@@ -35,23 +35,24 @@ export default function SetupPage() {
   const [loading, setLoading] = useState(true);
   const [initStatus, setInitStatus] = useState<InitStatus | null>(null);
   const [step, setStep] = useState<1 | 2 | 3>(1);
-  const [connectionTested, setConnectionTested] = useState(false);
+  const [connectionOk, setConnectionOk] = useState(false);
   const [reinitMode, setReinitMode] = useState<'reuse' | 'clear' | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
   const [dbConfig, setDbConfig] = useState<DatabaseConfig>({
-    host: "127.0.0.1",
+    host: "",
     port: 3306,
-    username: "root",
-    password: "password123",
-    database: "tengxi_pms",
+    username: "",
+    password: "",
+    database: "",
   });
   const [adminConfig, setAdminConfig] = useState<AdminConfig>({
-    username: "admin",
+    username: "",
     password: "",
-    realName: "系统管理员",
+    realName: "",
   });
   const [dbTestResult, setDbTestResult] = useState<{ success: boolean; message: string } | null>(null);
+  const [testLoading, setTestLoading] = useState(false);
 
   // 检查初始化状态
   useEffect(() => {
@@ -65,7 +66,6 @@ export default function SetupPage() {
       const data = await res.json();
       if (data.code === 200) {
         setInitStatus(data.data);
-        // 始终从步骤1开始，用户可以选择继续或重新初始化
       } else {
         setError(data.message || "检查初始化状态失败");
       }
@@ -76,6 +76,12 @@ export default function SetupPage() {
   };
 
   const testDatabase = async () => {
+    if (!dbConfig.host || !dbConfig.username || !dbConfig.database) {
+      setDbTestResult({ success: false, message: "请填写完整的数据库连接信息" });
+      return;
+    }
+
+    setTestLoading(true);
     setDbTestResult(null);
     try {
       const res = await fetch("/api/system/init/test-db", {
@@ -86,15 +92,15 @@ export default function SetupPage() {
       const data = await res.json();
       setDbTestResult({
         success: data.code === 200,
-        message: data.code === 200 ? "数据库连接成功" : data.message,
+        message: data.message || (data.code === 200 ? "连接成功" : "连接失败"),
       });
       if (data.code === 200) {
-        setConnectionTested(true);
-        // 让用户手动点击继续
+        setConnectionOk(true);
       }
     } catch (e) {
-      setDbTestResult({ success: false, message: "测试连接失败" });
+      setDbTestResult({ success: false, message: "测试连接失败，请检查网络" });
     }
+    setTestLoading(false);
   };
 
   const handleStartSetup = async () => {
@@ -104,7 +110,12 @@ export default function SetupPage() {
       return;
     }
 
-    // 验证管理员密码
+    // 验证管理员信息
+    if (!adminConfig.username || adminConfig.username.length < 2) {
+      setError("用户名至少2个字符");
+      return;
+    }
+
     if (!adminConfig.password || adminConfig.password.length < 6) {
       setError("密码至少6个字符");
       return;
@@ -136,7 +147,7 @@ export default function SetupPage() {
         setError(data.message || "初始化失败");
       }
     } catch (e) {
-      setError("初始化请求失败，请检查数据库连接");
+      setError("初始化请求失败，请检查网络连接");
     }
 
     setSubmitting(false);
@@ -176,7 +187,7 @@ export default function SetupPage() {
             <div className="flex-1 h-1 mx-4 bg-gray-200"><div className={`h-full bg-blue-600 transition-all ${step >= 2 ? "w-full" : "w-0"}`} /></div>
             <div className={`flex items-center ${step >= 2 ? "text-blue-600" : "text-gray-400"}`}>
               <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold ${step >= 2 ? "bg-blue-600 text-white" : "bg-gray-300"}`}>2</div>
-              <span className="ml-2 text-sm font-medium">{initStatus?.isInitialized ? "重新初始化" : "管理员设置"}</span>
+              <span className="ml-2 text-sm font-medium">管理员设置</span>
             </div>
             <div className="flex-1 h-1 mx-4 bg-gray-200"><div className={`h-full bg-blue-600 transition-all ${step >= 3 ? "w-full" : "w-0"}`} /></div>
             <div className={`flex items-center ${step >= 3 ? "text-blue-600" : "text-gray-400"}`}>
@@ -191,106 +202,100 @@ export default function SetupPage() {
           {/* 步骤1: 数据库配置 */}
           {step === 1 && (
             <div>
-              <p className="text-gray-600 mb-4">
-                {initStatus?.isInitialized 
-                  ? "系统已初始化，检测到现有数据库配置："
-                  : "请配置数据库连接信息"}
-              </p>
-
               {initStatus?.isInitialized && (
                 <div className="mb-4 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
-                  <p className="text-yellow-800 font-medium">检测到系统已初始化</p>
-                  <p className="text-yellow-600 text-sm mt-1">
-                    数据库: {initStatus.databaseConfig?.host}:{initStatus.databaseConfig?.port}/{initStatus.databaseConfig?.database}
-                  </p>
-                  <p className="text-yellow-600 text-sm mt-1">
-                    管理员: {initStatus.adminUser?.username}
-                  </p>
+                  <p className="text-yellow-800 font-medium">系统已初始化</p>
+                  <p className="text-yellow-600 text-sm mt-1">当前管理员: {initStatus.adminUser?.username || '未知'}</p>
+                  <p className="text-yellow-600 text-sm mt-1">点击"继续"可进行重新初始化配置</p>
                 </div>
               )}
+
+              <p className="text-gray-600 mb-4">请填写数据库连接信息</p>
 
               <div className="space-y-4">
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">主机地址</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">主机地址 *</label>
                     <input
                       type="text"
                       className="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                       value={dbConfig.host}
                       onChange={e => setDbConfig({ ...dbConfig, host: e.target.value })}
+                      placeholder="127.0.0.1"
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">端口</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">端口 *</label>
                     <input
                       type="number"
                       className="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                       value={dbConfig.port}
-                      onChange={e => setDbConfig({ ...dbConfig, port: parseInt(e.target.value) })}
+                      onChange={e => setDbConfig({ ...dbConfig, port: parseInt(e.target.value) || 3306 })}
                     />
                   </div>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">用户名</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">用户名 *</label>
                   <input
                     type="text"
                     className="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     value={dbConfig.username}
                     onChange={e => setDbConfig({ ...dbConfig, username: e.target.value })}
+                    placeholder="root"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">密码</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">密码 *</label>
                   <input
                     type="password"
                     className="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     value={dbConfig.password}
                     onChange={e => setDbConfig({ ...dbConfig, password: e.target.value })}
+                    placeholder="输入密码"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">数据库名</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">数据库名 *</label>
                   <input
                     type="text"
                     className="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     value={dbConfig.database}
                     onChange={e => setDbConfig({ ...dbConfig, database: e.target.value })}
+                    placeholder="tengxi_pms"
                   />
                 </div>
 
                 {dbTestResult && (
-                  <div className={`p-3 rounded-lg ${dbTestResult.success ? "bg-green-50 text-green-700" : "bg-red-50 text-red-700"}`}>
+                  <div className={`p-3 rounded-lg ${dbTestResult.success ? "bg-green-50 text-green-700 border border-green-200" : "bg-red-50 text-red-700 border border-red-200"}`}>
                     {dbTestResult.message}
                   </div>
                 )}
 
-                {error && <div className="p-3 bg-red-50 text-red-700 rounded-lg">{error}</div>}
+                {error && <div className="p-3 bg-red-50 text-red-700 rounded-lg border border-red-200">{error}</div>}
               </div>
 
-              <div className="mt-6 flex justify-end gap-2">
-                {initStatus?.isInitialized && (
-                  <button
-                    onClick={goToLogin}
-                    className="px-4 py-2 border rounded-lg hover:bg-gray-50"
-                  >
-                    返回登录
-                  </button>
-                )}
-                {!connectionTested ? (
+              <div className="mt-6 flex justify-between">
+                <button
+                  onClick={goToLogin}
+                  className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
+                >
+                  返回登录
+                </button>
+                <div className="flex gap-2">
                   <button
                     onClick={testDatabase}
-                    className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                    disabled={testLoading}
+                    className="px-4 py-2 border border-blue-600 text-blue-600 rounded-lg hover:bg-blue-50 disabled:opacity-50"
                   >
-                    测试连接
+                    {testLoading ? "测试中..." : "测试连接"}
                   </button>
-                ) : (
                   <button
                     onClick={() => setStep(2)}
                     className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
                   >
                     继续
                   </button>
-                )}
+                </div>
               </div>
             </div>
           )}
@@ -325,7 +330,7 @@ export default function SetupPage() {
                     />
                     <div className="ml-3">
                       <p className="font-medium text-gray-800">重用现有数据</p>
-                      <p className="text-sm text-gray-500">只更新初始化相关配置，保留其他业务数据</p>
+                      <p className="text-sm text-gray-500">只更新管理员信息，保留其他业务数据</p>
                     </div>
                   </label>
                   <label
@@ -345,7 +350,7 @@ export default function SetupPage() {
                     />
                     <div className="ml-3">
                       <p className="font-medium text-gray-800">清空所有数据</p>
-                      <p className="text-sm text-gray-500">删除数据库中所有数据，重新开始</p>
+                      <p className="text-sm text-gray-500">删除所有数据，重新初始化</p>
                     </div>
                   </label>
                 </div>
@@ -354,43 +359,45 @@ export default function SetupPage() {
               <h3 className="font-medium text-gray-800 mb-4">超级管理员配置</h3>
               <div className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">用户名</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">用户名 *</label>
                   <input
                     type="text"
                     className="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     value={adminConfig.username}
                     onChange={e => setAdminConfig({ ...adminConfig, username: e.target.value })}
+                    placeholder="admin"
                   />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    密码 {initStatus?.hasData && reinitMode === "reuse" && <span className="text-gray-400 text-xs">(留空保持原密码)</span>}
+                    密码 * <span className="text-gray-400 text-xs">(至少6位)</span>
                   </label>
                   <input
                     type="password"
                     className="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     value={adminConfig.password}
                     onChange={e => setAdminConfig({ ...adminConfig, password: e.target.value })}
-                    placeholder={initStatus?.hasData && reinitMode === "reuse" ? "留空则保持原密码" : "请设置密码"}
+                    placeholder="请设置密码"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">姓名</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">姓名 *</label>
                   <input
                     type="text"
                     className="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     value={adminConfig.realName}
                     onChange={e => setAdminConfig({ ...adminConfig, realName: e.target.value })}
+                    placeholder="系统管理员"
                   />
                 </div>
 
-                {error && <div className="p-3 bg-red-50 text-red-700 rounded-lg">{error}</div>}
+                {error && <div className="p-3 bg-red-50 text-red-700 rounded-lg border border-red-200">{error}</div>}
               </div>
 
               <div className="mt-6 flex justify-between">
                 <button
                   onClick={() => setStep(1)}
-                  className="px-4 py-2 border rounded-lg hover:bg-gray-50"
+                  className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
                 >
                   上一步
                 </button>
@@ -416,10 +423,10 @@ export default function SetupPage() {
               <h2 className="text-xl font-bold text-gray-800 mb-2">初始化完成</h2>
               <p className="text-gray-600 mb-2">
                 {initStatus?.hasData && reinitMode === "reuse"
-                  ? "初始化配置已更新，现有业务数据已保留"
+                  ? "管理员配置已更新，现有业务数据已保留"
                   : initStatus?.hasData && reinitMode === "clear"
-                  ? "系统已重置，所有数据已清空"
-                  : "系统已成功初始化"}
+                  ? "所有数据已清空，系统已重新初始化"
+                  : "系统初始化成功"}
               </p>
               <p className="text-gray-500 mb-6">
                 管理员账号: <span className="font-mono font-medium">{adminConfig.username}</span>
@@ -428,7 +435,6 @@ export default function SetupPage() {
               <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6 text-left">
                 <p className="text-yellow-800 text-sm">
                   <strong>安全提示：</strong>初始化完成后，建议删除 setup 目录以防止未授权重新初始化。
-                  <br />删除路径: <code className="bg-yellow-100 px-1">src/app/setup</code>
                 </p>
               </div>
 
