@@ -35,6 +35,7 @@ export default function SetupPage() {
   const [loading, setLoading] = useState(true);
   const [initStatus, setInitStatus] = useState<InitStatus | null>(null);
   const [step, setStep] = useState<1 | 2 | 3>(1);
+  const [connectionTested, setConnectionTested] = useState(false);
   const [reinitMode, setReinitMode] = useState<'reuse' | 'clear' | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
@@ -42,7 +43,7 @@ export default function SetupPage() {
     host: "127.0.0.1",
     port: 3306,
     username: "root",
-    password: "",
+    password: "password123",
     database: "tengxi_pms",
   });
   const [adminConfig, setAdminConfig] = useState<AdminConfig>({
@@ -64,10 +65,9 @@ export default function SetupPage() {
       const data = await res.json();
       if (data.code === 200) {
         setInitStatus(data.data);
-        if (data.data.isInitialized) {
+        if (data.data?.isInitialized) {
           setStep(2);
-        } else {
-          setStep(1);
+          setConnectionTested(true);
         }
       } else {
         setError(data.message || "检查初始化状态失败");
@@ -92,6 +92,7 @@ export default function SetupPage() {
         message: data.code === 200 ? "数据库连接成功" : data.message,
       });
       if (data.code === 200) {
+        setConnectionTested(true);
         setStep(2);
       }
     } catch (e) {
@@ -100,8 +101,20 @@ export default function SetupPage() {
   };
 
   const handleStartSetup = async () => {
-    if (!reinitMode) {
+    // 如果有现有数据，必须选择初始化模式
+    if (initStatus?.hasData && !reinitMode) {
       setError("请选择初始化模式");
+      return;
+    }
+
+    // 验证管理员密码
+    if (!adminConfig.password || adminConfig.password.length < 6) {
+      setError("密码至少6个字符");
+      return;
+    }
+
+    if (!adminConfig.realName) {
+      setError("请输入管理员姓名");
       return;
     }
 
@@ -126,7 +139,7 @@ export default function SetupPage() {
         setError(data.message || "初始化失败");
       }
     } catch (e) {
-      setError("初始化请求失败");
+      setError("初始化请求失败，请检查数据库连接");
     }
 
     setSubmitting(false);
@@ -181,13 +194,21 @@ export default function SetupPage() {
           {/* 步骤1: 数据库配置 */}
           {step === 1 && (
             <div>
-              {!initStatus?.isInitialized ? (
-                <p className="text-gray-600 mb-4">请配置数据库连接信息</p>
-              ) : (
+              <p className="text-gray-600 mb-4">
+                {initStatus?.isInitialized 
+                  ? "系统已初始化，检测到现有数据库配置："
+                  : "请配置数据库连接信息"}
+              </p>
+
+              {initStatus?.isInitialized && (
                 <div className="mb-4 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
                   <p className="text-yellow-800 font-medium">检测到系统已初始化</p>
-                  <p className="text-yellow-600 text-sm mt-1">数据库: {initStatus.databaseConfig?.host}:{initStatus.databaseConfig?.port}/{initStatus.databaseConfig?.database}</p>
-                  <p className="text-yellow-600 text-sm mt-1">管理员: {initStatus.adminUser?.username}</p>
+                  <p className="text-yellow-600 text-sm mt-1">
+                    数据库: {initStatus.databaseConfig?.host}:{initStatus.databaseConfig?.port}/{initStatus.databaseConfig?.database}
+                  </p>
+                  <p className="text-yellow-600 text-sm mt-1">
+                    管理员: {initStatus.adminUser?.username}
+                  </p>
                 </div>
               )}
 
@@ -249,20 +270,12 @@ export default function SetupPage() {
                 {error && <div className="p-3 bg-red-50 text-red-700 rounded-lg">{error}</div>}
               </div>
 
-              <div className="mt-6 flex justify-between">
-                {initStatus?.isInitialized && (
-                  <button
-                    onClick={goToLogin}
-                    className="px-4 py-2 border rounded-lg hover:bg-gray-50"
-                  >
-                    返回登录
-                  </button>
-                )}
+              <div className="mt-6 flex justify-end">
                 <button
                   onClick={testDatabase}
-                  className="px-4 py-2 border border-blue-600 text-blue-600 rounded-lg hover:bg-blue-50"
+                  className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
                 >
-                  测试连接
+                  测试并继续
                 </button>
               </div>
             </div>
@@ -278,48 +291,51 @@ export default function SetupPage() {
                 </div>
               )}
 
-              <div className="space-y-3 mb-6">
-                <label
-                  className={`flex items-center p-4 border-2 rounded-lg cursor-pointer transition-all ${
-                    reinitMode === "reuse"
-                      ? "border-blue-500 bg-blue-50"
-                      : "border-gray-200 hover:border-gray-300"
-                  }`}
-                >
-                  <input
-                    type="radio"
-                    name="reinitMode"
-                    value="reuse"
-                    checked={reinitMode === "reuse"}
-                    onChange={() => setReinitMode("reuse")}
-                    className="w-4 h-4 text-blue-600"
-                  />
-                  <div className="ml-3">
-                    <p className="font-medium text-gray-800">重用现有数据</p>
-                    <p className="text-sm text-gray-500">只更新初始化相关配置，保留其他业务数据</p>
-                  </div>
-                </label>
-                <label
-                  className={`flex items-center p-4 border-2 rounded-lg cursor-pointer transition-all ${
-                    reinitMode === "clear"
-                      ? "border-blue-500 bg-blue-50"
-                      : "border-gray-200 hover:border-gray-300"
-                  }`}
-                >
-                  <input
-                    type="radio"
-                    name="reinitMode"
-                    value="clear"
-                    checked={reinitMode === "clear"}
-                    onChange={() => setReinitMode("clear")}
-                    className="w-4 h-4 text-blue-600"
-                  />
-                  <div className="ml-3">
-                    <p className="font-medium text-gray-800">清空所有数据</p>
-                    <p className="text-sm text-gray-500">删除数据库中所有数据，重新开始</p>
-                  </div>
-                </label>
-              </div>
+              {/* 初始化模式选择 */}
+              {initStatus?.hasData && (
+                <div className="space-y-3 mb-6">
+                  <label
+                    className={`flex items-center p-4 border-2 rounded-lg cursor-pointer transition-all ${
+                      reinitMode === "reuse"
+                        ? "border-blue-500 bg-blue-50"
+                        : "border-gray-200 hover:border-gray-300"
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="reinitMode"
+                      value="reuse"
+                      checked={reinitMode === "reuse"}
+                      onChange={() => setReinitMode("reuse")}
+                      className="w-4 h-4 text-blue-600"
+                    />
+                    <div className="ml-3">
+                      <p className="font-medium text-gray-800">重用现有数据</p>
+                      <p className="text-sm text-gray-500">只更新初始化相关配置，保留其他业务数据</p>
+                    </div>
+                  </label>
+                  <label
+                    className={`flex items-center p-4 border-2 rounded-lg cursor-pointer transition-all ${
+                      reinitMode === "clear"
+                        ? "border-blue-500 bg-blue-50"
+                        : "border-gray-200 hover:border-gray-300"
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="reinitMode"
+                      value="clear"
+                      checked={reinitMode === "clear"}
+                      onChange={() => setReinitMode("clear")}
+                      className="w-4 h-4 text-blue-600"
+                    />
+                    <div className="ml-3">
+                      <p className="font-medium text-gray-800">清空所有数据</p>
+                      <p className="text-sm text-gray-500">删除数据库中所有数据，重新开始</p>
+                    </div>
+                  </label>
+                </div>
+              )}
 
               <h3 className="font-medium text-gray-800 mb-4">超级管理员配置</h3>
               <div className="space-y-4">
@@ -333,13 +349,15 @@ export default function SetupPage() {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">密码</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    密码 {initStatus?.hasData && reinitMode === "reuse" && <span className="text-gray-400 text-xs">(留空保持原密码)</span>}
+                  </label>
                   <input
                     type="password"
                     className="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     value={adminConfig.password}
                     onChange={e => setAdminConfig({ ...adminConfig, password: e.target.value })}
-                    placeholder={reinitMode === "reuse" ? "留空则保持原密码" : "请设置密码"}
+                    placeholder={initStatus?.hasData && reinitMode === "reuse" ? "留空则保持原密码" : "请设置密码"}
                   />
                 </div>
                 <div>
@@ -364,7 +382,7 @@ export default function SetupPage() {
                 </button>
                 <button
                   onClick={handleStartSetup}
-                  disabled={submitting || (!reinitMode && initStatus?.hasData)}
+                  disabled={submitting || (initStatus?.hasData && !reinitMode)}
                   className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed"
                 >
                   {submitting ? "初始化中..." : "开始初始化"}
@@ -385,7 +403,9 @@ export default function SetupPage() {
               <p className="text-gray-600 mb-2">
                 {initStatus?.hasData && reinitMode === "reuse"
                   ? "初始化配置已更新，现有业务数据已保留"
-                  : "系统已成功初始化，所有数据已清空"}
+                  : initStatus?.hasData && reinitMode === "clear"
+                  ? "系统已重置，所有数据已清空"
+                  : "系统已成功初始化"}
               </p>
               <p className="text-gray-500 mb-6">
                 管理员账号: <span className="font-mono font-medium">{adminConfig.username}</span>
