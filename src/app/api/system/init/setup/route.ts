@@ -50,6 +50,7 @@ export async function POST(request: NextRequest) {
     const username = data.admin?.username;
     const password = data.admin?.password;
     const realName = data.admin?.realName;
+    const database = data.database || {};
 
     // 4. 执行初始化
     await prisma.$transaction(async (tx) => {
@@ -148,6 +149,12 @@ export async function POST(request: NextRequest) {
           stepStatus: "completed",
           completedAt: new Date(),
           configData: JSON.stringify({
+            database: {
+              host: database.host,
+              port: database.port,
+              username: database.username,
+              database: database.database,
+            },
             admin: { username, realName },
           }),
         },
@@ -155,6 +162,12 @@ export async function POST(request: NextRequest) {
           stepStatus: "completed",
           completedAt: new Date(),
           configData: JSON.stringify({
+            database: {
+              host: database.host,
+              port: database.port,
+              username: database.username,
+              database: database.database,
+            },
             admin: { username, realName },
           }),
         },
