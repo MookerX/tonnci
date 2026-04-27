@@ -146,7 +146,7 @@ export default function SetupPage() {
   };
 
   const goToLogin = () => {
-    router.push("/login");
+    router.push("/");
   };
 
   if (loading) {
