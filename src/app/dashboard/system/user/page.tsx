@@ -129,8 +129,8 @@ export default function SystemUserPage() {
       alert("请输入用户名");
       return;
     }
-    if (!editingUser && !form.password) {
-      alert("请输入密码");
+    if (!editingUser && (!form.password || form.password.length < 6)) {
+      alert("密码至少6个字符");
       return;
     }
     if (form.password && form.password.length < 6) {
@@ -140,23 +140,28 @@ export default function SystemUserPage() {
     try {
       let res;
       if (editingUser) {
+        const updateData: any = {
+          realName: form.realName || null,
+          phone: form.phone || null,
+          email: form.email || null,
+          deptId: form.deptId || null,
+          roleIds: form.roleIds,
+          status: form.status,
+        };
         res = await fetch(`/api/system/user/${editingUser.id}`, {
           method: "PUT",
           headers,
-          body: JSON.stringify({
-            realName: form.realName,
-            phone: form.phone,
-            email: form.email,
-            deptId: form.deptId,
-            roleIds: form.roleIds,
-            status: form.status,
-          }),
+          body: JSON.stringify(updateData),
         });
       } else {
         res = await fetch("/api/system/user", {
           method: "POST",
           headers,
-          body: JSON.stringify(form),
+          body: JSON.stringify({
+            ...form,
+            email: form.email || null,
+            deptId: form.deptId || null,
+          }),
         });
       }
       const data = await res.json();

@@ -15,9 +15,10 @@ import { z } from 'zod';
 const updateUserSchema = z.object({
   realName: z.string().max(50).optional().nullable(),
   phone: z.string().max(20).optional().nullable(),
-  email: z.string().email('邮箱格式不正确').optional().nullable(),
+  email: z.string().email('邮箱格式不正确').or(z.literal('')).optional().nullable(),
+  avatar: z.string().optional().nullable(),
   gender: z.enum(['male', 'female', 'unknown']).optional().nullable(),
-  deptId: z.number().int().positive().optional().nullable(),
+  deptId: z.union([z.number().int().positive(), z.literal("")]).optional().nullable().transform(v => v === "" ? null : v),
   roleIds: z.array(z.number().int().positive()).optional(),
   status: z.enum(['active', 'disabled', 'locked']).optional(),
   remark: z.string().optional().nullable(),
@@ -128,8 +129,10 @@ export async function PUT(
 
     // 检查是否是重置密码操作
     if (body.action === 'resetPassword') {
-      const newPassword = body.newPassword || '123456';
-      const hashedPassword = await hashPassword(newPassword);
+      if (!body.newPassword || body.newPassword.length < 6) {
+        return badRequestResponse('新密码至少6个字符');
+      }
+      const hashedPassword = await hashPassword(body.newPassword);
 
       await prisma.user.update({
         where: { id: userId },
@@ -149,7 +152,7 @@ export async function PUT(
         'success'
       );
 
-      return successResponse({ defaultPassword: body.newPassword ? undefined : newPassword }, '密码重置成功');
+      return successResponse(null, '密码重置成功');
     }
 
     const validationResult = updateUserSchema.safeParse(body);

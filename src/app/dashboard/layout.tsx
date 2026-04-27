@@ -182,9 +182,9 @@ export default function DashboardLayout({
           Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({
-          realName: editForm.realName,
-          phone: editForm.phone,
-          email: editForm.email,
+          realName: editForm.realName || null,
+          phone: editForm.phone || null,
+          email: editForm.email || null,
         }),
       });
       const data = await res.json();
