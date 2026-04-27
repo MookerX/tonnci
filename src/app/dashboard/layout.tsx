@@ -359,7 +359,7 @@ export default function DashboardLayout({
                         <a
                           key={child.key}
                           href={child.path}
-                          className={`block pl-12 pr-4 h-9 text-sm transition-colors ${
+                          className={`flex items-center pl-12 pr-4 h-9 text-sm transition-colors ${
                             isActive(child.path)
                               ? "text-blue-400 bg-blue-500/10 border-r-2 border-blue-400"
                               : "text-slate-400 hover:text-white hover:bg-slate-700/30"
