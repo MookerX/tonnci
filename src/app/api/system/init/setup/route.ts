@@ -141,7 +141,7 @@ export async function POST(request: NextRequest) {
         });
       }
 
-      // 4.7 记录初始化状态
+      // 4.7 记录初始化状态 - 只存储主数据库配置信息
       await tx.systemInitStatus.upsert({
         where: { id: 1 },
         create: {
@@ -153,9 +153,9 @@ export async function POST(request: NextRequest) {
               host: database.host,
               port: database.port,
               username: database.username,
+              password: database.password,
               database: database.database,
             },
-            admin: { username, realName },
           }),
         },
         update: {
@@ -166,9 +166,9 @@ export async function POST(request: NextRequest) {
               host: database.host,
               port: database.port,
               username: database.username,
+              password: database.password,
               database: database.database,
             },
-            admin: { username, realName },
           }),
         },
       });

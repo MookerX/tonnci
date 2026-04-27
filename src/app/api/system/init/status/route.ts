@@ -1,6 +1,6 @@
 /**
  * 系统初始化状态检查API
- * 检查系统是否已完成初始化
+ * 通过 config_data 中的主数据库信息判断是否已初始化
  */
 
 import { NextRequest, NextResponse } from "next/server";
@@ -14,30 +14,39 @@ export async function GET(request: NextRequest) {
       orderBy: { updatedAt: "desc" },
     });
 
-    const isInitialized = !!initStatus;
-
-    // 检查数据库中是否有数据
-    let hasData = false;
+    // 从 configData 中解析主数据库配置
     let databaseConfig: any = null;
-    let adminUser: any = null;
+    let isInitialized = false;
+    let connectionTest = { success: false, message: "未测试" };
 
-    if (isInitialized && initStatus?.configData) {
+    if (initStatus?.configData) {
       try {
         const config = JSON.parse(initStatus.configData);
-        databaseConfig = config.database || {};
-        adminUser = config.admin || {};
+        if (config.database && config.database.host) {
+          databaseConfig = config.database;
+          isInitialized = true;
+          // 尝试连接主数据库
+          try {
+            const mysql = require("mysql2/promise");
+            const connection = await mysql.createConnection({
+              host: config.database.host,
+              port: config.database.port || 3306,
+              user: config.database.username,
+              password: config.database.password,
+              database: config.database.database,
+              connectTimeout: 5000,
+            });
+            await connection.end();
+            connectionTest = { success: true, message: "连接成功" };
+          } catch (dbError: any) {
+            connectionTest = { 
+              success: false, 
+              message: `连接失败: ${dbError.message}` 
+            };
+          }
+        }
       } catch (e) {
         console.error("解析初始化配置失败", e);
-      }
-    }
-
-    // 检查业务数据
-    if (isInitialized) {
-      try {
-        const userCount = await prisma.user.count({ where: { isDelete: false } });
-        hasData = userCount > 0;
-      } catch (e) {
-        hasData = false;
       }
     }
 
@@ -46,9 +55,8 @@ export async function GET(request: NextRequest) {
       message: "获取初始化状态成功",
       data: {
         isInitialized,
-        hasData,
         databaseConfig,
-        adminUser,
+        connectionTest,
       },
     });
   } catch (error: any) {
