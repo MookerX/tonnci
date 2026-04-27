@@ -65,10 +65,27 @@ function isPublicRoute(path: string): boolean {
 
 /**
  * 获取当前用户权限列表
+ * 如果用户拥有超级管理员角色，返回 ['*'] 表示拥有所有权限
  */
 async function getUserPermissions(roleIds: number[]): Promise<string[]> {
   if (!roleIds.length) return [];
   
+  // 检查是否包含超级管理员角色
+  const hasSuperAdmin = await prisma.role.findFirst({
+    where: {
+      id: { in: roleIds },
+      roleCode: 'super_admin',
+      isDelete: false,
+      status: 'active',
+    },
+  });
+  
+  // 如果是超级管理员，返回 * 表示拥有所有权限
+  if (hasSuperAdmin) {
+    return ['*'];
+  }
+  
+  // 普通用户：获取角色对应的权限
   const permissions = await prisma.permission.findMany({
     where: {
       isDelete: false,
@@ -171,8 +188,8 @@ export function requirePermission(permissionCode: string) {
       return authContext;
     }
     
-    // 管理员拥有所有权限
-    if (authContext.roles.includes('admin') || authContext.roles.includes('super_admin')) {
+    // 超级管理员拥有所有权限
+    if (authContext.permissions.includes('*') || authContext.permissions.length === 0) {
       return authContext;
     }
     
