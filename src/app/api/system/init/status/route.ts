@@ -18,6 +18,7 @@ export async function GET(request: NextRequest) {
     let databaseConfig: any = null;
     let isInitialized = false;
     let connectionTest = { success: false, message: "未测试" };
+    let adminUser: any = null;
 
     if (initStatus?.configData) {
       try {
@@ -36,8 +37,24 @@ export async function GET(request: NextRequest) {
               database: config.database.database,
               connectTimeout: 5000,
             });
+            // 连接成功，查询当前管理员信息
+            const [rows]: any = await connection.query(`
+              SELECT u.username, u.realName, u.status, u.deptId
+              FROM user u
+              INNER JOIN user_role ur ON u.id = ur.userId
+              INNER JOIN role r ON ur.roleId = r.id
+              WHERE r.roleCode = 'super_admin' AND u.isDelete = 0
+              LIMIT 1
+            `);
             await connection.end();
+            
             connectionTest = { success: true, message: "连接成功" };
+            if (rows && rows.length > 0) {
+              adminUser = {
+                username: rows[0].username,
+                realName: rows[0].realName,
+              };
+            }
           } catch (dbError: any) {
             connectionTest = { 
               success: false, 
@@ -57,6 +74,7 @@ export async function GET(request: NextRequest) {
         isInitialized,
         databaseConfig,
         connectionTest,
+        adminUser,
       },
     });
   } catch (error: any) {
