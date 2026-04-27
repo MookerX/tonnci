@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { fetchApi } from "@/lib/utils/fetch";
 
 export default function SystemLogPage() {
   const [logs, setLogs] = useState<any[]>([]);
@@ -15,8 +16,7 @@ export default function SystemLogPage() {
     const fetchLogs = async () => {
       setLoading(true);
       try {
-        const res = await fetch(`/api/system/log?page=${page}&pageSize=20`, { headers });
-        const data = await res.json();
+        const data = await fetchApi(`/api/system/log?page=${page}&pageSize=20`, { headers });
         if (data.code === 200) setLogs(data.data?.list || data.data || []);
       } catch (e) { console.error(e); }
       setLoading(false);

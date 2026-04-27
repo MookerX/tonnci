@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useToast } from "@/components/ToastProvider";
+import { fetchApi } from "@/lib/utils/fetch";
 
 export default function SystemConfigPage() {
   const [configs, setConfigs] = useState<Record<string, string>>({});
@@ -15,8 +16,7 @@ export default function SystemConfigPage() {
   useEffect(() => {
     const fetchConfig = async () => {
       try {
-        const res = await fetch("/api/system/config", { headers });
-        const data = await res.json();
+        const data = await fetchApi("/api/system/config", { headers });
         if (data.code === 200 && data.data) setConfigs(data.data);
       } catch (e) { console.error(e); }
       setLoading(false);
@@ -27,8 +27,7 @@ export default function SystemConfigPage() {
   const handleSave = async () => {
     setSaving(true);
     try {
-      const res = await fetch("/api/system/config", { method: "PUT", headers, body: JSON.stringify(configs) });
-      const data = await res.json();
+      const data = await fetchApi("/api/system/config", { method: "PUT", headers, body: JSON.stringify(configs) });
       warning(data.code === 200 ? "保存成功" : `保存失败: ${data.message}`);
     } catch (e) { error("保存失败"); }
     setSaving(false);

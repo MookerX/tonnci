@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { fetchApi } from "@/lib/utils/fetch";
 
 interface InitStatus {
   isInitialized: boolean;
@@ -69,8 +70,7 @@ export default function SetupPage() {
   const checkInitStatus = async () => {
     setLoading(true);
     try {
-      const res = await fetch("/api/system/init/status");
-      const data = await res.json();
+      const data = await fetchApi("/api/system/init/status");
       if (data.code === 200) {
         const status = data.data;
         setInitStatus(status);
@@ -102,12 +102,11 @@ export default function SetupPage() {
     setTestLoading(true);
     setDbTestResult(null);
     try {
-      const res = await fetch("/api/system/init/test-db", {
+      const data = await fetchApi("/api/system/init/test-db", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(dbConfig),
       });
-      const data = await res.json();
       setDbTestResult({
         success: data.code === 200,
         message: data.message || (data.code === 200 ? "连接成功" : "连接失败"),
@@ -148,7 +147,7 @@ export default function SetupPage() {
     setError("");
 
     try {
-      const res = await fetch("/api/system/init/setup", {
+      const data = await fetchApi("/api/system/init/setup", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -158,7 +157,6 @@ export default function SetupPage() {
         }),
       });
 
-      const data = await res.json();
       if (data.code === 200) {
         setStep(3);
       } else {

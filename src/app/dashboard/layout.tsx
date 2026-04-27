@@ -7,6 +7,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { useToast } from "@/components/ToastProvider";
+import { fetchApi } from "@/lib/utils/fetch";
 
 // 菜单配置 - 对应需求规格说明书12大功能模块
 const menuConfig = [
@@ -197,12 +198,11 @@ export default function DashboardLayout({
         const formData = new FormData();
         formData.append("file", file);
 
-        const uploadRes = await fetch("/api/upload", {
+        const uploadData = await fetchApi("/api/upload", {
           method: "POST",
           headers: { Authorization: `Bearer ${token}` },
           body: formData,
         });
-        const uploadData = await uploadRes.json();
         if (uploadData.code === 200) {
           avatarUrl = uploadData.data.url;
         } else {
@@ -212,7 +212,7 @@ export default function DashboardLayout({
         }
       }
 
-      const res = await fetch(`/api/system/user/${userId}`, {
+      const data = await fetchApi(`/api/system/user/${userId}`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
@@ -225,7 +225,6 @@ export default function DashboardLayout({
           avatar: avatarUrl || null,
         }),
       });
-      const data = await res.json();
       if (data.code === 200) {
         const updatedUser = { ...user, realName: editForm.realName, phone: editForm.phone, email: editForm.email, avatar: avatarUrl };
         localStorage.setItem("user", JSON.stringify(updatedUser));

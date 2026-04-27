@@ -53,6 +53,39 @@ JWT_SECRET=your-jwt-secret-key
 LOCAL_STORAGE_PATH=/workspace/projects/storage
 ```
 
+## 本地开发环境搭建
+
+从 git clone 到本地后，需完成以下步骤：
+
+```bash
+# 1. 安装依赖
+pnpm install
+
+# 2. 复制环境变量配置文件并修改
+cp .env.example .env
+# 编辑 .env，填入 MySQL 连接信息、JWT 密钥等
+
+# 3. 确保 MySQL 服务运行中，创建数据库
+mysql -u root -p -e "CREATE DATABASE IF NOT EXISTS tengxi_pms DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
+
+# 4. 生成 Prisma 客户端
+pnpm prisma generate
+
+# 5. 推送数据库 schema
+pnpm prisma db push
+
+# 6. 启动开发服务器
+pnpm dev
+
+# 7. 访问 http://localhost:5000 进行系统初始化
+```
+
+**常见问题：**
+
+- `Unexpected token '<', "<!DOCTYPE "... is not valid JSON`：通常是数据库未启动或 .env 未配置，API 返回 HTML 错误页而非 JSON。请检查 MySQL 连接和 .env 配置。
+- `PrismaClient is not configured`：运行 `pnpm prisma generate` 生成客户端。
+- 端口冲突：默认使用 5000 端口，可在启动命令中修改。
+
 ## 开发命令
 
 ```bash

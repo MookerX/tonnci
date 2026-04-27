@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useToast } from "@/components/ToastProvider";
+import { fetchApi } from "@/lib/utils/fetch";
 
 interface User {
   id: number;
@@ -72,17 +73,15 @@ export default function SystemUserPage() {
   const fetchData = async () => {
     setLoading(true);
     try {
-      const [usersRes, deptsRes, rolesRes] = await Promise.all([
-        fetch("/api/system/user", { headers }),
-        fetch("/api/system/dept", { headers }),
-        fetch("/api/system/role", { headers }),
+      const [usersData, deptsData, rolesData] = await Promise.all([
+        fetchApi("/api/system/user", { headers }),
+        fetchApi("/api/system/dept", { headers }),
+        fetchApi("/api/system/role", { headers }),
       ]);
-      const usersData = await usersRes.json();
-      const deptsData = await deptsRes.json();
-      const rolesData = await rolesRes.json();
       if (usersData.code === 200) setUsers(usersData.data?.list || usersData.data || []);
       if (deptsData.code === 200) setDepts(deptsData.data || []);
       if (rolesData.code === 200) setRoles(rolesData.data?.list || rolesData.data || []);
+      if (usersData.code !== 200 && usersData.code !== 0) error(usersData.message);
     } catch (e) {
       error("加载数据失败");
     }
@@ -122,9 +121,9 @@ export default function SystemUserPage() {
     if (form.phone && !/^1[3-9]\d{9}$|^0\d{2,3}-?\d{7,8}$/.test(form.phone)) { warning("电话号码格式不正确"); return; }
     if (form.email && !/^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(form.email)) { warning("邮箱格式不正确"); return; }
     try {
-      let res;
+      let data;
       if (editingUser) {
-        res = await fetch(`/api/system/user/${editingUser.id}`, {
+        data = await fetchApi(`/api/system/user/${editingUser.id}`, {
           method: "PUT",
           headers,
           body: JSON.stringify({
@@ -136,13 +135,12 @@ export default function SystemUserPage() {
           }),
         });
       } else {
-        res = await fetch("/api/system/user", {
+        data = await fetchApi("/api/system/user", {
           method: "POST",
           headers,
           body: JSON.stringify({ ...form, email: form.email || null, deptId: form.deptId || null }),
         });
       }
-      const data = await res.json();
       if (data.code === 200) {
         success(data.message);
         setShowForm(false);
@@ -160,12 +158,11 @@ export default function SystemUserPage() {
     if (!newPassword) { warning("请输入新密码"); return; }
     if (newPassword.length < 6) { warning("密码至少6个字符"); return; }
     try {
-      const res = await fetch(`/api/system/user/${resetPwdUser.id}`, {
+      const data = await fetchApi(`/api/system/user/${resetPwdUser.id}`, {
         method: "PUT",
         headers,
         body: JSON.stringify({ action: "resetPassword", newPassword }),
       });
-      const data = await res.json();
       if (data.code === 200) {
         success(data.message);
         setShowResetPwd(false);
@@ -189,8 +186,7 @@ export default function SystemUserPage() {
       message: `确认${action}用户 "${user.realName || user.username}" 吗？`,
       onConfirm: async () => {
         try {
-          const res = await fetch(`/api/system/user/${user.id}`, { method: "PUT", headers, body: JSON.stringify({ status: newStatus }) });
-          const data = await res.json();
+          const data = await fetchApi(`/api/system/user/${user.id}`, { method: "PUT", headers, body: JSON.stringify({ status: newStatus }) });
           if (data.code === 200) { success(data.message); fetchData(); } else { error(data.message); }
         } catch { error("操作失败"); }
         setConfirmAction(prev => ({ ...prev, show: false }));
@@ -206,8 +202,7 @@ export default function SystemUserPage() {
       message: `确认删除用户 "${user.realName || user.username}" 吗？`,
       onConfirm: async () => {
         try {
-          const res = await fetch(`/api/system/user/${user.id}`, { method: "DELETE", headers });
-          const data = await res.json();
+          const data = await fetchApi(`/api/system/user/${user.id}`, { method: "DELETE", headers });
           if (data.code === 200) { success(data.message); fetchData(); } else { error(data.message); }
         } catch { error("删除失败"); }
         setConfirmAction(prev => ({ ...prev, show: false }));

@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useToast } from "@/components/ToastProvider";
+import { fetchApi } from "@/lib/utils/fetch";
 import { moduleConfig, actionConfig, getModulePermissions, getAllPermissions, generatePermission } from "@/lib/permissions";
 
 interface Menu {
@@ -110,8 +111,7 @@ export default function SystemMenuPage() {
   const fetchMenus = async () => {
     setLoading(true);
     try {
-      const res = await fetch("/api/system/menu", { headers });
-      const data = await res.json();
+      const data = await fetchApi("/api/system/menu", { headers });
       if (data.code === 200) {
         setMenuTree(data.data || []);
         const ids = new Set<number>();
@@ -195,8 +195,7 @@ export default function SystemMenuPage() {
       let res;
       const url = editingMenu ? `/api/system/menu/${editingMenu.id}` : "/api/system/menu";
       const method = editingMenu ? "PUT" : "POST";
-      res = await fetch(url, { method, headers, body: JSON.stringify(form) });
-      const data = await res.json();
+      const data = await fetchApi(url, { method, headers, body: JSON.stringify(form) });
       if (data.code === 200) {
         setShowForm(false);
         fetchMenus();
@@ -211,12 +210,11 @@ export default function SystemMenuPage() {
   const handleSubmitPermission = async () => {
     if (!editingMenu) return;
     try {
-      const res = await fetch(`/api/system/menu/${editingMenu.id}`, {
+      const data = await fetchApi(`/api/system/menu/${editingMenu.id}`, {
         method: "PUT",
         headers,
         body: JSON.stringify({ permission: selectedPermissions.join(',') }),
       });
-      const data = await res.json();
       if (data.code === 200) {
         setShowPermForm(false);
         fetchMenus();
@@ -236,8 +234,7 @@ export default function SystemMenuPage() {
     }
     if (!confirm(`确认删除菜单 "${menu.menuName}" 吗？`)) return;
     try {
-      const res = await fetch(`/api/system/menu/${menu.id}`, { method: "DELETE", headers });
-      const data = await res.json();
+      const data = await fetchApi(`/api/system/menu/${menu.id}`, { method: "DELETE", headers });
       if (data.code === 200) fetchMenus();
       else error(data.message);
     } catch (e) {
@@ -248,12 +245,11 @@ export default function SystemMenuPage() {
   const handleToggleStatus = async (menu: Menu) => {
     const newStatus = menu.status === 'active' ? 'disabled' : 'active';
     try {
-      const res = await fetch(`/api/system/menu/${menu.id}`, {
+      const data = await fetchApi(`/api/system/menu/${menu.id}`, {
         method: "PUT",
         headers,
         body: JSON.stringify({ status: newStatus }),
       });
-      const data = await res.json();
       if (data.code === 200) fetchMenus();
       else error(data.message);
     } catch (e) {

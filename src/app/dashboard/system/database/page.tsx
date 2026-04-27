@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useToast } from "@/components/ToastProvider";
+import { fetchApi } from "@/lib/utils/fetch";
 
 export default function SystemDatabasePage() {
   const [masterConfig, setMasterConfig] = useState<any>(null);
@@ -28,13 +29,11 @@ export default function SystemDatabasePage() {
     setLoading(true);
     try {
       // 获取主库配置
-      const masterRes = await fetch("/api/system/database/master", { headers });
-      const masterData = await masterRes.json();
+      const masterData = await fetchApi("/api/system/database/master", { headers });
       if (masterData.code === 200) setMasterConfig(masterData.data);
 
       // 获取分布式数据库配置列表
-      const listRes = await fetch("/api/system/database", { headers });
-      const listData = await listRes.json();
+      const listData = await fetchApi("/api/system/database", { headers });
       if (listData.code === 200) setConfigs(listData.data?.list || listData.data || []);
     } catch (e) { console.error(e); }
     setLoading(false);
@@ -44,33 +43,31 @@ export default function SystemDatabasePage() {
 
   const handleTestConnection = async (cfg: any) => {
     try {
-      const res = await fetch("/api/system/database", {
+      const data = await fetchApi("/api/system/database", {
         method: "POST",
         headers,
         body: JSON.stringify({ action: "test", data: { host: cfg.host, port: cfg.port, username: cfg.username, password: cfg.password, database: cfg.database } })
       });
-      const data = await res.json();
       warning(data.code === 200 ? "连接成功" : `连接失败: ${data.message}`);
     } catch (e) { warning("连接失败"); }
   };
 
   const handleSubmit = async () => {
     try {
-      let res;
+      let data;
       if (editingId) {
-        res = await fetch(`/api/system/database/${editingId}`, {
+        data = await fetchApi(`/api/system/database/${editingId}`, {
           method: "PUT",
           headers,
           body: JSON.stringify(form)
         });
       } else {
-        res = await fetch("/api/system/database", {
+        data = await fetchApi("/api/system/database", {
           method: "POST",
           headers,
           body: JSON.stringify(form)
         });
       }
-      const data = await res.json();
       if (data.code === 200) {
         setShowForm(false);
         setEditingId(null);
@@ -100,8 +97,7 @@ export default function SystemDatabasePage() {
   const handleDelete = async (id: number) => {
     if (!confirm("确认删除此数据库配置？")) return;
     try {
-      const res = await fetch(`/api/system/database/${id}`, { method: "DELETE", headers });
-      const data = await res.json();
+      const data = await fetchApi(`/api/system/database/${id}`, { method: "DELETE", headers });
       if (data.code === 200) fetchData();
       else error(data.message);
     } catch (e) { error("删除失败"); }

@@ -7,6 +7,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { fetchApi } from "@/lib/utils/fetch";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -30,8 +31,7 @@ export default function LoginPage() {
         }
 
         // 检查系统初始化状态
-        const res = await fetch("/api/system/init/status");
-        const data = await res.json();
+        const data = await fetchApi("/api/system/init/status");
 
         if (data.code === 200) {
           if (!data.data?.isInitialized) {
@@ -57,13 +57,11 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
-      const res = await fetch("/api/auth/login", {
+      const data = await fetchApi("/api/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ username, password }),
       });
-
-      const data = await res.json();
 
       if (data.code === 200 && data.data && data.data.token) {
         // 保存token和用户信息到localStorage

@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useToast } from "@/components/ToastProvider";
+import { fetchApi } from "@/lib/utils/fetch";
 
 interface Dept {
   id: number;
@@ -40,8 +41,7 @@ export default function SystemDeptPage() {
   const fetchDepts = async () => {
     setLoading(true);
     try {
-      const res = await fetch("/api/system/dept", { headers });
-      const data = await res.json();
+      const data = await fetchApi("/api/system/dept", { headers });
       if (data.code === 200) {
         setDeptTree(data.data || []);
         // 默认展开第一层
@@ -100,21 +100,20 @@ export default function SystemDeptPage() {
       return;
     }
     try {
-      let res;
+      let data;
       if (editingDept) {
-        res = await fetch(`/api/system/dept/${editingDept.id}`, {
+        data = await fetchApi(`/api/system/dept/${editingDept.id}`, {
           method: "PUT",
           headers,
           body: JSON.stringify(form),
         });
       } else {
-        res = await fetch("/api/system/dept", {
+        data = await fetchApi("/api/system/dept", {
           method: "POST",
           headers,
           body: JSON.stringify(form),
         });
       }
-      const data = await res.json();
       if (data.code === 200) {
         setShowForm(false);
         fetchDepts();
@@ -137,8 +136,7 @@ export default function SystemDeptPage() {
     }
     if (!confirm(`确认删除部门 "${dept.deptName}" 吗？`)) return;
     try {
-      const res = await fetch(`/api/system/dept/${dept.id}`, { method: "DELETE", headers });
-      const data = await res.json();
+      const data = await fetchApi(`/api/system/dept/${dept.id}`, { method: "DELETE", headers });
       if (data.code === 200) {
         fetchDepts();
       } else {
@@ -152,12 +150,11 @@ export default function SystemDeptPage() {
   const handleToggleStatus = async (dept: Dept) => {
     const newStatus = dept.status === 'active' ? 'disabled' : 'active';
     try {
-      const res = await fetch(`/api/system/dept/${dept.id}`, {
+      const data = await fetchApi(`/api/system/dept/${dept.id}`, {
         method: "PUT",
         headers,
         body: JSON.stringify({ status: newStatus }),
       });
-      const data = await res.json();
       if (data.code === 200) {
         fetchDepts();
       } else {

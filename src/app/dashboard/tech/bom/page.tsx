@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useToast } from "@/components/ToastProvider";
+import { fetchApi } from "@/lib/utils/fetch";
 
 export default function BomManagementPage() {
   const [materials, setMaterials] = useState<any[]>([]);
@@ -23,8 +24,7 @@ export default function BomManagementPage() {
       const params = new URLSearchParams();
       if (search.keyword) params.set("keyword", search.keyword);
       if (search.materialType) params.set("materialType", search.materialType);
-      const res = await fetch(`/api/bom/material?${params.toString()}`, { headers });
-      const data = await res.json();
+      const data = await fetchApi(`/api/bom/material?${params.toString()}`, { headers });
       if (data.code === 200) setMaterials(data.data?.list || data.data || []);
     } catch (e) { console.error(e); }
     setLoading(false);
@@ -32,8 +32,7 @@ export default function BomManagementPage() {
 
   const fetchCustomers = async () => {
     try {
-      const res = await fetch("/api/customer", { headers });
-      const data = await res.json();
+      const data = await fetchApi("/api/customer", { headers });
       if (data.code === 200) setCustomers(data.data?.list || data.data || []);
     } catch (e) { console.error(e); }
   };
@@ -42,8 +41,7 @@ export default function BomManagementPage() {
 
   const handleSubmit = async () => {
     try {
-      const res = await fetch("/api/bom/material", { method: "POST", headers, body: JSON.stringify(form) });
-      const data = await res.json();
+      const data = await fetchApi("/api/bom/material", { method: "POST", headers, body: JSON.stringify(form) });
       if (data.code === 200) { setShowForm(false); fetchData(); }
       else error(data.message);
     } catch (e) { error("保存失败"); }

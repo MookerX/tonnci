@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useToast } from "@/components/ToastProvider";
+import { fetchApi } from "@/lib/utils/fetch";
 
 interface StorageItem {
   id: number;
@@ -54,12 +55,10 @@ export default function SystemStoragePage() {
   const fetchData = async () => {
     setLoading(true);
     try {
-      const [storageRes, nasRes] = await Promise.all([
-        fetch("/api/system/storage-config", { headers }),
-        fetch("/api/system/storage", { headers }),
+      const [storageData, nasData] = await Promise.all([
+        fetchApi("/api/system/storage-config", { headers }),
+        fetchApi("/api/system/storage", { headers }),
       ]);
-      const storageData = await storageRes.json();
-      const nasData = await nasRes.json();
       if (storageData.code === 200) setStorages(storageData.data || []);
       if (nasData.code === 200) setNasDevices(nasData.data || []);
     } catch (e) {
@@ -103,21 +102,20 @@ export default function SystemStoragePage() {
     if (!form.storageName) { warning("请输入存储名称"); return; }
     if (!form.fileTypes) { warning("请输入绑定文件类型"); return; }
     try {
-      let res;
+      let data;
       if (editingItem) {
-        res = await fetch(`/api/system/storage-config/${editingItem.id}`, {
+        data = await fetchApi(`/api/system/storage-config/${editingItem.id}`, {
           method: "PUT",
           headers,
           body: JSON.stringify(form),
         });
       } else {
-        res = await fetch("/api/system/storage-config", {
+        data = await fetchApi("/api/system/storage-config", {
           method: "POST",
           headers,
           body: JSON.stringify(form),
         });
       }
-      const data = await res.json();
       if (data.code === 200) {
         setShowForm(false);
         setEditingItem(null);
@@ -133,8 +131,7 @@ export default function SystemStoragePage() {
   const handleDelete = async (item: StorageItem) => {
     if (!confirm(`确认删除存储 "${item.storageName}" 吗？`)) return;
     try {
-      const res = await fetch(`/api/system/storage-config/${item.id}`, { method: "DELETE", headers });
-      const data = await res.json();
+      const data = await fetchApi(`/api/system/storage-config/${item.id}`, { method: "DELETE", headers });
       if (data.code === 200) {
         fetchData();
       } else {
@@ -150,12 +147,11 @@ export default function SystemStoragePage() {
     const action = newStatus === "active" ? "启用" : "禁用";
     if (!confirm(`确认${action}存储 "${item.storageName}" 吗？`)) return;
     try {
-      const res = await fetch(`/api/system/storage-config/${item.id}`, {
+      const data = await fetchApi(`/api/system/storage-config/${item.id}`, {
         method: "PUT",
         headers,
         body: JSON.stringify({ status: newStatus }),
       });
-      const data = await res.json();
       if (data.code === 200) {
         fetchData();
       } else {

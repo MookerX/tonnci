@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useToast } from "@/components/ToastProvider";
+import { fetchApi } from "@/lib/utils/fetch";
 import { moduleConfig, actionConfig, generatePermission } from "@/lib/permissions";
 
 interface Role {
@@ -104,8 +105,7 @@ export default function SystemRolePage() {
   const fetchRoles = async () => {
     setLoading(true);
     try {
-      const res = await fetch("/api/system/role", { headers });
-      const data = await res.json();
+      const data = await fetchApi("/api/system/role", { headers });
       if (data.code === 200) setRoles(data.data?.list || data.data || []);
     } catch (e) {
       console.error(e);
@@ -139,21 +139,20 @@ export default function SystemRolePage() {
       return;
     }
     try {
-      let res;
+      let data;
       if (editingRole) {
-        res = await fetch(`/api/system/role/${editingRole.id}`, {
+        data = await fetchApi(`/api/system/role/${editingRole.id}`, {
           method: "PUT",
           headers,
           body: JSON.stringify(form),
         });
       } else {
-        res = await fetch("/api/system/role", {
+        data = await fetchApi("/api/system/role", {
           method: "POST",
           headers,
           body: JSON.stringify(form),
         });
       }
-      const data = await res.json();
       if (data.code === 200) {
         setShowForm(false);
         fetchRoles();
@@ -172,8 +171,7 @@ export default function SystemRolePage() {
     }
     if (!confirm(`确认删除角色 "${role.roleName}" 吗？`)) return;
     try {
-      const res = await fetch(`/api/system/role/${role.id}`, { method: "DELETE", headers });
-      const data = await res.json();
+      const data = await fetchApi(`/api/system/role/${role.id}`, { method: "DELETE", headers });
       if (data.code === 200) fetchRoles();
       else error(data.message);
     } catch (e) {
@@ -192,8 +190,7 @@ export default function SystemRolePage() {
 
     // 获取角色已有的权限
     try {
-      const roleDetailRes = await fetch(`/api/system/role/${role.id}`, { headers });
-      const roleData = await roleDetailRes.json();
+      const roleData = await fetchApi(`/api/system/role/${role.id}`, { headers });
 
       if (roleData.code === 200) {
         // permissions 现在是字符串数组，如 ["system:user:query", "system:user:create", ...]
@@ -203,8 +200,7 @@ export default function SystemRolePage() {
       }
 
       // 获取部门树
-      const deptRes = await fetch("/api/system/dept", { headers });
-      const deptData = await deptRes.json();
+      const deptData = await fetchApi("/api/system/dept", { headers });
       if (deptData.code === 200) {
         setDeptTree(deptData.data || []);
       }
@@ -242,7 +238,7 @@ export default function SystemRolePage() {
     try {
       const permissions = Array.from(selectedPermissions);
 
-      const res = await fetch(`/api/system/role/${editingRole.id}`, {
+      const data = await fetchApi(`/api/system/role/${editingRole.id}`, {
         method: "PUT",
         headers,
         body: JSON.stringify({
@@ -251,7 +247,6 @@ export default function SystemRolePage() {
           deptIds: selectedDeptIds,
         }),
       });
-      const data = await res.json();
       if (data.code === 200) {
         setShowPermForm(false);
         success("权限分配成功");
