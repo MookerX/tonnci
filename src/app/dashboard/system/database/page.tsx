@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useToast } from "@/components/ToastProvider";
 import { fetchApi } from "@/lib/utils/fetch";
+import { PermissionGuard } from "@/components/PermissionGuard";
 
 export default function SystemDatabasePage() {
   const { success, error, warning } = useToast();

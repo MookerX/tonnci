@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useToast } from "@/components/ToastProvider";
 import { fetchApi } from "@/lib/utils/fetch";
+import { PermissionGuard } from "@/components/PermissionGuard";
 import { moduleConfig, actionConfig, generatePermission } from "@/lib/permissions";
 
 interface Role {
@@ -295,9 +296,11 @@ export default function SystemRolePage() {
     <div>
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-lg font-semibold text-gray-800">角色管理</h2>
-        <button onClick={() => handleOpenForm()} className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700">
-          + 新增角色
-        </button>
+        <PermissionGuard permission="system:role:create">
+          <button onClick={() => handleOpenForm()} className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700">
+            + 新增角色
+          </button>
+        </PermissionGuard>
       </div>
 
       <div className="flex items-center gap-2 mb-4">
@@ -342,9 +345,15 @@ export default function SystemRolePage() {
                     </span>
                   </td>
                   <td className="px-4 py-2.5">
-                    <button onClick={() => handleOpenPermission(role)} className="text-blue-600 hover:underline text-sm mr-2">权限配置</button>
-                    <button onClick={() => handleOpenForm(role)} className="text-gray-600 hover:underline text-sm mr-2">编辑</button>
-                    <button onClick={() => handleDelete(role)} className="text-red-600 hover:underline text-sm">删除</button>
+                    <PermissionGuard permission="system:role:update">
+                      <button onClick={() => handleOpenPermission(role)} className="text-blue-600 hover:underline text-sm mr-2">权限配置</button>
+                    </PermissionGuard>
+                    <PermissionGuard permission="system:role:update">
+                      <button onClick={() => handleOpenForm(role)} className="text-gray-600 hover:underline text-sm mr-2">编辑</button>
+                    </PermissionGuard>
+                    <PermissionGuard permission="system:role:delete">
+                      <button onClick={() => handleDelete(role)} className="text-red-600 hover:underline text-sm">删除</button>
+                    </PermissionGuard>
                   </td>
                 </tr>
               ))

@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useToast } from "@/components/ToastProvider";
 import { fetchApi } from "@/lib/utils/fetch";
+import { PermissionGuard } from "@/components/PermissionGuard";
 import { moduleConfig, actionConfig, getModulePermissions, getAllPermissions, generatePermission } from "@/lib/permissions";
 
 interface Menu {
@@ -353,15 +354,15 @@ export default function SystemMenuPage() {
               </button>
             )}
             {menu.menuType !== 'button' && (
-              <button onClick={() => handleOpenForm(undefined, menu.id)} className="text-blue-600 hover:underline text-sm">
+              <PermissionGuard permission="system:menu:create"><button onClick={() => handleOpenForm(undefined, menu.id)} className="text-blue-600 hover:underline text-sm">
                 添加子菜单
-              </button>
+              </button></PermissionGuard>
             )}
-            <button onClick={() => handleOpenForm(menu)} className="text-gray-600 hover:underline text-sm">编辑</button>
-            <button onClick={() => handleToggleStatus(menu)} className="text-yellow-600 hover:underline text-sm">
+            <PermissionGuard permission="system:menu:update"><button onClick={() => handleOpenForm(menu)} className="text-gray-600 hover:underline text-sm">编辑</button></PermissionGuard>
+            <PermissionGuard permission="system:menu:update"><button onClick={() => handleToggleStatus(menu)} className="text-yellow-600 hover:underline text-sm">
               {menu.status === 'active' ? '禁用' : '启用'}
-            </button>
-            <button onClick={() => handleDelete(menu)} className="text-red-600 hover:underline text-sm">删除</button>
+            </button></PermissionGuard>
+            <PermissionGuard permission="system:menu:delete"><button onClick={() => handleDelete(menu)} className="text-red-600 hover:underline text-sm">删除</button></PermissionGuard>
           </div>
         </div>
         {hasChildren && isExpanded && menu.children!.map(child => renderMenuNode(child, level + 1))}
@@ -389,9 +390,11 @@ export default function SystemMenuPage() {
               <option key={key} value={key}>{data.name}</option>
             ))}
           </select>
+          <PermissionGuard permission="system:menu:create">
           <button onClick={() => handleOpenForm()} className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700">
             + 新增菜单
           </button>
+          </PermissionGuard>
         </div>
       </div>
 

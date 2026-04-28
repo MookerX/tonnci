@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useToast } from "@/components/ToastProvider";
 import { fetchApi } from "@/lib/utils/fetch";
+import { PermissionGuard } from "@/components/PermissionGuard";
 
 interface Dept {
   id: number;
@@ -219,30 +220,38 @@ export default function SystemDeptPage() {
           </div>
           {/* 操作按钮 */}
           <div className="flex items-center gap-2">
+            <PermissionGuard permission="system:dept:create">
             <button
               onClick={() => handleOpenForm(undefined, dept.id)}
               className="text-blue-600 hover:underline text-sm"
             >
               添加子部门
             </button>
+            </PermissionGuard>
+            <PermissionGuard permission="system:dept:update">
             <button
               onClick={() => handleOpenForm(dept)}
               className="text-gray-600 hover:underline text-sm"
             >
               编辑
             </button>
+            </PermissionGuard>
+            <PermissionGuard permission="system:dept:update">
             <button
               onClick={() => handleToggleStatus(dept)}
               className="text-yellow-600 hover:underline text-sm"
             >
               {dept.status === 'active' ? '禁用' : '启用'}
             </button>
+            </PermissionGuard>
+            <PermissionGuard permission="system:dept:delete">
             <button
               onClick={() => handleDelete(dept)}
               className="text-red-600 hover:underline text-sm"
             >
               删除
             </button>
+            </PermissionGuard>
           </div>
         </div>
         {/* 子部门 */}
@@ -274,12 +283,14 @@ export default function SystemDeptPage() {
               列表
             </button>
           </div>
+          <PermissionGuard permission="system:dept:create">
           <button
             onClick={() => handleOpenForm()}
             className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700"
           >
             + 新增部门
           </button>
+          </PermissionGuard>
         </div>
       </div>
 
@@ -323,12 +334,12 @@ export default function SystemDeptPage() {
                     </span>
                   </td>
                   <td className="px-4 py-2.5">
-                    <button onClick={() => handleOpenForm(undefined, dept.id)} className="text-blue-600 hover:underline text-sm mr-2">添加子部门</button>
-                    <button onClick={() => handleOpenForm(dept)} className="text-gray-600 hover:underline text-sm mr-2">编辑</button>
+                    <PermissionGuard permission="system:dept:create"><button onClick={() => handleOpenForm(undefined, dept.id)} className="text-blue-600 hover:underline text-sm mr-2">添加子部门</button></PermissionGuard>
+                    <PermissionGuard permission="system:dept:update"><button onClick={() => handleOpenForm(dept)} className="text-gray-600 hover:underline text-sm mr-2">编辑</button></PermissionGuard>
                     <button onClick={() => handleToggleStatus(dept)} className="text-yellow-600 hover:underline text-sm mr-2">
                       {dept.status === 'active' ? '禁用' : '启用'}
                     </button>
-                    <button onClick={() => handleDelete(dept)} className="text-red-600 hover:underline text-sm">删除</button>
+                    <PermissionGuard permission="system:dept:delete"><button onClick={() => handleDelete(dept)} className="text-red-600 hover:underline text-sm">删除</button></PermissionGuard>
                   </td>
                 </tr>
               ))}

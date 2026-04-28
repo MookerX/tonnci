@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useToast } from "@/components/ToastProvider";
 import { fetchApi } from "@/lib/utils/fetch";
+import { PermissionGuard } from "@/components/PermissionGuard";
 
 interface User {
   id: number;
@@ -221,9 +222,11 @@ export default function SystemUserPage() {
     <div>
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-lg font-semibold text-gray-800">用户管理</h2>
-        <button onClick={() => handleOpenForm()} className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700">
-          + 添加用户
-        </button>
+        <PermissionGuard permission="system:user:create">
+          <button onClick={() => handleOpenForm()} className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700">
+            + 添加用户
+          </button>
+        </PermissionGuard>
       </div>
 
       {/* 搜索 */}
@@ -277,14 +280,22 @@ export default function SystemUserPage() {
                   </td>
                   <td className="px-4 py-2.5">
                     <div className="flex items-center gap-1.5">
-                      <button onClick={() => handleOpenForm(user)} className="px-2.5 py-1 bg-blue-50 text-blue-600 rounded text-xs hover:bg-blue-100 border border-blue-200">编辑</button>
+                      <PermissionGuard permission="system:user:update">
+                        <button onClick={() => handleOpenForm(user)} className="px-2.5 py-1 bg-blue-50 text-blue-600 rounded text-xs hover:bg-blue-100 border border-blue-200">编辑</button>
+                      </PermissionGuard>
                       {user.id !== currentUserId && (
                         <>
-                          <button onClick={() => handleToggleStatus(user)} className={`px-2.5 py-1 rounded text-xs border ${user.status === "active" ? "bg-yellow-50 text-yellow-700 border-yellow-200 hover:bg-yellow-100" : "bg-green-50 text-green-700 border-green-200 hover:bg-green-100"}`}>
-                            {user.status === "active" ? "禁用" : "启用"}
-                          </button>
-                          <button onClick={() => { setResetPwdUser(user); setShowResetPwd(true); }} className="px-2.5 py-1 bg-orange-50 text-orange-600 rounded text-xs hover:bg-orange-100 border border-orange-200">重置密码</button>
-                          <button onClick={() => handleDelete(user)} className="px-2.5 py-1 bg-red-50 text-red-600 rounded text-xs hover:bg-red-100 border border-red-200">删除</button>
+                          <PermissionGuard permission="system:user:update">
+                            <button onClick={() => handleToggleStatus(user)} className={`px-2.5 py-1 rounded text-xs border ${user.status === "active" ? "bg-yellow-50 text-yellow-700 border-yellow-200 hover:bg-yellow-100" : "bg-green-50 text-green-700 border-green-200 hover:bg-green-100"}`}>
+                              {user.status === "active" ? "禁用" : "启用"}
+                            </button>
+                          </PermissionGuard>
+                          <PermissionGuard permission="system:user:update">
+                            <button onClick={() => { setResetPwdUser(user); setShowResetPwd(true); }} className="px-2.5 py-1 bg-orange-50 text-orange-600 rounded text-xs hover:bg-orange-100 border border-orange-200">重置密码</button>
+                          </PermissionGuard>
+                          <PermissionGuard permission="system:user:delete">
+                            <button onClick={() => handleDelete(user)} className="px-2.5 py-1 bg-red-50 text-red-600 rounded text-xs hover:bg-red-100 border border-red-200">删除</button>
+                          </PermissionGuard>
                         </>
                       )}
                     </div>

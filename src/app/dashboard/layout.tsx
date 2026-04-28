@@ -1,5 +1,5 @@
 // =============================================================================
-// 腾曦生产管理系统 - 后台布局（含侧边栏菜单）
+// 腾曦生产管理系统 - 后台布局（含侧边栏菜单、认证守卫、权限过滤）
 // =============================================================================
 
 "use client";
@@ -8,6 +8,7 @@ import { useState, useEffect, useCallback } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { useToast } from "@/components/ToastProvider";
 import { fetchApi } from "@/lib/utils/fetch";
+import { AuthProvider, useAuth } from "@/components/AuthProvider";
 
 // 菜单配置 - 对应需求规格说明书12大功能模块
 const menuConfig = [
@@ -128,47 +129,43 @@ const menuConfig = [
   },
 ];
 
-export default function DashboardLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+// =============================================================================
+// 内部布局组件 - 使用 useAuth
+// =============================================================================
+function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const { success, error, warning } = useToast();
+  const { user, hasMenu, loading, initialized, logout } = useAuth();
   const [collapsed, setCollapsed] = useState(false);
   const [openKeys, setOpenKeys] = useState<string[]>([]);
-  const [user, setUser] = useState<any>(null);
   const [showProfile, setShowProfile] = useState(false);
   const [editForm, setEditForm] = useState({ realName: "", phone: "", email: "", avatar: "" });
   const [saving, setSaving] = useState(false);
 
+  // 未登录自动跳转
   useEffect(() => {
-    const userStr = localStorage.getItem("user");
-    if (userStr) {
-      try {
-        const userData = JSON.parse(userStr);
-        setUser(userData);
-        setEditForm({
-          realName: userData.realName || "",
-          phone: userData.phone || "",
-          email: userData.email || "",
-          avatar: userData.avatar || "",
-        });
-      } catch {}
+    if (initialized && !user && !loading) {
+      router.replace("/");
     }
-  }, []);
+  }, [initialized, user, loading, router]);
+
+  // 初始化编辑表单
+  useEffect(() => {
+    if (user) {
+      setEditForm({
+        realName: user.realName || "",
+        phone: user.phone || "",
+        email: user.email || "",
+        avatar: user.avatar || "",
+      });
+    }
+  }, [user]);
 
   // 获取当前登录用户ID
-  const getCurrentUserId = () => {
-    const userStr = localStorage.getItem("user");
-    if (userStr) {
-      try {
-        return JSON.parse(userStr).id;
-      } catch {}
-    }
-    return null;
-  };
+  const getCurrentUserId = useCallback(() => {
+    return user?.id || null;
+  }, [user]);
 
   // 保存个人信息
   const handleSaveProfile = async () => {
@@ -176,7 +173,6 @@ export default function DashboardLayout({
     const userId = getCurrentUserId();
     if (!token || !userId) return;
 
-    // 校验电话和邮箱
     if (editForm.phone && !/^1[3-9]\d{9}$|^0\d{2,3}-?\d{7,8}$/.test(editForm.phone)) {
       warning("电话号码格式不正确");
       return;
@@ -188,10 +184,8 @@ export default function DashboardLayout({
 
     setSaving(true);
     try {
-      // 先上传头像（如果有新头像且是base64格式）
       let avatarUrl = editForm.avatar;
       if (avatarUrl && avatarUrl.startsWith("data:")) {
-        // 将base64转为文件上传
         const res = await fetch(avatarUrl);
         const blob = await res.blob();
         const file = new File([blob], `avatar-${userId}.png`, { type: "image/png" });
@@ -226,9 +220,6 @@ export default function DashboardLayout({
         }),
       });
       if (data.code === 200) {
-        const updatedUser = { ...user, realName: editForm.realName, phone: editForm.phone, email: editForm.email, avatar: avatarUrl };
-        localStorage.setItem("user", JSON.stringify(updatedUser));
-        setUser(updatedUser);
         success("保存成功");
         setShowProfile(false);
       } else {
@@ -240,7 +231,6 @@ export default function DashboardLayout({
     setSaving(false);
   };
 
-  // 处理头像上传
   const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
@@ -261,7 +251,7 @@ export default function DashboardLayout({
     if (currentMenu && !openKeys.includes(currentMenu.key)) {
       setOpenKeys((prev) => [...prev, currentMenu.key]);
     }
-  }, [pathname]);
+  }, [pathname, openKeys]);
 
   const toggleMenu = (key: string) => {
     setOpenKeys((prev) =>
@@ -269,15 +259,39 @@ export default function DashboardLayout({
     );
   };
 
-  const handleLogout = () => {
-    localStorage.removeItem("token");
-    localStorage.removeItem("user");
-    window.location.href = "/";
-  };
-
   const isActive = (path: string) => pathname === path;
   const isParentActive = (menu: (typeof menuConfig)[0]) =>
     menu.children?.some((c) => pathname.startsWith(c.path)) || false;
+
+  // 判断菜单是否可见（根据权限过滤）
+  const isMenuVisible = (menu: { key: string; children?: { key: string }[] }) => {
+    // 工作台始终可见
+    if (menu.key === "home") return true;
+
+    if (menu.children && menu.children.length > 0) {
+      // 有子菜单：至少有一个子菜单可见则显示父菜单
+      return menu.children.some((child) => hasMenu(child.key));
+    }
+    // 无子菜单：根据菜单key判断
+    return hasMenu(menu.key);
+  };
+
+  // 加载中
+  if (loading || !initialized) {
+    return (
+      <div className="h-screen flex items-center justify-center bg-gray-100">
+        <div className="text-center">
+          <div className="w-10 h-10 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-3" />
+          <p className="text-gray-500 text-sm">加载中...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // 未登录
+  if (!user) {
+    return null;
+  }
 
   return (
     <div className="h-screen flex bg-gray-100">
@@ -299,14 +313,17 @@ export default function DashboardLayout({
           )}
         </div>
 
-        {/* 菜单区域 */}
+        {/* 菜单区域 - 根据权限过滤 */}
         <nav className="flex-1 overflow-y-auto py-2 scrollbar-thin">
-          {menuConfig.map((menu) => {
+          {menuConfig.filter(isMenuVisible).map((menu) => {
             const hasChildren = menu.children && menu.children.length > 0;
             const parentActive = isParentActive(menu);
             const isOpen = openKeys.includes(menu.key);
 
-            if (hasChildren) {
+            // 过滤不可见的子菜单
+            const visibleChildren = menu.children?.filter((child) => hasMenu(child.key));
+
+            if (hasChildren && visibleChildren && visibleChildren.length > 0) {
               return (
                 <div key={menu.key}>
                   <button
@@ -354,7 +371,7 @@ export default function DashboardLayout({
                   </button>
                   {!collapsed && isOpen && (
                     <div>
-                      {menu.children!.map((child) => (
+                      {visibleChildren.map((child) => (
                         <a
                           key={child.key}
                           href={child.path}
@@ -373,33 +390,38 @@ export default function DashboardLayout({
               );
             }
 
-            return (
-              <a
-                key={menu.key}
-                href={menu.path}
-                className={`flex items-center px-4 h-10 text-sm transition-colors ${
-                  isActive(menu.path)
-                    ? "text-blue-400 bg-blue-500/10 border-r-2 border-blue-400"
-                    : "text-slate-300 hover:text-white hover:bg-slate-700/40"
-                }`}
-                title={collapsed ? menu.label : undefined}
-              >
-                <svg
-                  className="w-5 h-5 flex-shrink-0"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
+            // 无子菜单的一级菜单
+            if (!hasChildren) {
+              return (
+                <a
+                  key={menu.key}
+                  href={menu.path}
+                  className={`flex items-center px-4 h-10 text-sm transition-colors ${
+                    isActive(menu.path)
+                      ? "text-blue-400 bg-blue-500/10 border-r-2 border-blue-400"
+                      : "text-slate-300 hover:text-white hover:bg-slate-700/40"
+                  }`}
+                  title={collapsed ? menu.label : undefined}
                 >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={1.5}
-                    d={menu.icon}
-                  />
-                </svg>
-                {!collapsed && <span className="ml-3">{menu.label}</span>}
-              </a>
-            );
+                  <svg
+                    className="w-5 h-5 flex-shrink-0"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={1.5}
+                      d={menu.icon}
+                    />
+                  </svg>
+                  {!collapsed && <span className="ml-3">{menu.label}</span>}
+                </a>
+              );
+            }
+
+            return null;
           })}
         </nav>
 
@@ -448,7 +470,7 @@ export default function DashboardLayout({
               )}
             </div>
             <button
-              onClick={handleLogout}
+              onClick={logout}
               className="text-sm text-gray-500 hover:text-red-500 transition-colors"
             >
               退出
@@ -536,5 +558,20 @@ export default function DashboardLayout({
         )}
       </div>
     </div>
+  );
+}
+
+// =============================================================================
+// 导出布局 - 包裹 AuthProvider
+// =============================================================================
+export default function DashboardLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  return (
+    <AuthProvider>
+      <DashboardLayoutInner>{children}</DashboardLayoutInner>
+    </AuthProvider>
   );
 }
