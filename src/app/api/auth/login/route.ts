@@ -146,13 +146,27 @@ export async function POST(request: NextRequest) {
       permissions = Array.from(permSet);
     }
 
-    // 8. 生成JWT令牌（嵌入 permissions 字段）
+    // 收集每个角色的 dataScope
+    const dataScopesSet = new Set<string>();
+    for (const roleId of parsedRoleIdsInt) {
+      const roleRecord = await prisma.role.findUnique({
+        where: { id: roleId, isDelete: false },
+        select: { dataScope: true },
+      });
+      if (roleRecord?.dataScope) {
+        dataScopesSet.add(roleRecord.dataScope);
+      }
+    }
+    const dataScopes = Array.from(dataScopesSet);
+
+    // 8. 生成JWT令牌（嵌入 permissions 和 dataScopes 字段）
     const token = jwtTokenManager.generateAccessToken({
       sub: String(user.id),
       uuid: user.uuid || String(user.id),
       username: user.username,
       roles: parsedRoleIds,
       permissions,
+      dataScopes,
       deptId: user.deptId || undefined,
       userType: user.userType || 'internal',
     });
@@ -192,6 +206,7 @@ export async function POST(request: NextRequest) {
         dept: deptInfo,
         roles: parsedRoleIds,
         permissions,
+        dataScopes,
         userType: user.userType || 'internal',
       },
     });

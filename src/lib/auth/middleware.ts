@@ -20,6 +20,7 @@ export interface AuthContext {
   deptId: number | null;
   userType: string;
   permissions: string[];
+  dataScopes: string[];
 }
 
 // =============================================================================
@@ -139,18 +140,18 @@ export async function getAuthContext(request: NextRequest): Promise<AuthContext 
     return null;
   }
   
-  // 获取用户权限
-  const roleIds = payload.roles.map(r => parseInt(r)).filter(id => !isNaN(id));
-  const permissions = await getUserPermissions(roleIds);
+  // 权限已嵌入JWT，直接使用
+  const roleIds = payload.roles.map((r: string) => parseInt(r)).filter((id: number) => !isNaN(id));
   
   return {
     userId: parseInt(payload.sub),
     userUuid: payload.uuid,
     username: payload.username,
-    roles: payload.roles,
+    roles: payload.roles || [],
     deptId: payload.deptId || null,
     userType: payload.userType,
-    permissions,
+    permissions: payload.permissions || [],
+    dataScopes: payload.dataScopes || [],
   };
 }
 

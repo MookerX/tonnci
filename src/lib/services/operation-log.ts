@@ -113,7 +113,17 @@ class OperationLogService {
       };
 
       await prisma.operationLog.create({
-        data: log as any,
+        data: {
+          moduleName: logData.moduleName,
+          businessType: logData.businessType,
+          operatorId: logData.operatorId || null,
+          operatorName: logData.operatorName || null,
+          operationDesc: logData.operationDesc || null,
+          requestParams: logData.requestParams ? JSON.stringify(logData.requestParams) : null,
+          ipAddress: logData.ipAddress || null,
+          status: logData.status || 'success',
+          errorMessage: logData.errorMsg || null,
+        },
       });
     } catch (error) {
       console.error('Failed to write operation log:', error);

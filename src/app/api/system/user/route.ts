@@ -153,7 +153,7 @@ export async function GET(request: NextRequest) {
         id: { in: [...new Set(allRoleIds)] },
         isDelete: false,
       },
-      select: { id: true, roleCode: true, roleName: true },
+      select: { id: true, roleCode: true, roleName: true, dataScope: true },
     });
     const roleMap = new Map(roles.map(r => [r.id, r]));
 

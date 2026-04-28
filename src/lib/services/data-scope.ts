@@ -122,21 +122,73 @@ async function getChildDeptIds(parentId: number): Promise<number[]> {
 
 /**
  * 从 AuthContext 构建数据范围过滤（便捷方法）
- * 自动判断超级管理员权限
+ * 自动判断超级管理员权限，直接使用JWT中的dataScopes，避免重复查库
  */
 export async function getDataScopeFilterFromAuth(auth: {
   userId: number;
   deptId: number | null;
   roles: string[];
   permissions?: string[];
+  dataScopes?: string[];
 }): Promise<DataScopeFilter> {
-  const roleIds = auth.roles
-    .map(r => {
-      try { return parseInt(r); } catch { return NaN; }
-    })
-    .filter(id => !isNaN(id));
+  // 超级管理员直接返回全部权限
+  if (auth.permissions?.includes('*')) {
+    return { isAll: true, allowedDeptIds: [], deptIdFilter: null };
+  }
 
-  const isSuperAdmin = auth.permissions?.includes('*') || false;
+  const dataScopes = auth.dataScopes || [];
 
-  return getDataScopeFilter(auth.userId, auth.deptId, roleIds, isSuperAdmin);
+  // 如果任一角色为 all，直接返回全部权限
+  if (dataScopes.includes('all')) {
+    return { isAll: true, allowedDeptIds: [], deptIdFilter: null };
+  }
+
+  // dept 范围：使用 JWT 中的 deptId 直接构建过滤
+  if (dataScopes.includes('dept')) {
+    if (!auth.deptId) {
+      return { isAll: false, allowedDeptIds: [], deptIdFilter: null };
+    }
+    const childDepts = await getChildDeptIds(auth.deptId);
+    const allDeptIds = [auth.deptId, ...childDepts];
+    return {
+      isAll: false,
+      allowedDeptIds: allDeptIds,
+      deptIdFilter: { in: allDeptIds },
+    };
+  }
+
+  // custom 范围：需要查库获取自定义部门
+  if (dataScopes.includes('custom')) {
+    const roleIds = auth.roles
+      .map(r => {
+        try { return parseInt(r); } catch { return NaN; }
+      })
+      .filter(id => !isNaN(id));
+
+    const customDepts = new Set<number>();
+    for (const roleId of roleIds) {
+      const rows = await prisma.roleDeptScope.findMany({
+        where: { roleId, isDelete: false },
+        select: { deptId: true },
+      });
+      rows.forEach(r => customDepts.add(r.deptId));
+    }
+
+    const deptIdsArray = Array.from(customDepts);
+    if (deptIdsArray.length === 0) {
+      return { isAll: false, allowedDeptIds: [], deptIdFilter: null };
+    }
+    return {
+      isAll: false,
+      allowedDeptIds: deptIdsArray,
+      deptIdFilter: { in: deptIdsArray },
+    };
+  }
+
+  // 无有效 dataScopes，默认只能看自己
+  return {
+    isAll: false,
+    allowedDeptIds: auth.deptId ? [auth.deptId] : [],
+    deptIdFilter: auth.deptId || null,
+  };
 }

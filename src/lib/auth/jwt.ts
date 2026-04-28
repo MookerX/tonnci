@@ -18,6 +18,7 @@ export interface JwtPayload {
   username: string;   // 用户名
   roles: string[];    // 角色列表
   permissions?: string[]; // 权限列表（* 表示全部权限）
+  dataScopes?: string[];  // 数据范围列表（['all'|'dept'|'custom']）
   deptId?: number;    // 部门ID
   userType: string;   // 用户类型: internal, customer
   iat?: number;       // 签发时间
