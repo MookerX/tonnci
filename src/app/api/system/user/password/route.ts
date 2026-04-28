@@ -3,7 +3,7 @@
 // 描述: 修改密码、重置密码
 // =============================================================================
 
-import { NextRequest } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { 
   successResponse, 
@@ -90,8 +90,7 @@ export async function POST(request: NextRequest) {
       where: { id: auth.userId },
       data: {
         password: hashedPassword,
-        updatedBy: auth.userId,
-        updatedAt: new Date(),
+        modifiedBy: auth.userId,
       },
     });
 
@@ -108,9 +107,10 @@ export async function POST(request: NextRequest) {
 
     return successResponse(null, '密码修改成功');
 
-  } catch (error) {
-    console.error('Change password error:', error);
-    return serverErrorResponse('修改密码失败');
+  } catch (err) {
+    console.error('Change password error:', err);
+    const msg = err instanceof Error ? err.message : '修改密码失败';
+    return serverErrorResponse(msg);
   }
 }
 
@@ -159,8 +159,7 @@ export async function PUT(request: NextRequest) {
           password: hashedPassword,
           loginFailCount: 0,
           status: 'active',
-          updatedBy: auth.userId,
-          updatedAt: new Date(),
+          modifiedBy: auth.userId,
         },
       });
 
@@ -209,8 +208,7 @@ export async function PUT(request: NextRequest) {
         password: hashedPassword,
         loginFailCount: 0,
         status: 'active',
-        updatedBy: auth.userId,
-        updatedAt: new Date(),
+        modifiedBy: auth.userId,
       },
     });
 

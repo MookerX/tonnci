@@ -142,6 +142,9 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
   const [showProfile, setShowProfile] = useState(false);
   const [editForm, setEditForm] = useState({ realName: "", phone: "", email: "", avatar: "" });
   const [saving, setSaving] = useState(false);
+  const [profileTab, setProfileTab] = useState<"info" | "password">("info");
+  const [pwdForm, setPwdForm] = useState({ oldPassword: "", newPassword: "", confirmPassword: "" });
+  const [changingPwd, setChangingPwd] = useState(false);
 
   // 未登录自动跳转
   useEffect(() => {
@@ -241,6 +244,37 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
       };
       reader.readAsDataURL(file);
     }
+  };
+
+  // 修改密码
+  const handleChangePassword = async () => {
+    if (!pwdForm.oldPassword) { warning("请输入原密码"); return; }
+    if (!pwdForm.newPassword) { warning("请输入新密码"); return; }
+    if (pwdForm.newPassword.length < 6) { warning("新密码至少6位"); return; }
+    if (pwdForm.newPassword !== pwdForm.confirmPassword) { warning("两次输入的新密码不一致"); return; }
+
+    const token = localStorage.getItem("token");
+    if (!token) return;
+
+    setChangingPwd(true);
+    try {
+      const data = await fetchApi("/api/system/user/password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ oldPassword: pwdForm.oldPassword, newPassword: pwdForm.newPassword }),
+      });
+      if (data.code === 200) {
+        success("密码修改成功，请重新登录");
+        setPwdForm({ oldPassword: "", newPassword: "", confirmPassword: "" });
+        setShowProfile(false);
+        setTimeout(() => { logout(); }, 1500);
+      } else {
+        error(data.message || "密码修改失败");
+      }
+    } catch (e) {
+      error("密码修改失败");
+    }
+    setChangingPwd(false);
   };
 
   // 初始化展开当前路径对应的菜单
@@ -483,76 +517,154 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
 
         {/* 个人信息弹窗 */}
         {showProfile && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-            <div className="bg-white rounded-lg w-full max-w-md p-6">
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={() => { setShowProfile(false); setProfileTab("info"); }}>
+            <div className="bg-white rounded-lg w-full max-w-md p-6" onClick={e => e.stopPropagation()}>
               <h3 className="text-lg font-semibold mb-4">个人信息</h3>
-              <div className="flex flex-col items-center mb-6">
-                <div className="relative">
-                  <div className="w-20 h-20 bg-white rounded-full flex items-center justify-center text-2xl font-bold overflow-hidden border-2 border-gray-200">
-                    {editForm.avatar ? (
-                      <img src={editForm.avatar} alt="头像" className="w-full h-full object-cover" />
-                    ) : (
-                      <img src="/logo.png" alt="默认头像" className="w-full h-full object-contain" />
-                    )}
+
+              {/* Tab 切换 */}
+              <div className="flex border-b mb-4">
+                <button
+                  onClick={() => setProfileTab("info")}
+                  className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${profileTab === "info" ? "border-blue-600 text-blue-600" : "border-transparent text-gray-500 hover:text-gray-700"}`}
+                >
+                  基本信息
+                </button>
+                <button
+                  onClick={() => setProfileTab("password")}
+                  className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${profileTab === "password" ? "border-blue-600 text-blue-600" : "border-transparent text-gray-500 hover:text-gray-700"}`}
+                >
+                  修改密码
+                </button>
+              </div>
+
+              {/* 基本信息 Tab */}
+              {profileTab === "info" && (
+                <>
+                  <div className="flex flex-col items-center mb-6">
+                    <div className="relative">
+                      <div className="w-20 h-20 bg-white rounded-full flex items-center justify-center text-2xl font-bold overflow-hidden border-2 border-gray-200">
+                        {editForm.avatar ? (
+                          <img src={editForm.avatar} alt="头像" className="w-full h-full object-cover" />
+                        ) : (
+                          <img src="/logo.png" alt="默认头像" className="w-full h-full object-contain" />
+                        )}
+                      </div>
+                      <label className="absolute bottom-0 right-0 w-6 h-6 bg-gray-700 rounded-full flex items-center justify-center cursor-pointer hover:bg-gray-600">
+                        <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+                        </svg>
+                        <input type="file" accept="image/*" onChange={handleAvatarChange} className="hidden" />
+                      </label>
+                    </div>
                   </div>
-                  <label className="absolute bottom-0 right-0 w-6 h-6 bg-gray-700 rounded-full flex items-center justify-center cursor-pointer hover:bg-gray-600">
-                    <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
-                    </svg>
-                    <input type="file" accept="image/*" onChange={handleAvatarChange} className="hidden" />
-                  </label>
-                </div>
-              </div>
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-xs text-gray-500 mb-1">用户名</label>
-                  <input 
-                    className="w-full border rounded px-3 py-2 text-sm bg-gray-100" 
-                    value={user?.username || ""}
-                    disabled
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs text-gray-500 mb-1">姓名</label>
-                  <input 
-                    className="w-full border rounded px-3 py-2 text-sm" 
-                    value={editForm.realName}
-                    onChange={e => setEditForm({...editForm, realName: e.target.value})}
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs text-gray-500 mb-1">电话</label>
-                  <input 
-                    className="w-full border rounded px-3 py-2 text-sm" 
-                    value={editForm.phone}
-                    onChange={e => setEditForm({...editForm, phone: e.target.value})}
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs text-gray-500 mb-1">邮箱</label>
-                  <input 
-                    className="w-full border rounded px-3 py-2 text-sm" 
-                    value={editForm.email}
-                    onChange={e => setEditForm({...editForm, email: e.target.value})}
-                  />
-                </div>
-              </div>
-              <div className="flex justify-end gap-2 mt-6">
-                <button 
-                  onClick={() => setShowProfile(false)} 
-                  className="px-4 py-2 border rounded text-sm hover:bg-gray-50"
-                >
-                  取消
-                </button>
-                <button 
-                  onClick={handleSaveProfile} 
-                  disabled={saving}
-                  className="px-4 py-2 bg-blue-600 text-white rounded text-sm hover:bg-blue-700 disabled:opacity-50"
-                >
-                  {saving ? "保存中..." : "保存"}
-                </button>
-              </div>
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-xs text-gray-500 mb-1">用户名</label>
+                      <input
+                        className="w-full border rounded px-3 py-2 text-sm bg-gray-100"
+                        value={user?.username || ""}
+                        disabled
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs text-gray-500 mb-1">姓名</label>
+                      <input
+                        className="w-full border rounded px-3 py-2 text-sm"
+                        value={editForm.realName}
+                        onChange={e => setEditForm({...editForm, realName: e.target.value})}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs text-gray-500 mb-1">电话</label>
+                      <input
+                        className="w-full border rounded px-3 py-2 text-sm"
+                        value={editForm.phone}
+                        onChange={e => setEditForm({...editForm, phone: e.target.value})}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs text-gray-500 mb-1">邮箱</label>
+                      <input
+                        className="w-full border rounded px-3 py-2 text-sm"
+                        value={editForm.email}
+                        onChange={e => setEditForm({...editForm, email: e.target.value})}
+                      />
+                    </div>
+                  </div>
+                  <div className="flex justify-end gap-2 mt-6">
+                    <button
+                      onClick={() => { setShowProfile(false); setProfileTab("info"); }}
+                      className="px-4 py-2 border rounded text-sm hover:bg-gray-50"
+                    >
+                      取消
+                    </button>
+                    <button
+                      onClick={handleSaveProfile}
+                      disabled={saving}
+                      className="px-4 py-2 bg-blue-600 text-white rounded text-sm hover:bg-blue-700 disabled:opacity-50"
+                    >
+                      {saving ? "保存中..." : "保存"}
+                    </button>
+                  </div>
+                </>
+              )}
+
+              {/* 修改密码 Tab */}
+              {profileTab === "password" && (
+                <>
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-xs text-gray-500 mb-1">原密码</label>
+                      <input
+                        type="password"
+                        className="w-full border rounded px-3 py-2 text-sm"
+                        placeholder="请输入原密码"
+                        value={pwdForm.oldPassword}
+                        onChange={e => setPwdForm({...pwdForm, oldPassword: e.target.value})}
+                        autoComplete="current-password"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs text-gray-500 mb-1">新密码</label>
+                      <input
+                        type="password"
+                        className="w-full border rounded px-3 py-2 text-sm"
+                        placeholder="请输入新密码（至少6位）"
+                        value={pwdForm.newPassword}
+                        onChange={e => setPwdForm({...pwdForm, newPassword: e.target.value})}
+                        autoComplete="new-password"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs text-gray-500 mb-1">确认新密码</label>
+                      <input
+                        type="password"
+                        className="w-full border rounded px-3 py-2 text-sm"
+                        placeholder="请再次输入新密码"
+                        value={pwdForm.confirmPassword}
+                        onChange={e => setPwdForm({...pwdForm, confirmPassword: e.target.value})}
+                        autoComplete="new-password"
+                      />
+                    </div>
+                  </div>
+                  <div className="flex justify-end gap-2 mt-6">
+                    <button
+                      onClick={() => { setShowProfile(false); setProfileTab("info"); setPwdForm({ oldPassword: "", newPassword: "", confirmPassword: "" }); }}
+                      className="px-4 py-2 border rounded text-sm hover:bg-gray-50"
+                    >
+                      取消
+                    </button>
+                    <button
+                      onClick={handleChangePassword}
+                      disabled={changingPwd}
+                      className="px-4 py-2 bg-blue-600 text-white rounded text-sm hover:bg-blue-700 disabled:opacity-50"
+                    >
+                      {changingPwd ? "修改中..." : "确认修改"}
+                    </button>
+                  </div>
+                </>
+              )}
             </div>
           </div>
         )}
