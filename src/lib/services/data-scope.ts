@@ -5,7 +5,7 @@
 
 import { prisma } from '@/lib/prisma';
 
-export type DataScopeType = 'all' | 'dept' | 'deptAndChild' | 'custom';
+export type DataScopeType = 'all' | 'dept' | 'custom';
 
 export interface DataScopeFilter {
   /** 是否为全部数据权限（跳过过滤） */
@@ -23,13 +23,20 @@ export interface DataScopeFilter {
  * @param userId 用户ID
  * @param deptId 用户所属部门ID
  * @param roleIds 用户角色ID列表
+ * @param isSuperAdmin 是否超级管理员（permissions 包含 *）
  * @returns DataScopeFilter 数据范围过滤条件
  */
 export async function getDataScopeFilter(
   userId: number,
   deptId: number | null,
-  roleIds: number[]
+  roleIds: number[],
+  isSuperAdmin: boolean = false
 ): Promise<DataScopeFilter> {
+  // 超级管理员拥有全部数据权限
+  if (isSuperAdmin) {
+    return { isAll: true, allowedDeptIds: [], deptIdFilter: null };
+  }
+
   // 没有角色或部门信息，默认只能看自己部门
   if (!roleIds || roleIds.length === 0) {
     if (deptId) {
@@ -63,17 +70,10 @@ export async function getDataScopeFilter(
         return { isAll: true, allowedDeptIds: [], deptIdFilter: null };
 
       case 'dept':
-        // 本部门数据
+        // 本部门数据（自动包含子部门）
         if (deptId) {
           allowedDeptIds.add(deptId);
-        }
-        break;
-
-      case 'deptAndChild':
-        // 本部门及子部门数据
-        if (deptId) {
           const childDeptIds = await getChildDeptIds(deptId);
-          allowedDeptIds.add(deptId);
           childDeptIds.forEach(id => allowedDeptIds.add(id));
         }
         break;
@@ -122,12 +122,13 @@ async function getChildDeptIds(parentId: number): Promise<number[]> {
 
 /**
  * 从 AuthContext 构建数据范围过滤（便捷方法）
- * auth 上下文中包含 deptId，但 roleIds 需要解析
+ * 自动判断超级管理员权限
  */
 export async function getDataScopeFilterFromAuth(auth: {
   userId: number;
   deptId: number | null;
   roles: string[];
+  permissions?: string[];
 }): Promise<DataScopeFilter> {
   const roleIds = auth.roles
     .map(r => {
@@ -135,5 +136,7 @@ export async function getDataScopeFilterFromAuth(auth: {
     })
     .filter(id => !isNaN(id));
 
-  return getDataScopeFilter(auth.userId, auth.deptId, roleIds);
+  const isSuperAdmin = auth.permissions?.includes('*') || false;
+
+  return getDataScopeFilter(auth.userId, auth.deptId, roleIds, isSuperAdmin);
 }

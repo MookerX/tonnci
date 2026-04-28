@@ -74,7 +74,6 @@ function buildPermissionTree(): PermissionNode[] {
 const dataScopeOptions = [
   { value: 'all', label: '全部数据权限' },
   { value: 'dept', label: '本部门数据权限' },
-  { value: 'deptAndChild', label: '本部门及子部门数据权限' },
   { value: 'custom', label: '自定义数据权限' },
 ];
 
@@ -549,8 +548,7 @@ export default function SystemRolePage() {
                             <span className="text-sm font-medium">{opt.label}</span>
                             <p className="text-xs text-gray-400 mt-0.5">
                               {opt.value === 'all' && '可查看所有部门的数据'}
-                              {opt.value === 'dept' && '仅可查看本人所属部门的数据'}
-                              {opt.value === 'deptAndChild' && '可查看本人所属部门及子部门的数据'}
+                              {opt.value === 'dept' && '可查看本人所属部门及子部门的数据'}
                               {opt.value === 'custom' && '可在下方自定义选择可查看的部门'}
                             </p>
                           </div>
@@ -593,12 +591,6 @@ export default function SystemRolePage() {
                   )}
 
                   {permDataScope === 'dept' && (
-                    <div className="border rounded-lg p-4 bg-gray-50">
-                      <p className="text-sm text-gray-500">该角色用户只能查看其所属部门的数据，无需额外配置。</p>
-                    </div>
-                  )}
-
-                  {permDataScope === 'deptAndChild' && (
                     <div className="border rounded-lg p-4 bg-gray-50">
                       <p className="text-sm text-gray-500">该角色用户可以查看其所属部门及所有子部门的数据，无需额外配置。</p>
                     </div>

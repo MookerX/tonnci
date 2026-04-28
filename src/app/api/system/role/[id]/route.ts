@@ -13,7 +13,7 @@ import { z } from 'zod';
 
 const updateRoleSchema = z.object({
   roleName: z.string().min(1, '角色名称不能为空').max(100).optional(),
-  dataScope: z.enum(['all', 'dept', 'deptAndChild', 'custom']).optional(),
+  dataScope: z.enum(['all', 'dept', 'custom']).optional(),
   status: z.enum(['active', 'disabled']).optional(),
   sortOrder: z.number().int().optional(),
   remark: z.string().optional().nullable(),
@@ -22,7 +22,7 @@ const updateRoleSchema = z.object({
 const assignPermissionSchema = z.object({
   permissions: z.array(z.string()).optional().default([]),
   deptIds: z.array(z.number().int().positive()).optional().default([]),
-  dataScope: z.enum(['all', 'dept', 'deptAndChild', 'custom']).optional(),
+  dataScope: z.enum(['all', 'dept', 'custom']).optional(),
 });
 
 // =============================================================================

@@ -15,7 +15,7 @@ import { z } from 'zod';
 const createRoleSchema = z.object({
   roleName: z.string().min(1, '角色名称不能为空').max(100),
   roleCode: z.string().min(1, '角色代码不能为空').max(50),
-  dataScope: z.enum(['all', 'dept', 'deptAndChild', 'custom']).optional().default('custom'),
+  dataScope: z.enum(['all', 'dept', 'custom']).optional().default('custom'),
   status: z.enum(['active', 'disabled']).optional().default('active'),
   sortOrder: z.number().int().optional().default(0),
   remark: z.string().optional().nullable(),
@@ -24,7 +24,7 @@ const createRoleSchema = z.object({
 // 更新角色验证
 const updateRoleSchema = z.object({
   roleName: z.string().min(1, '角色名称不能为空').max(100).optional(),
-  dataScope: z.enum(['all', 'dept', 'deptAndChild', 'custom']).optional(),
+  dataScope: z.enum(['all', 'dept', 'custom']).optional(),
   status: z.enum(['active', 'disabled']).optional(),
   sortOrder: z.number().int().optional(),
   remark: z.string().optional().nullable(),
