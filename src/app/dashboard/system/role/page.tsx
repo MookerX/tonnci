@@ -98,6 +98,7 @@ export default function SystemRolePage() {
   const [deptTree, setDeptTree] = useState<Dept[]>([]);
   const [selectedPermissions, setSelectedPermissions] = useState<Set<string>>(new Set());
   const [activeTab, setActiveTab] = useState<'menu' | 'data'>('menu');
+  const [permDataScope, setPermDataScope] = useState<string>('custom');
   const permissionTree = buildPermissionTree();
 
   const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
@@ -199,6 +200,7 @@ export default function SystemRolePage() {
         const perms: string[] = roleData.data?.permissions || [];
         setSelectedPermissions(new Set(perms));
         setSelectedDeptIds(roleData.data?.deptIds || []);
+        setPermDataScope(roleData.data?.dataScope || editingRole?.dataScope || 'custom');
       }
 
       // 获取部门树
@@ -247,11 +249,12 @@ export default function SystemRolePage() {
           action: "assignPermission",
           permissions,
           deptIds: selectedDeptIds,
+          dataScope: permDataScope,
         }),
       });
       if (data.code === 200) {
         setShowPermForm(false);
-        success("权限分配成功");
+        success("权限配置保存成功");
         fetchRoles();
       } else {
         error(data.message);
@@ -261,23 +264,50 @@ export default function SystemRolePage() {
     }
   };
 
+  // 获取所有部门ID（全选用）
+  const getAllDeptIds = (tree: Dept[]): number[] => {
+    const ids: number[] = [];
+    const walk = (nodes: Dept[]) => {
+      for (const node of nodes) {
+        ids.push(node.id);
+        if (node.children) walk(node.children);
+      }
+    };
+    walk(tree);
+    return ids;
+  };
+
   // 渲染部门树节点
   const renderDeptNode = (dept: Dept, level: number = 0) => {
     const isSelected = selectedDeptIds.includes(dept.id);
     const hasChildren = dept.children && dept.children.length > 0;
+    const allChildIds = hasChildren ? getAllDeptIds(dept.children!) : [];
+    const allDescendantsSelected = allChildIds.length > 0 && allChildIds.every(id => selectedDeptIds.includes(id));
+    const someDescendantsSelected = allChildIds.some(id => selectedDeptIds.includes(id));
 
     return (
             <div key={dept.id} style={{ marginLeft: level * 20 }}>
         <div className="flex items-center gap-2 py-1 border-b border-gray-100 hover:bg-gray-50">
-          {hasChildren && <span className="text-gray-400">├─</span>}
+          {hasChildren ? (
+            <span className="text-gray-400 text-xs">▼</span>
+          ) : (
+            <span className="text-gray-300 text-xs w-3">·</span>
+          )}
           <input
             type="checkbox"
-            checked={isSelected}
+            checked={isSelected && (allChildIds.length === 0 || allDescendantsSelected)}
+            ref={el => { if (el) el.indeterminate = !isSelected && someDescendantsSelected; }}
             onChange={e => {
               if (e.target.checked) {
-                setSelectedDeptIds([...selectedDeptIds, dept.id]);
+                // 选中当前及所有子部门
+                const newIds = new Set(selectedDeptIds);
+                newIds.add(dept.id);
+                allChildIds.forEach(id => newIds.add(id));
+                setSelectedDeptIds(Array.from(newIds));
               } else {
-                setSelectedDeptIds(selectedDeptIds.filter(id => id !== dept.id));
+                // 取消当前及所有子部门
+                const removeIds = new Set([dept.id, ...allChildIds]);
+                setSelectedDeptIds(selectedDeptIds.filter(id => !removeIds.has(id)));
               }
             }}
             className="rounded"
@@ -493,12 +523,92 @@ export default function SystemRolePage() {
                   ))}
                 </div>
               ) : (
-                <div className="border rounded-lg p-4">
-                  <h4 className="font-medium mb-2">数据权限（部门范围）</h4>
-                  <p className="text-xs text-gray-500 mb-3">选择该角色可查看哪些部门的数据</p>
-                  <div className="max-h-80 overflow-auto">
-                    {deptTree.map(dept => renderDeptNode(dept, 0))}
+                <div className="space-y-4">
+                  <div>
+                    <h4 className="font-medium mb-2">数据权限范围</h4>
+                    <p className="text-xs text-gray-500 mb-3">控制该角色可以查看哪些部门的数据</p>
+                    <div className="space-y-2">
+                      {dataScopeOptions.map(opt => (
+                        <label
+                          key={opt.value}
+                          className={`flex items-center gap-2 p-3 rounded-lg border cursor-pointer transition-colors ${
+                            permDataScope === opt.value
+                              ? 'border-blue-400 bg-blue-50'
+                              : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
+                          }`}
+                        >
+                          <input
+                            type="radio"
+                            name="dataScope"
+                            value={opt.value}
+                            checked={permDataScope === opt.value}
+                            onChange={e => setPermDataScope(e.target.value)}
+                            className="text-blue-600"
+                          />
+                          <div>
+                            <span className="text-sm font-medium">{opt.label}</span>
+                            <p className="text-xs text-gray-400 mt-0.5">
+                              {opt.value === 'all' && '可查看所有部门的数据'}
+                              {opt.value === 'dept' && '仅可查看本人所属部门的数据'}
+                              {opt.value === 'deptAndChild' && '可查看本人所属部门及子部门的数据'}
+                              {opt.value === 'custom' && '可在下方自定义选择可查看的部门'}
+                            </p>
+                          </div>
+                        </label>
+                      ))}
+                    </div>
                   </div>
+
+                  {permDataScope === 'custom' && (
+                    <div className="border rounded-lg p-4">
+                      <h4 className="font-medium mb-2">选择可访问的部门</h4>
+                      <p className="text-xs text-gray-500 mb-3">勾选该角色可以查看数据的部门</p>
+                      <div className="flex gap-2 mb-3">
+                        <button
+                          type="button"
+                          className="text-xs text-blue-600 hover:underline"
+                          onClick={() => {
+                            const allIds = getAllDeptIds(deptTree);
+                            setSelectedDeptIds(allIds);
+                          }}
+                        >
+                          全选
+                        </button>
+                        <span className="text-gray-300">|</span>
+                        <button
+                          type="button"
+                          className="text-xs text-gray-500 hover:underline"
+                          onClick={() => setSelectedDeptIds([])}
+                        >
+                          清空
+                        </button>
+                      </div>
+                      <div className="max-h-60 overflow-auto">
+                        {deptTree.map(dept => renderDeptNode(dept, 0))}
+                      </div>
+                      {selectedDeptIds.length > 0 && (
+                        <p className="text-xs text-gray-400 mt-2">已选择 {selectedDeptIds.length} 个部门</p>
+                      )}
+                    </div>
+                  )}
+
+                  {permDataScope === 'dept' && (
+                    <div className="border rounded-lg p-4 bg-gray-50">
+                      <p className="text-sm text-gray-500">该角色用户只能查看其所属部门的数据，无需额外配置。</p>
+                    </div>
+                  )}
+
+                  {permDataScope === 'deptAndChild' && (
+                    <div className="border rounded-lg p-4 bg-gray-50">
+                      <p className="text-sm text-gray-500">该角色用户可以查看其所属部门及所有子部门的数据，无需额外配置。</p>
+                    </div>
+                  )}
+
+                  {permDataScope === 'all' && (
+                    <div className="border rounded-lg p-4 bg-gray-50">
+                      <p className="text-sm text-gray-500">该角色用户可以查看所有部门的数据，无需额外配置。</p>
+                    </div>
+                  )}
                 </div>
               )}
             </div>

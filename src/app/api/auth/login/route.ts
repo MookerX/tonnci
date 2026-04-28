@@ -107,11 +107,23 @@ export async function POST(request: NextRequest) {
     }
 
     // 6. 生成JWT令牌
+    // 解析 roleIds（格式可能是 "[1,3,2]" 或 "1,3,2"）
+    let parsedRoleIds: string[] = [];
+    if (user.roleIds) {
+      const raw = String(user.roleIds);
+      try {
+        const arr = JSON.parse(raw);
+        parsedRoleIds = Array.isArray(arr) ? arr.map(String) : [String(arr)];
+      } catch {
+        parsedRoleIds = raw.split(',').filter(Boolean);
+      }
+    }
+
     const token = jwtTokenManager.generateAccessToken({
       sub: String(user.id),
       uuid: user.uuid || String(user.id),
       username: user.username,
-      roles: user.roleIds ? String(user.roleIds).split(',').filter(Boolean) : [],
+      roles: parsedRoleIds,
       deptId: user.deptId || undefined,
       userType: user.userType || 'internal',
     });
@@ -152,7 +164,7 @@ export async function POST(request: NextRequest) {
         avatar: user.avatar,
         deptId: user.deptId,
         dept: deptInfo,
-        roles: user.roleIds ? String(user.roleIds).split(',').filter(Boolean) : [],
+        roles: parsedRoleIds,
         userType: user.userType || 'internal',
       },
     });

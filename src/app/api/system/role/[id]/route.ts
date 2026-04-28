@@ -22,6 +22,7 @@ const updateRoleSchema = z.object({
 const assignPermissionSchema = z.object({
   permissions: z.array(z.string()).optional().default([]),
   deptIds: z.array(z.number().int().positive()).optional().default([]),
+  dataScope: z.enum(['all', 'dept', 'deptAndChild', 'custom']).optional(),
 });
 
 // =============================================================================
@@ -116,10 +117,18 @@ export async function PUT(
         return badRequestResponse(validationResult.error.issues?.[0]?.message || '参数验证失败');
       }
 
-      const { permissions, deptIds } = validationResult.data;
+      const { permissions, deptIds, dataScope } = validationResult.data;
       const clientIp = getClientIp(request);
 
       await prisma.$transaction(async (tx) => {
+        // 更新数据范围
+        if (dataScope) {
+          await tx.role.update({
+            where: { id: roleId },
+            data: { dataScope },
+          });
+        }
+
         // 删除旧的权限记录（完全删除，因为权限分配是全量替换）
         await tx.$executeRaw`
           DELETE FROM role_permission WHERE role_id = ${roleId}
@@ -152,12 +161,12 @@ export async function PUT(
         '分配权限',
         authResult.userId,
         authResult.username,
-        { roleId, permissions, deptIds },
+        { roleId, permissions: permissions.length, deptIds: deptIds.length, dataScope },
         clientIp,
         'success'
       );
 
-      return successResponse(null, '权限分配成功');
+      return successResponse(null, '权限配置保存成功');
     }
 
     // 普通更新

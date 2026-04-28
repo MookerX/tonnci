@@ -10,6 +10,7 @@ import { requireAuth } from '@/lib/auth/middleware';
 import { getClientIp } from '@/lib/utils';
 import { operationLog } from '@/lib/services/operation-log';
 import { hashPassword } from '@/lib/auth/jwt';
+import { getDataScopeFilterFromAuth } from '@/lib/services/data-scope';
 import { z } from 'zod';
 
 // 创建用户验证
@@ -86,6 +87,27 @@ export async function GET(request: NextRequest) {
     
     if (status) {
       where.status = status;
+    }
+
+    // 数据范围过滤：根据角色的 dataScope 限制可见用户
+    const scopeFilter = await getDataScopeFilterFromAuth(authResult);
+    if (!scopeFilter.isAll) {
+      if (scopeFilter.deptIdFilter) {
+        // 如果前端已指定 deptId 筛选，取交集
+        if (where.deptId) {
+          const allowed = scopeFilter.allowedDeptIds;
+          const requested = where.deptId;
+          if (!allowed.includes(requested)) {
+            // 请求的部门不在允许范围内，返回空
+            return paginatedResponse([], 0, page, pageSize);
+          }
+        } else {
+          where.deptId = scopeFilter.deptIdFilter;
+        }
+      } else {
+        // 没有任何允许的部门，只能看自己
+        where.id = authResult.userId;
+      }
     }
 
     // 查询数据

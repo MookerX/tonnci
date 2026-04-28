@@ -7,6 +7,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { successResponse, paginatedResponse, badRequestResponse, notFoundResponse, serverErrorResponse, errorResponse } from '@/lib/response';
 import { requireAuth } from '@/lib/auth/middleware';
+import { getDataScopeFilterFromAuth } from '@/lib/services/data-scope';
 import { getClientIp } from '@/lib/utils';
 import { operationLog } from '@/lib/services/operation-log';
 import { z } from 'zod';
@@ -80,13 +81,33 @@ export async function GET(request: NextRequest) {
       userCount: userCountMap.get(d.id) || 0,
     }));
 
+    // 数据范围过滤：根据角色的 dataScope 限制可见部门
+    const scopeFilter = await getDataScopeFilterFromAuth(authResult);
+    let filteredDepts = deptsWithCount;
+    if (!scopeFilter.isAll && scopeFilter.allowedDeptIds.length > 0) {
+      const allowed = new Set(scopeFilter.allowedDeptIds);
+      // 确保祖先部门也可见（树形结构需要完整路径）
+      const deptMap = new Map(deptsWithCount.map(d => [d.id, d]));
+      const visibleIds = new Set<number>();
+      for (const id of allowed) {
+        visibleIds.add(id);
+        // 向上追溯祖先部门
+        let current = deptMap.get(id);
+        while (current?.parentId) {
+          visibleIds.add(current.parentId);
+          current = deptMap.get(current.parentId);
+        }
+      }
+      filteredDepts = deptsWithCount.filter(d => visibleIds.has(d.id));
+    }
+
     if (type === 'list') {
-      return successResponse(deptsWithCount);
+      return successResponse(filteredDepts);
     }
 
     // 构建树形结构
     const buildTree = (parentId: number | null): any[] => {
-      return deptsWithCount
+      return filteredDepts
         .filter(d => d.parentId === parentId)
         .map(d => ({
           ...d,
