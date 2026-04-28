@@ -1,11 +1,30 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useToast } from "@/components/ToastProvider";
 import { fetchApi } from "@/lib/utils/fetch";
 import { PermissionGuard } from "@/components/PermissionGuard";
 import { PagePermission } from "@/components/AuthProvider";
 import { moduleConfig, actionConfig, getModulePermissions, getAllPermissions, generatePermission } from "@/lib/permissions";
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+} from "@dnd-kit/core";
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  verticalListSortingStrategy,
+  useSortable,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
+import * as LucideIcons from "lucide-react";
+import { Input } from "@/components/ui/input";
 
 interface Menu {
   id: number;
@@ -36,6 +55,94 @@ interface PermissionNode {
       permission: string;
     }>;
   }>;
+}
+
+// 获取所有 Lucide 图标名称（排除内部/特殊属性）
+function getLucideIconList(): string[] {
+  return Object.keys(LucideIcons).filter(
+    (name) =>
+      name !== "LucideProps" &&
+      name !== "createLucideIcon" &&
+      name !== "default" &&
+      typeof (LucideIcons as any)[name] === "object"
+  );
+}
+
+function IconPickerModal({
+  open,
+  onClose,
+  onSelect,
+  currentIcon,
+}: {
+  open: boolean;
+  onClose: () => void;
+  onSelect: (icon: string) => void;
+  currentIcon?: string;
+}) {
+  const [search, setSearch] = useState("");
+  const icons = getLucideIconList();
+  const filtered = icons.filter((name) =>
+    name.toLowerCase().includes(search.toLowerCase())
+  );
+
+  if (!open) return null;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+      <div className="bg-background rounded-lg border shadow-xl w-[560px] max-h-[70vh] flex flex-col">
+        <div className="flex items-center justify-between p-4 border-b">
+          <h3 className="text-base font-medium">选择图标</h3>
+          <button
+            onClick={onClose}
+            className="text-muted-foreground hover:text-foreground"
+          >
+            <LucideIcons.X size={18} />
+          </button>
+        </div>
+        <div className="p-3 border-b">
+          <Input
+            placeholder="搜索图标..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="h-8"
+          />
+        </div>
+        <div className="overflow-y-auto flex-1 p-3">
+          <div className="grid grid-cols-8 gap-1">
+            {filtered.slice(0, 200).map((name) => {
+              const Icon = (LucideIcons as any)[name] as any;
+              if (!Icon) return null;
+              const isActive = currentIcon === name;
+              return (
+                <button
+                  key={name}
+                  onClick={() => { onSelect(name); onClose(); }}
+                  title={name}
+                  className={`flex items-center justify-center h-10 rounded border transition-colors ${
+                    isActive
+                      ? "border-primary bg-primary/10 text-primary"
+                      : "border-transparent hover:border-border hover:bg-muted"
+                  }`}
+                >
+                  <Icon size={18} />
+                </button>
+              );
+            })}
+          </div>
+          {filtered.length > 200 && (
+            <p className="text-xs text-muted-foreground text-center mt-2">
+              显示前 200 个匹配结果，请缩小搜索范围
+            </p>
+          )}
+          {filtered.length === 0 && (
+            <p className="text-sm text-muted-foreground text-center py-8">
+              未找到匹配的图标
+            </p>
+          )}
+        </div>
+      </div>
+    </div>
+  );
 }
 
 const menuTypeOptions = [
@@ -105,6 +212,100 @@ export default function SystemMenuPage() {
   const [selectedPermissions, setSelectedPermissions] = useState<string[]>([]);
   const [keyword, setKeyword] = useState("");
   const [filterModule, setFilterModule] = useState("");
+  const [showIconPicker, setShowIconPicker] = useState(false);
+  const [activeDragId, setActiveDragId] = useState<number | null>(null);
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  );
+
+  // 根据 id 查找菜单
+  const findMenuById = (menus: Menu[], id: number): Menu | null => {
+    for (const m of menus) {
+      if (m.id === id) return m;
+      if (m.children) {
+        const found = findMenuById(m.children, id);
+        if (found) return found;
+      }
+    }
+    return null;
+  };
+
+  // 根据 id 查找父菜单
+  const findParentMenu = (menus: Menu[], id: number, parent: Menu | null = null): Menu | null => {
+    for (const m of menus) {
+      if (m.id === id) return parent;
+      if (m.children) {
+        const found = findParentMenu(m.children, id, m);
+        if (found !== undefined) return found;
+      }
+    }
+    return null;
+  };
+
+  // 更新菜单树中指定 id 的菜单
+  const updateMenuInTree = (menus: Menu[], id: number, updater: (m: Menu) => Menu): Menu[] => {
+    return menus.map(m => {
+      if (m.id === id) return updater(m);
+      if (m.children) return { ...m, children: updateMenuInTree(m.children, id, updater) };
+      return m;
+    });
+  };
+
+  // 拖拽结束时排序
+  const handleDragEnd = useCallback(async (event: DragEndEvent) => {
+    const { active, over } = event;
+    setActiveDragId(null);
+    if (!over || active.id === over.id) return;
+
+    const activeId = active.id as number;
+    const overId = over.id as number;
+
+    // 找 active 和 over 的父菜单（确定同层级）
+    const activeParent = findParentMenu(menuTree, activeId);
+    const overParent = findParentMenu(menuTree, overId);
+
+    if (activeParent?.id !== overParent?.id) return;
+
+    // 获取同级列表
+    const siblingList = activeParent ? (activeParent.children || []) : menuTree;
+    const oldIndex = siblingList.findIndex(m => m.id === activeId);
+    const newIndex = siblingList.findIndex(m => m.id === overId);
+    if (oldIndex === -1 || newIndex === -1) return;
+
+    const reordered = arrayMove(siblingList, oldIndex, newIndex);
+
+    // 更新树
+    if (activeParent) {
+      setMenuTree(prev => updateMenuInTree(prev, activeParent.id, m => ({ ...m, children: reordered })));
+    } else {
+      setMenuTree(reordered);
+    }
+
+    // 批量更新 sortOrder 到后端
+    const updates = reordered.map((m, idx) => ({ id: m.id, sortOrder: idx }));
+    await fetchApi("/api/system/menu/sort", {
+      method: "PUT",
+      body: JSON.stringify({ orders: updates }),
+    });
+  }, [menuTree]);
+
+  // 切换菜单可见性
+  const handleToggleVisible = useCallback(async (menu: Menu) => {
+    const newVisible = !menu.isVisible;
+    setMenuTree(prev => updateMenuInTree(prev, menu.id, m => ({ ...m, isVisible: newVisible })));
+    await fetchApi(`/api/system/menu/${menu.id}`, {
+      method: "PUT",
+      body: JSON.stringify({ isVisible: newVisible }),
+    });
+    success(newVisible ? "菜单已显示" : "菜单已隐藏");
+  }, [success]);
+
+  // 选择图标
+  const handleSelectIcon = useCallback((icon: string) => {
+    setForm(prev => ({ ...prev, icon }));
+    setShowIconPicker(false);
+  }, []);
   const permissionTree = buildPermissionTree();
 
   const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
@@ -155,7 +356,7 @@ export default function SystemMenuPage() {
         sortOrder: menu.sortOrder,
         status: menu.status,
         isVisible: menu.isVisible,
-        isCache: menu.isCache,
+        isCache: false,
       });
     } else {
       setEditingMenu(null);
@@ -310,17 +511,33 @@ export default function SystemMenuPage() {
     }
   };
 
-  const renderMenuNode = (menu: Menu, level: number = 0) => {
+  // 可排序的菜单节点组件
+  const SortableMenuNode = ({ menu, level = 0 }: { menu: Menu; level?: number }) => {
     const hasChildren = menu.children && menu.children.length > 0;
     const isExpanded = expandedIds.has(menu.id);
+    const {
+      attributes, listeners, setNodeRef, transform, transition, isDragging,
+    } = useSortable({ id: menu.id });
+    const style = {
+      transform: CSS.Transform.toString(transform),
+      transition,
+      opacity: isDragging || activeDragId === menu.id ? 0.5 : 1,
+    };
+    const IconComp = menu.icon ? (LucideIcons as any)[menu.icon] : null;
 
     return (
-            <div key={menu.id}>
+      <div ref={setNodeRef} style={style}>
         <div
-          className="flex items-center justify-between py-2 px-3 hover:bg-gray-50 border-b border-gray-100"
+          className="flex items-center justify-between py-2 px-3 hover:bg-gray-50 border-b border-gray-100 group"
           style={{ marginLeft: level * 24 }}
         >
           <div className="flex items-center gap-2 flex-1">
+            {/* 拖拽把手 */}
+            <button {...attributes} {...listeners} className="w-5 h-5 flex items-center justify-center text-gray-300 hover:text-gray-500 cursor-grab active:cursor-grabbing">
+              <LucideIcons.GripVertical size={14} />
+            </button>
+
+            {/* 展开/折叠 */}
             {hasChildren ? (
               <button onClick={() => toggleExpand(menu.id)} className="w-5 h-5 flex items-center justify-center text-gray-400 hover:text-gray-600">
                 {isExpanded ? "−" : "+"}
@@ -328,7 +545,18 @@ export default function SystemMenuPage() {
             ) : (
               <span className="w-5" />
             )}
+
+            {/* 可见性 */}
+            <button
+              onClick={() => handleToggleVisible(menu)}
+              className={`w-5 h-5 flex items-center justify-center rounded ${menu.isVisible ? "text-green-500" : "text-gray-300"}`}
+              title={menu.isVisible ? "隐藏" : "显示"}
+            >
+              {menu.isVisible ? <LucideIcons.Eye size={14} /> : <LucideIcons.EyeOff size={14} />}
+            </button>
+
             <span>{getMenuTypeIcon(menu.menuType)}</span>
+            {IconComp && <IconComp size={14} className="text-gray-400" />}
             <span className="font-medium">{menu.menuName}</span>
             {menu.path && <span className="text-xs text-gray-400 font-mono">{menu.path}</span>}
             {menu.permission && (
@@ -366,7 +594,13 @@ export default function SystemMenuPage() {
             <PermissionGuard permission="system:menu:delete"><button onClick={() => handleDelete(menu)} className="text-red-600 hover:underline text-sm">删除</button></PermissionGuard>
           </div>
         </div>
-        {hasChildren && isExpanded && menu.children!.map(child => renderMenuNode(child, level + 1))}
+        {hasChildren && isExpanded && (
+          <div>
+            {menu.children!.map(child => (
+              <SortableMenuNode key={child.id} menu={child} level={level + 1} />
+            ))}
+          </div>
+        )}
       </div>
     );
   };
@@ -473,9 +707,13 @@ export default function SystemMenuPage() {
         ) : menuTree.length === 0 ? (
           <div className="px-4 py-8 text-center text-gray-400">暂无数据，请先添加菜单</div>
         ) : (
-          <div>
-            {menuTree.map(menu => renderMenuNode(menu, 0))}
-          </div>
+          <DndContext sensors={sensors} collisionDetection={closestCenter} onDragStart={({ active }) => setActiveDragId(active.id as number)} onDragEnd={handleDragEnd}>
+            <SortableContext items={menuTree.map(m => m.id)} strategy={verticalListSortingStrategy}>
+              <div>
+                {menuTree.map(menu => <SortableMenuNode key={menu.id} menu={menu} level={0} />)}
+              </div>
+            </SortableContext>
+          </DndContext>
         )}
       </div>
 
@@ -557,11 +795,19 @@ export default function SystemMenuPage() {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs text-gray-500 mb-1">图标</label>
-                  <input
-                    className="w-full border rounded px-3 py-2 text-sm"
-                    value={form.icon}
-                    onChange={e => setForm({...form, icon: e.target.value})}
-                  />
+                  <div className="flex gap-2">
+                    {form.icon && (() => {
+                      const Ic = (LucideIcons as any)[form.icon];
+                      return Ic ? <Ic size={18} className="text-gray-600 mt-1" /> : null;
+                    })()}
+                    <button
+                      type="button"
+                      onClick={() => setShowIconPicker(true)}
+                      className="flex-1 border rounded px-3 py-2 text-sm text-left text-gray-500 hover:border-primary hover:bg-primary/5"
+                    >
+                      {form.icon || "选择图标..."}
+                    </button>
+                  </div>
                 </div>
                 <div>
                   <label className="block text-xs text-gray-500 mb-1">排序</label>
@@ -578,10 +824,6 @@ export default function SystemMenuPage() {
                   <label className="flex items-center gap-1">
                     <input type="checkbox" checked={form.isVisible} onChange={e => setForm({...form, isVisible: e.target.checked})} />
                     <span className="text-sm">显示菜单</span>
-                  </label>
-                  <label className="flex items-center gap-1">
-                    <input type="checkbox" checked={form.isCache} onChange={e => setForm({...form, isCache: e.target.checked})} />
-                    <span className="text-sm">缓存页面</span>
                   </label>
                 </div>
               )}
@@ -681,6 +923,13 @@ export default function SystemMenuPage() {
           </div>
         </div>
       )}
+      {/* 图标选择器 */}
+      <IconPickerModal
+        open={showIconPicker}
+        onClose={() => setShowIconPicker(false)}
+        onSelect={handleSelectIcon}
+        currentIcon={form.icon}
+      />
     </div>
     </PagePermission>
   );

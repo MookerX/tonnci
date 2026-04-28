@@ -23,7 +23,8 @@ const createMenuSchema = z.object({
   path: z.string().max(255).optional().nullable(),
   component: z.string().max(255).optional().nullable(),
   sortOrder: z.number().int().optional().default(0),
-  visible: z.enum(['visible', 'hidden']).optional().default('visible'),
+  isVisible: z.boolean().optional(),
+  visible: z.enum(['visible', 'hidden']).optional(),
   status: z.enum(['active', 'disabled']).optional().default('active'),
   permission: z.string().max(100).optional().nullable(),
   remark: z.string().optional().nullable(),
@@ -95,26 +96,34 @@ export async function GET(request: NextRequest) {
       rolePermissions = perms.filter(p => p.permission).map(p => p.permission);
     }
 
+// Helper: transform Prisma menu record to API response with isVisible boolean
+function transformMenu(m: any): any {
+  return {
+    ...m,
+    isVisible: m.visible === 'visible',
+  };
+}
+
+// Helper: build tree with isVisible
+function buildTreeWithIsVisible(parentId: number | null): any[] {
+  return menus
+    .filter(m => m.parentId === parentId)
+    .map(m => {
+      const children = buildTreeWithIsVisible(m.id);
+      return {
+        ...transformMenu(m),
+        children: children.length > 0 ? children : undefined,
+        ...(roleId ? {
+          checked: roleMenuIds.includes(m.id),
+          halfChecked: children.some(c => roleMenuIds.includes(c.id)),
+        } : {}),
+      };
+    });
+}
+
     // 构建树形结构
     if (type === 'tree' || type === 'perms') {
-      const buildTree = (parentId: number | null): any[] => {
-        return menus
-          .filter(m => m.parentId === parentId)
-          .map(m => {
-            const children = buildTree(m.id);
-            return {
-              ...m,
-              children: children.length > 0 ? children : undefined,
-              // 如果指定了角色，标记选中状态
-              ...(roleId ? {
-                checked: roleMenuIds.includes(m.id),
-                halfChecked: children.some(c => roleMenuIds.includes(c.id)),
-              } : {}),
-            };
-          });
-      };
-
-      const tree = buildTree(null);
+      const tree = buildTreeWithIsVisible(null);
 
       if (type === 'perms') {
         // 返回权限列表格式（用于角色权限配置）
@@ -126,10 +135,20 @@ export async function GET(request: NextRequest) {
       }
 
       return successResponse(tree);
+    } else if (type === 'sort') {
+      // 批量更新菜单排序
+      const { orders } = await request.json();
+      if (!Array.isArray(orders)) {
+        return errorResponse('orders must be an array', 400);
+      }
+      await prisma.menu.updateMany({
+        where: { id: { in: orders.map((o: any) => o.id) } },
+        data: orders.map((o: any) => ({ sortOrder: o.sortOrder })),
+      });
+      return successResponse({ updated: orders.length });
+    } else {
+      return successResponse(menus.map(transformMenu));
     }
-
-    return successResponse(menus);
-
   } catch (error: any) {
     console.error('Get menus error:', error);
     console.error('Error stack:', error?.stack);
@@ -193,7 +212,9 @@ export async function POST(request: NextRequest) {
         path: data.path || null,
         component: data.component || null,
         sortOrder: data.sortOrder,
-        visible: data.visible,
+        visible: data.isVisible !== undefined
+          ? (data.isVisible ? 'visible' : 'hidden')
+          : (data.visible || 'visible'),
         status: data.status,
         permission: data.permission || null,
         remark: data.remark || null,

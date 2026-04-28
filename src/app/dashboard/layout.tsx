@@ -5,6 +5,8 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import Link from "next/link";
+import * as LucideIcons from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
 import { useToast } from "@/components/ToastProvider";
 import { fetchApi } from "@/lib/utils/fetch";
@@ -145,6 +147,46 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
   const [profileTab, setProfileTab] = useState<"info" | "password">("info");
   const [pwdForm, setPwdForm] = useState({ oldPassword: "", newPassword: "", confirmPassword: "" });
   const [changingPwd, setChangingPwd] = useState(false);
+  const [dbMenuTree, setDbMenuTree] = useState<any[]>([]);
+
+  // 转换DB菜单为侧边栏格式
+  const buildSidebarItems = useCallback((menus: any[]): any[] => {
+    return menus
+      .filter(m => m.isVisible !== false && m.menuType !== 'button')
+      .map(m => {
+        const key = m.menuCode || m.menuName;
+        const children = m.children ? buildSidebarItems(m.children) : undefined;
+        return {
+          key,
+          label: m.menuName,
+          icon: m.icon,
+          path: m.path || (children?.[0]?.path),
+          children: children?.length ? children : undefined,
+          dbMenu: m,
+        };
+      });
+  }, []);
+
+  // 侧边栏菜单项（优先使用DB菜单，否则使用静态配置作为兜底）
+  const sidebarItems = buildSidebarItems(dbMenuTree).length > 0
+    ? buildSidebarItems(dbMenuTree)
+    : (menuConfig as any[]);
+
+  // 从数据库加载菜单树
+  useEffect(() => {
+    if (!user) return;
+    const token = localStorage.getItem("token");
+    fetch("/api/system/menu?type=tree", {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then(r => r.json())
+      .then(data => {
+        if (data.code === 200 && data.data) {
+          setDbMenuTree(data.data);
+        }
+      })
+      .catch(() => {});
+  }, [user]);
 
   // 未登录自动跳转
   useEffect(() => {
@@ -279,13 +321,13 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
 
   // 初始化展开当前路径对应的菜单
   useEffect(() => {
-    const currentMenu = menuConfig.find((m) =>
-      m.children?.some((c) => pathname.startsWith(c.path))
+    const currentMenu = sidebarItems.find((m: any) =>
+      m.children?.some((c: any) => pathname.startsWith(c.path))
     );
     if (currentMenu && !openKeys.includes(currentMenu.key)) {
       setOpenKeys((prev) => [...prev, currentMenu.key]);
     }
-  }, [pathname, openKeys]);
+  }, [pathname, openKeys, sidebarItems]);
 
   const toggleMenu = (key: string) => {
     setOpenKeys((prev) =>
@@ -294,19 +336,27 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
   };
 
   const isActive = (path?: string | null) => !!path && pathname === path;
-  const isParentActive = (menu: (typeof menuConfig)[0]) =>
-    menu.children?.some((c) => pathname.startsWith(c.path)) || false;
+  const isParentActive = (menu: (any)) =>
+    menu.children?.some((c: any) => pathname.startsWith(c.path)) || false;
+
+  // 渲染菜单图标（支持Lucide组件名或SVG路径）
+  const renderMenuIcon = (iconName: string | undefined, size = 20) => {
+    if (!iconName) return null;
+    const Ic = (LucideIcons as any)[iconName];
+    if (Ic) return <Ic size={size} />;
+    return (
+      <svg width={size} height={size} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d={iconName} />
+      </svg>
+    );
+  };
 
   // 判断菜单是否可见（根据权限过滤）
-  const isMenuVisible = (menu: { key: string; children?: { key: string }[] }) => {
-    // 工作台始终可见
-    if (menu.key === "home") return true;
-
+  const isMenuVisible = (menu: any) => {
+    if (menu.key === "home" || menu.key === "首页") return true;
     if (menu.children && menu.children.length > 0) {
-      // 有子菜单：至少有一个子菜单可见则显示父菜单
-      return menu.children.some((child) => hasMenu(child.key));
+      return menu.children.some((child: any) => hasMenu(child.key));
     }
-    // 无子菜单：根据菜单key判断
     return hasMenu(menu.key);
   };
 
@@ -349,13 +399,13 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
 
         {/* 菜单区域 - 根据权限过滤 */}
         <nav className="flex-1 overflow-y-auto py-2 scrollbar-thin">
-          {menuConfig.filter(isMenuVisible).map((menu) => {
+          {sidebarItems.filter(isMenuVisible).map((menu) => {
             const hasChildren = menu.children && menu.children.length > 0;
             const parentActive = isParentActive(menu);
             const isOpen = openKeys.includes(menu.key);
 
             // 过滤不可见的子菜单
-            const visibleChildren = menu.children?.filter((child) => hasMenu(child.key));
+            const visibleChildren = menu.children?.filter((child: any) => hasMenu(child.key));
 
             if (hasChildren && visibleChildren && visibleChildren.length > 0) {
               return (
@@ -369,19 +419,9 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
                     }`}
                     title={collapsed ? menu.label : undefined}
                   >
-                    <svg
-                      className="w-5 h-5 flex-shrink-0"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={1.5}
-                        d={menu.icon}
-                      />
-                    </svg>
+                    <span className="w-5 h-5 flex-shrink-0 flex items-center justify-center">
+                      {renderMenuIcon(menu.icon)}
+                    </span>
                     {!collapsed && (
                       <>
                         <span className="ml-3 flex-1 text-left">{menu.label}</span>
@@ -405,7 +445,7 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
                   </button>
                   {!collapsed && isOpen && (
                     <div>
-                      {visibleChildren.map((child) => (
+                      {visibleChildren.map((child: any) => (
                         <a
                           key={child.key}
                           href={child.path}
@@ -437,19 +477,9 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
                   }`}
                   title={collapsed ? menu.label : undefined}
                 >
-                  <svg
-                    className="w-5 h-5 flex-shrink-0"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={1.5}
-                      d={menu.icon}
-                    />
-                  </svg>
+                  <span className="w-5 h-5 flex-shrink-0 flex items-center justify-center">
+                    {renderMenuIcon(menu.icon)}
+                  </span>
                   {!collapsed && <span className="ml-3">{menu.label}</span>}
                 </a>
               );

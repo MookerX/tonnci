@@ -21,6 +21,7 @@ const updateMenuSchema = z.object({
   path: z.string().max(255).optional().nullable(),
   component: z.string().max(255).optional().nullable(),
   sortOrder: z.number().int().optional(),
+  isVisible: z.boolean().optional(),
   visible: z.enum(['visible', 'hidden']).optional(),
   status: z.enum(['active', 'disabled']).optional(),
   permission: z.string().max(100).optional().nullable(),
@@ -160,6 +161,7 @@ export async function PUT(
     if (data.component !== undefined) updateData.component = data.component;
     if (data.sortOrder !== undefined) updateData.sortOrder = data.sortOrder;
     if (data.visible !== undefined) updateData.visible = data.visible;
+    if (data.isVisible !== undefined) updateData.visible = data.isVisible ? 'visible' : 'hidden';
     if (data.status !== undefined) updateData.status = data.status;
     if (data.permission !== undefined) updateData.permission = data.permission;
     if (data.remark !== undefined) updateData.remark = data.remark;
