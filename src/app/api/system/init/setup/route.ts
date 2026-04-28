@@ -51,9 +51,9 @@ export async function POST(request: NextRequest) {
 
     // 3. 获取参数
     const mode = data.mode || "new"; // 'reuse' | 'clear' | 'new'
-    const username = data.admin?.username;
-    const password = data.admin?.password;
-    const realName = data.admin?.realName;
+    const username = data.admin?.username || data.adminUsername;
+    const password = data.admin?.password || data.adminPassword;
+    const realName = data.admin?.realName || data.adminRealName;
     const database = data.database || {};
 
     // 4. 执行初始化
