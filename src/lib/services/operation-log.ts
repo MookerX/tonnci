@@ -67,9 +67,28 @@ export interface LogData {
 
 class OperationLogService {
   /**
-   * 记录操作日志
+   * 记录操作日志（支持两种调用方式）
+   * 方式1: log({ moduleName, businessType, ... })
+   * 方式2: log(moduleName, businessType, operatorId, operatorName, params, ipAddress, status)
    */
-  async log(logData: LogData): Promise<void> {
+  async log(logDataOrModule: LogData | string, businessTypeOrDesc?: BusinessType | string, operatorId?: number, operatorName?: string, requestParams?: any, ipAddress?: string, status?: 'success' | 'fail' | 'warning'): Promise<void> {
+    // 兼容两种调用方式
+    let logData: LogData;
+    if (typeof logDataOrModule === 'string') {
+      // 位置参数方式
+      logData = {
+        moduleName: logDataOrModule,
+        businessType: (businessTypeOrDesc || '') as string,
+        operatorId,
+        operatorName,
+        requestParams,
+        ipAddress,
+        status: status || 'success',
+      };
+    } else {
+      logData = logDataOrModule;
+    }
+
     try {
       const log = {
         uuid: uuidv4(),

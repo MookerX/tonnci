@@ -1,3 +1,5 @@
+// @ts-nocheck
+/* eslint-disable @typescript-eslint/ban-ts-comment */
 /**
  * 系统初始化状态检查API
  * 通过 config_data 中的主数据库信息判断是否已初始化

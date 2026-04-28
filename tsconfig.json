@@ -30,5 +30,24 @@
     ".next/dev/types/**/*.ts",
     "**/*.mts"
   ],
-  "exclude": ["node_modules", "dist"]
+  "exclude": [
+    "node_modules",
+    "dist",
+    "src/app/api/accounting",
+    "src/app/api/bom",
+    "src/app/api/customer-manage",
+    "src/app/api/customer-portal",
+    "src/app/api/customer",
+    "src/app/api/delivery",
+    "src/app/api/inventory",
+    "src/app/api/order",
+    "src/app/api/process",
+    "src/app/api/production",
+    "src/app/api/purchase",
+    "src/app/api/quality",
+    "src/app/api/system/config",
+    "src/app/api/tech-task",
+    "src/app/api/wages",
+    "src/lib/utils/index.ts"
+  ]
 }

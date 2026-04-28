@@ -5,6 +5,20 @@
 
 import { v4 as uuidv4 } from 'uuid';
 import { prisma } from '@/lib/prisma';
+import { type ClassValue, clsx } from "clsx"
+import { twMerge } from "tailwind-merge"
+
+// =============================================================================
+// Tailwind CSS 类名合并
+// =============================================================================
+
+/**
+ * 合并 Tailwind CSS 类名
+ * 用于 shadcn/ui 组件
+ */
+export function cn(...inputs: ClassValue[]) {
+  return twMerge(clsx(inputs))
+}
 
 // =============================================================================
 // 编码生成器
@@ -20,7 +34,7 @@ export async function generateOrderNo(): Promise<string> {
   const prefix = 'DD';
   
   // 查询当天最大的序号
-  const lastOrder = await prisma.order.findFirst({
+  const lastOrder = await prisma.productionOrder.findFirst({
     where: {
       orderNo: {
         startsWith: `${prefix}${dateStr}`,
@@ -58,17 +72,17 @@ export async function generateMaterialCode(materialType: string): Promise<string
   // 查询当前最大序号
   const lastMaterial = await prisma.material.findFirst({
     where: {
-      materialCode: {
+      internalCode: {
         startsWith: prefix,
       },
     },
-    orderBy: { materialCode: 'desc' },
-    select: { materialCode: true },
+    orderBy: { internalCode: 'desc' },
+    select: { internalCode: true },
   });
   
   let sequence = 1;
   if (lastMaterial) {
-    const lastSeq = parseInt(lastMaterial.materialCode.slice(1));
+    const lastSeq = parseInt(lastMaterial.internalCode.slice(1));
     sequence = lastSeq + 1;
   }
   

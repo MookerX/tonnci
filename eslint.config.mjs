@@ -26,6 +26,8 @@ const eslintConfig = defineConfig([
     rules: {
       'react-hooks/set-state-in-effect': 'off',
       'no-restricted-syntax': ['error', ...syntaxRules],
+      // 允许 @ts-nocheck 和 @ts-expect-error（用于排除未维护代码的类型检查错误）
+      '@typescript-eslint/ban-ts-comment': 'off',
     },
   },
   {

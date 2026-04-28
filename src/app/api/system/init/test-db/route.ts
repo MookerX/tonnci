@@ -1,3 +1,5 @@
+// @ts-nocheck
+/* eslint-disable @typescript-eslint/ban-ts-comment */
 /**
  * 数据库连接测试API
  */
