@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { useToast } from "@/components/ToastProvider";
 import { fetchApi } from "@/lib/utils/fetch";
 import { PermissionGuard } from "@/components/PermissionGuard";
+import { PagePermission } from "@/components/AuthProvider";
 import { moduleConfig, actionConfig, getModulePermissions, getAllPermissions, generatePermission } from "@/lib/permissions";
 
 interface Menu {
@@ -314,7 +315,7 @@ export default function SystemMenuPage() {
     const isExpanded = expandedIds.has(menu.id);
 
     return (
-      <div key={menu.id}>
+            <div key={menu.id}>
         <div
           className="flex items-center justify-between py-2 px-3 hover:bg-gray-50 border-b border-gray-100"
           style={{ marginLeft: level * 24 }}
@@ -376,6 +377,7 @@ export default function SystemMenuPage() {
     : permissionTree;
 
   return (
+    <PagePermission permission="system:menu:query">
     <div>
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-lg font-semibold text-gray-800">菜单管理</h2>
@@ -680,5 +682,6 @@ export default function SystemMenuPage() {
         </div>
       )}
     </div>
+    </PagePermission>
   );
 }

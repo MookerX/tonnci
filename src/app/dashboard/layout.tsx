@@ -8,7 +8,7 @@ import { useState, useEffect, useCallback } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { useToast } from "@/components/ToastProvider";
 import { fetchApi } from "@/lib/utils/fetch";
-import { AuthProvider, useAuth } from "@/components/AuthProvider";
+import { AuthProvider, useAuth, RouteGuard } from "@/components/AuthProvider";
 
 // 菜单配置 - 对应需求规格说明书12大功能模块
 const menuConfig = [
@@ -259,7 +259,7 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
     );
   };
 
-  const isActive = (path: string) => pathname === path;
+  const isActive = (path?: string | null) => !!path && pathname === path;
   const isParentActive = (menu: (typeof menuConfig)[0]) =>
     menu.children?.some((c) => pathname.startsWith(c.path)) || false;
 
@@ -479,7 +479,7 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
         </header>
 
         {/* 页面内容 */}
-        <main className="flex-1 overflow-auto p-6">{children}</main>
+        <main className="flex-1 overflow-auto p-6"><RouteGuard>{children}</RouteGuard></main>
 
         {/* 个人信息弹窗 */}
         {showProfile && (

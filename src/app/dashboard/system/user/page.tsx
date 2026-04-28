@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { useToast } from "@/components/ToastProvider";
 import { fetchApi } from "@/lib/utils/fetch";
 import { PermissionGuard } from "@/components/PermissionGuard";
+import { PagePermission } from "@/components/AuthProvider";
 
 interface User {
   id: number;
@@ -219,7 +220,8 @@ export default function SystemUserPage() {
   const flatDepts = flattenDepts(depts);
 
   return (
-    <div>
+    <PagePermission permission="system:user:query">
+            <div>
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-lg font-semibold text-gray-800">用户管理</h2>
         <PermissionGuard permission="system:user:create">
@@ -397,5 +399,6 @@ export default function SystemUserPage() {
         </div>
       )}
     </div>
-  );
+  </PagePermission>
+    );
 }

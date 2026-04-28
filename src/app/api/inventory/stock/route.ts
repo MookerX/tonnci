@@ -9,6 +9,7 @@ import { successResponse, badRequestResponse, serverErrorResponse } from '@/lib/
 import { extractToken } from '@/lib/auth/jwt';
 import { getClientIp } from '@/lib/utils';
 
+/**
  * GET /api/inventory/stock - 获取库存列表
  */
 export async function GET(request: NextRequest) {

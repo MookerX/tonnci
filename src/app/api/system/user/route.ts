@@ -183,7 +183,7 @@ export async function POST(request: NextRequest) {
 
     const validationResult = createUserSchema.safeParse(body);
     if (!validationResult.success) {
-      const errorMessage = validationResult.error.errors?.[0]?.message || '参数验证失败';
+      const errorMessage = validationResult.error.issues?.[0]?.message || '参数验证失败';
       return badRequestResponse(errorMessage);
     }
 
@@ -259,7 +259,7 @@ export async function PUT(request: NextRequest) {
     if (body.action) {
       const validationResult = batchOperateSchema.safeParse(body);
       if (!validationResult.success) {
-        const errorMessage = validationResult.error.errors?.[0]?.message || '参数验证失败';
+        const errorMessage = validationResult.error.issues?.[0]?.message || '参数验证失败';
         return badRequestResponse(errorMessage);
       }
 
@@ -307,7 +307,7 @@ export async function PUT(request: NextRequest) {
     // 否则是重置密码操作
     const validationResult = resetPasswordSchema.safeParse(body);
     if (!validationResult.success) {
-      return badRequestResponse(validationResult.error.errors?.[0]?.message || '参数验证失败');
+      return badRequestResponse(validationResult.error.issues?.[0]?.message || '参数验证失败');
     }
 
     const { userId, newPassword } = validationResult.data;

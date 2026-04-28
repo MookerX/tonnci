@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { fetchApi } from "@/lib/utils/fetch";
+import { PagePermission } from "@/components/AuthProvider";
 
 export default function SystemLogPage() {
   const [logs, setLogs] = useState<any[]>([]);
@@ -27,7 +28,8 @@ export default function SystemLogPage() {
   const typeMap: Record<string, string> = { create: "新增", update: "修改", delete: "删除", login: "登录", logout: "登出", import: "导入", export: "导出" };
 
   return (
-    <div>
+    <PagePermission permission="system:log:query">
+            <div>
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-lg font-semibold text-gray-800">操作日志</h2>
       </div>
@@ -63,5 +65,6 @@ export default function SystemLogPage() {
         <button onClick={() => setPage(p => p + 1)} className="px-3 py-1.5 border rounded text-sm hover:bg-gray-50">下一页</button>
       </div>
     </div>
-  );
+  </PagePermission>
+    );
 }

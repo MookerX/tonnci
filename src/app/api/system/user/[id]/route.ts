@@ -157,7 +157,7 @@ export async function PUT(
 
     const validationResult = updateUserSchema.safeParse(body);
     if (!validationResult.success) {
-      const errorMessage = validationResult.error.errors?.[0]?.message || '参数验证失败';
+      const errorMessage = validationResult.error.issues?.[0]?.message || '参数验证失败';
       return badRequestResponse(errorMessage);
     }
 

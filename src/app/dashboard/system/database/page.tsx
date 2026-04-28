@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { useToast } from "@/components/ToastProvider";
 import { fetchApi } from "@/lib/utils/fetch";
 import { PermissionGuard } from "@/components/PermissionGuard";
+import { PagePermission } from "@/components/AuthProvider";
 
 export default function SystemDatabasePage() {
   const { success, error, warning } = useToast();
@@ -106,10 +107,11 @@ export default function SystemDatabasePage() {
   };
 
   return (
-    <div>
+    <PagePermission permission="system:database:query">
+            <div>
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-lg font-semibold text-gray-800">分布式数据库配置</h2>
-        <button onClick={() => { setShowForm(true); setEditingId(null); setForm({ moduleName: "", moduleCode: "", host: "localhost", port: 3306, database: "", username: "", password: "", remark: "" }); }} className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700">+ 添加数据库</button>
+        <PermissionGuard permission="system:database:create"><button onClick={() => { setShowForm(true); setEditingId(null); setForm({ moduleName: "", moduleCode: "", host: "localhost", port: 3306, database: "", username: "", password: "", remark: "" }); }} className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700">+ 添加数据库</button></PermissionGuard>
       </div>
 
       {/* 主库配置 - 只读显示 */}
@@ -199,9 +201,9 @@ export default function SystemDatabasePage() {
                     </span>
                   </td>
                   <td className="px-4 py-2.5">
-                    <button onClick={() => handleTestConnection(c)} className="text-blue-600 hover:underline text-sm mr-2">测试</button>
-                    <button onClick={() => handleEdit(c)} className="text-gray-600 hover:underline text-sm mr-2">编辑</button>
-                    <button onClick={() => handleDelete(c.id)} className="text-red-600 hover:underline text-sm">删除</button>
+                    <PermissionGuard permission="system:database:update"><button onClick={() => handleTestConnection(c)} className="text-blue-600 hover:underline text-sm mr-2">测试</button></PermissionGuard>
+                    <PermissionGuard permission="system:database:update"><button onClick={() => handleEdit(c)} className="text-gray-600 hover:underline text-sm mr-2">编辑</button></PermissionGuard>
+                    <PermissionGuard permission="system:database:delete"><button onClick={() => handleDelete(c.id)} className="text-red-600 hover:underline text-sm">删除</button></PermissionGuard>
                   </td>
                 </tr>
               ))
@@ -210,5 +212,6 @@ export default function SystemDatabasePage() {
         </table>
       </div>
     </div>
-  );
+  </PagePermission>
+    );
 }

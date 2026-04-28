@@ -66,7 +66,7 @@ export async function POST(request: NextRequest) {
 
     const validationResult = databaseConfigSchema.safeParse(body);
     if (!validationResult.success) {
-      return badRequestResponse(validationResult.error.errors?.[0]?.message || '参数验证失败');
+      return badRequestResponse(validationResult.error.issues?.[0]?.message || '参数验证失败');
     }
 
     const data = validationResult.data;

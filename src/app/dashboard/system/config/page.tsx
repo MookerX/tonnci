@@ -3,6 +3,8 @@
 import { useState, useEffect } from "react";
 import { useToast } from "@/components/ToastProvider";
 import { fetchApi } from "@/lib/utils/fetch";
+import { PagePermission } from "@/components/AuthProvider";
+import { PermissionGuard } from "@/components/PermissionGuard";
 
 export default function SystemConfigPage() {
   const { success, error, warning } = useToast();
@@ -37,10 +39,11 @@ export default function SystemConfigPage() {
   if (loading) return <div className="p-8 text-center text-gray-400">加载中...</div>;
 
   return (
-    <div>
+    <PagePermission permission="system:config:query">
+            <div>
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-lg font-semibold text-gray-800">全局参数配置</h2>
-        <button onClick={handleSave} disabled={saving} className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700 disabled:opacity-50">{saving ? "保存中..." : "保存配置"}</button>
+        <PermissionGuard permission="system:config:update"><button onClick={handleSave} disabled={saving} className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700 disabled:opacity-50">{saving ? "保存中..." : "保存配置"}</button></PermissionGuard>
       </div>
       <div className="space-y-4">
         <div className="bg-white rounded-lg border p-4">
@@ -69,5 +72,6 @@ export default function SystemConfigPage() {
         </div>
       </div>
     </div>
-  );
+  </PagePermission>
+    );
 }

@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { useToast } from "@/components/ToastProvider";
 import { fetchApi } from "@/lib/utils/fetch";
 import { PermissionGuard } from "@/components/PermissionGuard";
+import { PagePermission } from "@/components/AuthProvider";
 
 export default function BomManagementPage() {
   const { success, error, warning } = useToast();
@@ -50,12 +51,13 @@ export default function BomManagementPage() {
   };
 
   return (
-    <div>
+    <PagePermission permission="tech:material:query">
+            <div>
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-lg font-semibold text-gray-800">BOM物料管理</h2>
         <div className="flex gap-2">
-          <button onClick={() => setShowForm(true)} className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700">+ 新增物料</button>
-          <button className="px-4 py-2 bg-green-600 text-white rounded-lg text-sm hover:bg-green-700">导入BOM</button>
+          <PermissionGuard permission="tech:material:create"><button onClick={() => setShowForm(true)} className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700">+ 新增物料</button></PermissionGuard>
+          <PermissionGuard permission="tech:material:create"><button className="px-4 py-2 bg-green-600 text-white rounded-lg text-sm hover:bg-green-700">导入BOM</button></PermissionGuard>
         </div>
       </div>
 
@@ -127,12 +129,13 @@ export default function BomManagementPage() {
                 <td className="px-3 py-2">{m.unit || "-"}</td>
                 <td className="px-3 py-2">{m.customer?.customerName || "-"}</td>
                 <td className="px-3 py-2"><button className="text-blue-600 hover:underline text-xs">查看图纸</button></td>
-                <td className="px-3 py-2"><button className="text-blue-600 hover:underline text-xs mr-2">编辑</button><button className="text-red-600 hover:underline text-xs">删除</button></td>
+                <td className="px-3 py-2"><PermissionGuard permission="tech:material:update"><button className="text-blue-600 hover:underline text-xs mr-2">编辑</button></PermissionGuard><PermissionGuard permission="tech:material:delete"><button className="text-red-600 hover:underline text-xs">删除</button></PermissionGuard></td>
               </tr>
             ))}
           </tbody>
         </table>
       </div>
     </div>
-  );
+  </PagePermission>
+    );
 }

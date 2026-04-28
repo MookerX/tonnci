@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { useToast } from "@/components/ToastProvider";
 import { fetchApi } from "@/lib/utils/fetch";
 import { PermissionGuard } from "@/components/PermissionGuard";
+import { PagePermission } from "@/components/AuthProvider";
 
 interface StorageItem {
   id: number;
@@ -184,13 +185,14 @@ export default function SystemStoragePage() {
   };
 
   return (
-    <div>
+    <PagePermission permission="system:storage:query">
+            <div>
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-lg font-semibold text-gray-800">存储管理</h2>
         {activeTab === "storage" && (
-          <button onClick={() => handleOpenForm()} className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700">
+          <PermissionGuard permission="system:storage:create"><button onClick={() => handleOpenForm()} className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700">
             + 添加存储
-          </button>
+          </button></PermissionGuard>
         )}
       </div>
 
@@ -266,11 +268,11 @@ export default function SystemStoragePage() {
                       </span>
                     </td>
                     <td className="px-4 py-2.5">
-                      <button onClick={() => handleOpenForm(s)} className="text-blue-600 hover:underline text-sm mr-2">编辑</button>
-                      <button onClick={() => handleToggleStatus(s)} className="text-gray-600 hover:underline text-sm mr-2">
+                      <PermissionGuard permission="system:storage:update"><button onClick={() => handleOpenForm(s)} className="text-blue-600 hover:underline text-sm mr-2">编辑</button></PermissionGuard>
+                      <PermissionGuard permission="system:storage:update"><button onClick={() => handleToggleStatus(s)} className="text-gray-600 hover:underline text-sm mr-2">
                         {s.status === "active" ? "禁用" : "启用"}
-                      </button>
-                      <button onClick={() => handleDelete(s)} className="text-red-600 hover:underline text-sm">删除</button>
+                      </button></PermissionGuard>
+                      <PermissionGuard permission="system:storage:delete"><button onClick={() => handleDelete(s)} className="text-red-600 hover:underline text-sm">删除</button></PermissionGuard>
                     </td>
                   </tr>
                 ))
@@ -417,5 +419,6 @@ export default function SystemStoragePage() {
         </div>
       )}
     </div>
-  );
+  </PagePermission>
+    );
 }

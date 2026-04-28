@@ -10,6 +10,7 @@ import { extractToken } from '@/lib/auth/jwt';
 import { getClientIp } from '@/lib/utils';
 import { operationLog } from '@/lib/services/operation-log';
 
+/**
  * GET /api/process - 获取工艺相关数据
  */
 export async function GET(request: NextRequest) {

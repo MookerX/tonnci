@@ -63,10 +63,6 @@ export default function SetupPage() {
   const [testLoading, setTestLoading] = useState(false);
 
   // 检查初始化状态
-  useEffect(() => {
-    checkInitStatus();
-  }, []);
-
   const checkInitStatus = async () => {
     setLoading(true);
     try {
@@ -92,6 +88,10 @@ export default function SetupPage() {
     }
     setLoading(false);
   };
+
+  useEffect(() => {
+    checkInitStatus();
+  }, []);
 
   const testDatabase = async () => {
     if (!dbConfig.host || !dbConfig.username || !dbConfig.database) {

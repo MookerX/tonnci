@@ -11,6 +11,7 @@ import { extractToken } from '@/lib/auth/jwt';
 import { getClientIp } from '@/lib/utils';
 import { operationLog } from '@/lib/services/operation-log';
 
+/**
  * 生成供应商编码
  */
 async function generateSupplierCode(): Promise<string> {
@@ -18,6 +19,7 @@ async function generateSupplierCode(): Promise<string> {
   return `GYS${String(count + 1).padStart(6, '0')}`;
 }
 
+/**
  * GET /api/purchase - 获取采购相关数据
  */
 export async function GET(request: NextRequest) {

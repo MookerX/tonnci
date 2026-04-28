@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { useToast } from "@/components/ToastProvider";
 import { fetchApi } from "@/lib/utils/fetch";
 import { PermissionGuard } from "@/components/PermissionGuard";
+import { PagePermission } from "@/components/AuthProvider";
 import { moduleConfig, actionConfig, generatePermission } from "@/lib/permissions";
 
 interface Role {
@@ -266,7 +267,7 @@ export default function SystemRolePage() {
     const hasChildren = dept.children && dept.children.length > 0;
 
     return (
-      <div key={dept.id} style={{ marginLeft: level * 20 }}>
+            <div key={dept.id} style={{ marginLeft: level * 20 }}>
         <div className="flex items-center gap-2 py-1 border-b border-gray-100 hover:bg-gray-50">
           {hasChildren && <span className="text-gray-400">├─</span>}
           <input
@@ -293,6 +294,7 @@ export default function SystemRolePage() {
   );
 
   return (
+    <PagePermission permission="system:role:query">
     <div>
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-lg font-semibold text-gray-800">角色管理</h2>
@@ -513,5 +515,6 @@ export default function SystemRolePage() {
         </div>
       )}
     </div>
+    </PagePermission>
   );
 }

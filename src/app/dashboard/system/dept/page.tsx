@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { useToast } from "@/components/ToastProvider";
 import { fetchApi } from "@/lib/utils/fetch";
 import { PermissionGuard } from "@/components/PermissionGuard";
+import { PagePermission } from "@/components/AuthProvider";
 
 interface Dept {
   id: number;
@@ -187,7 +188,7 @@ export default function SystemDeptPage() {
     const isExpanded = expandedIds.has(dept.id);
 
     return (
-      <div key={dept.id}>
+            <div key={dept.id}>
         <div
           className="flex items-center justify-between py-2 px-3 hover:bg-gray-50 border-b border-gray-100"
           style={{ marginLeft: level * 24 }}
@@ -264,6 +265,7 @@ export default function SystemDeptPage() {
   const flatDeptList = flattenDepts(deptTree, []);
 
   return (
+    <PagePermission permission="system:dept:query">
     <div>
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-lg font-semibold text-gray-800">部门管理</h2>
@@ -394,5 +396,6 @@ export default function SystemDeptPage() {
         </div>
       )}
     </div>
+    </PagePermission>
   );
 }

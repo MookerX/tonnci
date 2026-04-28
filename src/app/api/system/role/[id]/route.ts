@@ -113,7 +113,7 @@ export async function PUT(
     if (body.action === 'assignPermission') {
       const validationResult = assignPermissionSchema.safeParse(body);
       if (!validationResult.success) {
-        return badRequestResponse(validationResult.error.errors?.[0]?.message || '参数验证失败');
+        return badRequestResponse(validationResult.error.issues?.[0]?.message || '参数验证失败');
       }
 
       const { permissions, deptIds } = validationResult.data;
@@ -163,7 +163,7 @@ export async function PUT(
     // 普通更新
     const validationResult = updateRoleSchema.safeParse(body);
     if (!validationResult.success) {
-      return badRequestResponse(validationResult.error.errors?.[0]?.message || '参数验证失败');
+      return badRequestResponse(validationResult.error.issues?.[0]?.message || '参数验证失败');
     }
 
     const data = validationResult.data;

@@ -32,7 +32,7 @@ export async function POST(request: NextRequest) {
 
     const validationResult = loginSchema.safeParse(body);
     if (!validationResult.success) {
-      return badRequestResponse('参数验证失败: ' + validationResult.error.errors.map(e => e.message).join(', '));
+      return badRequestResponse('参数验证失败: ' + validationResult.error.issues.map(e => e.message).join(', '));
     }
 
     const { username, password } = validationResult.data;

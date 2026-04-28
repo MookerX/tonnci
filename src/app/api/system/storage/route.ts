@@ -77,7 +77,7 @@ export async function POST(request: NextRequest) {
     if (action === 'create') {
       const validation = nasDeviceSchema.safeParse(data);
       if (!validation.success) {
-        return badRequestResponse(validation.error.errors?.[0]?.message || '参数验证失败');
+        return badRequestResponse(validation.error.issues?.[0]?.message || '参数验证失败');
       }
 
       const nas = await prisma.nasDevice.create({
@@ -141,7 +141,7 @@ export async function PUT(request: NextRequest) {
 
     const validation = nasDeviceSchema.partial().safeParse(data);
     if (!validation.success) {
-      return badRequestResponse(validation.error.errors?.[0]?.message || '参数验证失败');
+      return badRequestResponse(validation.error.issues?.[0]?.message || '参数验证失败');
     }
 
     // 检查设备是否存在

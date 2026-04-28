@@ -53,7 +53,7 @@ export async function POST(request: NextRequest) {
 
     const validation = storageConfigSchema.safeParse(body);
     if (!validation.success) {
-      const errorMessage = validation.error.errors?.[0]?.message || '参数验证失败';
+      const errorMessage = validation.error.issues?.[0]?.message || '参数验证失败';
       return badRequestResponse(errorMessage);
     }
 
