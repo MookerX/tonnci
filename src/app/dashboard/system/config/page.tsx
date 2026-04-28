@@ -5,6 +5,7 @@ import { useToast } from "@/components/ToastProvider";
 import { fetchApi } from "@/lib/utils/fetch";
 
 export default function SystemConfigPage() {
+  const { success, error, warning } = useToast();
   const [configs, setConfigs] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);

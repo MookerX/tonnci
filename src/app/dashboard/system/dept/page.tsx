@@ -19,6 +19,7 @@ interface Dept {
 }
 
 export default function SystemDeptPage() {
+  const { success, error, warning } = useToast();
   const [deptTree, setDeptTree] = useState<Dept[]>([]);
   const [loading, setLoading] = useState(true);
   const [expandedIds, setExpandedIds] = useState<Set<number>>(new Set());
@@ -115,6 +116,7 @@ export default function SystemDeptPage() {
         });
       }
       if (data.code === 200) {
+        success(data.message || "保存成功");
         setShowForm(false);
         fetchDepts();
       } else {
@@ -138,6 +140,7 @@ export default function SystemDeptPage() {
     try {
       const data = await fetchApi(`/api/system/dept/${dept.id}`, { method: "DELETE", headers });
       if (data.code === 200) {
+        success(data.message || "删除成功");
         fetchDepts();
       } else {
         error(data.message);
@@ -156,6 +159,7 @@ export default function SystemDeptPage() {
         body: JSON.stringify({ status: newStatus }),
       });
       if (data.code === 200) {
+        success(data.message || "操作成功");
         fetchDepts();
       } else {
         error(data.message);

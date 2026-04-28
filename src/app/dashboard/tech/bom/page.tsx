@@ -5,6 +5,7 @@ import { useToast } from "@/components/ToastProvider";
 import { fetchApi } from "@/lib/utils/fetch";
 
 export default function BomManagementPage() {
+  const { success, error, warning } = useToast();
   const [materials, setMaterials] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState({ keyword: "", materialType: "" });

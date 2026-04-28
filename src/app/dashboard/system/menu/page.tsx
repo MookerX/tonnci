@@ -79,6 +79,7 @@ function buildPermissionTree(): PermissionNode[] {
 }
 
 export default function SystemMenuPage() {
+  const { success, error, warning } = useToast();
   const [menuTree, setMenuTree] = useState<Menu[]>([]);
   const [loading, setLoading] = useState(true);
   const [expandedIds, setExpandedIds] = useState<Set<number>>(new Set());

@@ -5,6 +5,7 @@ import { useToast } from "@/components/ToastProvider";
 import { fetchApi } from "@/lib/utils/fetch";
 
 export default function SystemDatabasePage() {
+  const { success, error, warning } = useToast();
   const [masterConfig, setMasterConfig] = useState<any>(null);
   const [configs, setConfigs] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);

@@ -31,6 +31,7 @@ interface NasItem {
 }
 
 export default function SystemStoragePage() {
+  const { success, error, warning } = useToast();
   const [storages, setStorages] = useState<StorageItem[]>([]);
   const [nasDevices, setNasDevices] = useState<NasItem[]>([]);
   const [loading, setLoading] = useState(true);
