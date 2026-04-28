@@ -152,25 +152,6 @@ export default function SystemDeptPage() {
     }
   };
 
-  const handleToggleStatus = async (dept: Dept) => {
-    const newStatus = dept.status === 'active' ? 'disabled' : 'active';
-    try {
-      const data = await fetchApi(`/api/system/dept/${dept.id}`, {
-        method: "PUT",
-        headers,
-        body: JSON.stringify({ status: newStatus }),
-      });
-      if (data.code === 200) {
-        success(data.message || "操作成功");
-        fetchDepts();
-      } else {
-        error(data.message);
-      }
-    } catch (e) {
-      error("操作失败");
-    }
-  };
-
   // 扁平化部门树（用于列表视图）
   const flattenDepts = (depts: Dept[], result: Dept[] = [], level: number = 0): Dept[] => {
     for (const dept of depts) {
@@ -214,10 +195,6 @@ export default function SystemDeptPage() {
               {dept.userCount > 0 && <span className="mr-2">用户: {dept.userCount}</span>}
               {dept.childCount > 0 && <span>子部门: {dept.childCount}</span>}
             </span>
-            {/* 状态标签 */}
-            <span className={`ml-2 px-1.5 py-0.5 text-xs rounded ${dept.status === 'active' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
-              {dept.status === 'active' ? '正常' : '禁用'}
-            </span>
           </div>
           {/* 操作按钮 */}
           <div className="flex items-center gap-2">
@@ -235,14 +212,6 @@ export default function SystemDeptPage() {
               className="text-gray-600 hover:underline text-sm"
             >
               编辑
-            </button>
-            </PermissionGuard>
-            <PermissionGuard permission="system:dept:update">
-            <button
-              onClick={() => handleToggleStatus(dept)}
-              className="text-yellow-600 hover:underline text-sm"
-            >
-              {dept.status === 'active' ? '禁用' : '启用'}
             </button>
             </PermissionGuard>
             <PermissionGuard permission="system:dept:delete">
@@ -316,7 +285,6 @@ export default function SystemDeptPage() {
                 <th className="px-4 py-2.5 text-left font-medium text-gray-600">部门代码</th>
                 <th className="px-4 py-2.5 text-left font-medium text-gray-600">负责人</th>
                 <th className="px-4 py-2.5 text-left font-medium text-gray-600">用户数</th>
-                <th className="px-4 py-2.5 text-left font-medium text-gray-600">状态</th>
                 <th className="px-4 py-2.5 text-left font-medium text-gray-600">操作</th>
               </tr>
             </thead>
@@ -331,16 +299,8 @@ export default function SystemDeptPage() {
                   <td className="px-4 py-2.5">{dept.leaderName || "-"}</td>
                   <td className="px-4 py-2.5">{dept.userCount}</td>
                   <td className="px-4 py-2.5">
-                    <span className={`px-2 py-0.5 text-xs rounded ${dept.status === 'active' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
-                      {dept.status === 'active' ? '正常' : '禁用'}
-                    </span>
-                  </td>
-                  <td className="px-4 py-2.5">
                     <PermissionGuard permission="system:dept:create"><button onClick={() => handleOpenForm(undefined, dept.id)} className="text-blue-600 hover:underline text-sm mr-2">添加子部门</button></PermissionGuard>
                     <PermissionGuard permission="system:dept:update"><button onClick={() => handleOpenForm(dept)} className="text-gray-600 hover:underline text-sm mr-2">编辑</button></PermissionGuard>
-                    <button onClick={() => handleToggleStatus(dept)} className="text-yellow-600 hover:underline text-sm mr-2">
-                      {dept.status === 'active' ? '禁用' : '启用'}
-                    </button>
                     <PermissionGuard permission="system:dept:delete"><button onClick={() => handleDelete(dept)} className="text-red-600 hover:underline text-sm">删除</button></PermissionGuard>
                   </td>
                 </tr>

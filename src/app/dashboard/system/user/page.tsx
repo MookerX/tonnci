@@ -233,7 +233,7 @@ export default function SystemUserPage() {
 
       {/* 搜索 */}
       <div className="flex items-center mb-4 gap-4">
-        <input type="text" placeholder="搜索用户名、姓名、电话..." className="border rounded px-3 py-2 text-sm w-64" value={keyword} onChange={e => setKeyword(e.target.value)} />
+        <input type="text" placeholder="搜索用户名、姓名、电话..." className="border rounded px-3 py-2 text-sm w-64" value={keyword} onChange={e => setKeyword(e.target.value)} autoComplete="off" />
       </div>
 
       {/* 用户列表 */}
@@ -375,7 +375,7 @@ export default function SystemUserPage() {
             <p className="text-sm text-gray-600 mb-4">用户: {resetPwdUser.realName || resetPwdUser.username}</p>
             <div>
               <label className="block text-xs text-gray-500 mb-1">新密码 (至少6位) *</label>
-              <input type="password" className="w-full border rounded px-3 py-2 text-sm" value={newPassword} onChange={e => setNewPassword(e.target.value)} placeholder="请输入新密码" autoFocus />
+              <input type="password" className="w-full border rounded px-3 py-2 text-sm" value={newPassword} onChange={e => setNewPassword(e.target.value)} placeholder="请输入新密码" autoFocus autoComplete="new-password" data-lpignore="true" />
             </div>
             <div className="flex justify-end gap-2 mt-4">
               <button onClick={() => { setShowResetPwd(false); setResetPwdUser(null); setNewPassword(""); }} className="px-4 py-2 border rounded text-sm hover:bg-gray-50">取消</button>
