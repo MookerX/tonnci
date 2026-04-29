@@ -248,8 +248,8 @@ class OperationLogService {
       operationDesc: desc,
       requestParams: beforeData,
       responseData: afterData,
-      oldData,
-      newData,
+      oldData: beforeData,
+      newData: afterData,
       ipAddress,
     });
   }
