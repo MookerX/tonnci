@@ -37,11 +37,13 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
       .map(m => {
         const key = m.menuCode || m.menuName;
         const children = m.children ? buildSidebarItems(m.children) : undefined;
+        // 目录类型不需要path（仅作为容器），菜单类型需要有path
+        const path = m.menuType === 'directory' ? null : (m.path || (children?.[0]?.path));
         return {
           key,
           label: m.menuName,
           icon: m.icon,
-          path: m.path || (children?.[0]?.path),
+          path,
           children: children?.length ? children : undefined,
           dbMenu: m,
         };
@@ -285,8 +287,14 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
 
             // 过滤不可见的子菜单
             const visibleChildren = menu.children?.filter((child: any) => hasMenu(child.key));
+            // 判断是否为目录类型（目录类型不跳转，仅展开子菜单）
+            const isDirectory = menu.dbMenu?.menuType === 'directory';
+            // 如果是目录类型，应该显示展开按钮，无论子菜单是否可见
+            const shouldShowExpandable = hasChildren && (!isDirectory || visibleChildren?.length > 0);
+            // 如果是目录且有子菜单，即使全部被过滤也应该显示（作为容器）
+            const showAsContainer = isDirectory && hasChildren;
 
-            if (hasChildren && visibleChildren && visibleChildren.length > 0) {
+            if (shouldShowExpandable || showAsContainer) {
               return (
                 <div key={menu.key}>
                   <button
@@ -322,12 +330,12 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
                       </>
                     )}
                   </button>
-                  {!collapsed && isOpen && (
+                  {!collapsed && isOpen && visibleChildren && visibleChildren.length > 0 && (
                     <div>
                       {visibleChildren.map((child: any) => (
                         <a
                           key={child.key}
-                          href={child.path}
+                          href={child.path || '#'}
                           className={`flex items-center pl-12 pr-4 h-9 text-sm transition-colors ${
                             isActive(child.path)
                               ? "text-blue-400 bg-blue-500/10 border-r-2 border-blue-400"
@@ -351,7 +359,7 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
               return (
                 <a
                   key={menu.key}
-                  href={menu.path}
+                  href={menu.path || '#'}
                   className={`flex items-center px-4 h-10 text-sm transition-colors ${
                     isActive(menu.path)
                       ? "text-blue-400 bg-blue-500/10 border-r-2 border-blue-400"
