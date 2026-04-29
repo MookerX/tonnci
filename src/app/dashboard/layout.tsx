@@ -338,13 +338,11 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
   // 判断菜单是否可见（根据权限过滤）
   const isMenuVisible = (menu: any) => {
     if (menu.key === "home" || menu.key === "首页") return true;
-    // 目录类型始终可见（作为容器）
-    if (menu.dbMenu?.menuType === 'directory') return true;
-    // 顶级菜单检查权限
+    // 有子菜单：检查是否至少有一个子菜单有权限
     if (menu.children && menu.children.length > 0) {
-      // 如果所有子菜单都不可见，则隐藏父菜单
       return menu.children.some((child: any) => isMenuVisible(child));
     }
+    // 无子菜单：检查自己的权限
     return hasMenu(menu.key);
   };
 
