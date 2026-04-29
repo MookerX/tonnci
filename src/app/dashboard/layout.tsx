@@ -402,55 +402,55 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
 
         {/* 用户信息 */}
         <div className="border-t border-slate-700 p-2">
-          {/* 用户信息展示 */}
-          <div className={`flex items-center mb-2 ${collapsed ? 'justify-center' : 'px-3'} py-2`}>
-            <div 
-              onClick={() => setShowProfile(true)}
-              className="w-8 h-8 bg-white rounded-full flex items-center justify-center text-sm font-bold cursor-pointer hover:bg-slate-700 overflow-hidden border border-slate-600 flex-shrink-0"
-            >
-              {user?.avatar ? (
-                <img src={user.avatar.startsWith('/') ? user.avatar : user.avatar} alt="头像" className="w-full h-full object-cover" />
-              ) : (
-                <img src="/logo.png" alt="默认头像" className="w-full h-full object-contain p-0.5" />
+          <div className="flex items-center gap-2">
+            {/* 左侧：用户头像、姓名、部门 */}
+            <div className="flex items-center flex-1 min-w-0">
+              <div 
+                onClick={() => setShowProfile(true)}
+                className="w-8 h-8 bg-white rounded-full flex items-center justify-center text-sm font-bold cursor-pointer hover:bg-slate-700 overflow-hidden border border-slate-600 flex-shrink-0"
+              >
+                {user?.avatar ? (
+                  <img src={user.avatar.startsWith('/') ? user.avatar : user.avatar} alt="头像" className="w-full h-full object-cover" />
+                ) : (
+                  <img src="/logo.png" alt="默认头像" className="w-full h-full object-contain p-0.5" />
+                )}
+              </div>
+              {!collapsed && (
+                <div className="ml-2 flex-1 min-w-0">
+                  <p className="text-sm font-medium text-white truncate">
+                    {user?.realName || user?.username || "--"}
+                  </p>
+                  <p className="text-xs text-slate-400 truncate">
+                    {user?.dept?.deptName || "系统管理员"}
+                  </p>
+                </div>
               )}
             </div>
-            {!collapsed && (
-              <div className="ml-2 flex-1 min-w-0">
-                <p className="text-sm font-medium text-white truncate">
-                  {user?.realName || user?.username || "--"}
-                </p>
-                <p className="text-xs text-slate-400 truncate">
-                  {user?.dept?.deptName || "系统管理员"}
-                </p>
-              </div>
-            )}
-          </div>
-          
-          {/* 操作按钮 - 垂直排列 */}
-          <div className={`flex ${collapsed ? 'flex-col items-center' : 'flex-col items-center'} gap-1`}>
-            <button
-              onClick={() => setCollapsed(!collapsed)}
-              className="w-full flex items-center justify-center h-8 text-slate-400 hover:text-white hover:bg-slate-700/40 rounded transition-colors"
-              title={collapsed ? "展开菜单" : "收起菜单"}
-            >
-              <svg
-                className={`w-5 h-5 transition-transform ${collapsed ? "" : "rotate-180"}`}
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
+
+            {/* 右侧：收起菜单、退出按钮 */}
+            <div className="flex flex-col gap-1">
+              <button
+                onClick={() => setCollapsed(!collapsed)}
+                className="w-8 h-8 flex items-center justify-center text-slate-400 hover:text-white hover:bg-slate-700/40 rounded transition-colors"
+                title={collapsed ? "展开菜单" : "收起菜单"}
               >
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 19l-7-7 7-7m8 14l-7-7 7-7" />
-              </svg>
-              {!collapsed && <span className="ml-2 text-sm">收起菜单</span>}
-            </button>
-            <button
-              onClick={logout}
-              className="w-full flex items-center justify-center h-8 text-slate-400 hover:text-red-400 hover:bg-slate-700/40 rounded transition-colors"
-              title="退出登录"
-            >
-              <LucideIcons.LogOut className="w-5 h-5" />
-              {!collapsed && <span className="ml-2 text-sm">退出登录</span>}
-            </button>
+                <svg
+                  className={`w-5 h-5 transition-transform ${collapsed ? "" : "rotate-180"}`}
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 19l-7-7 7-7m8 14l-7-7 7-7" />
+                </svg>
+              </button>
+              <button
+                onClick={logout}
+                className="w-8 h-8 flex items-center justify-center text-slate-400 hover:text-red-400 hover:bg-slate-700/40 rounded transition-colors"
+                title="退出登录"
+              >
+                <LucideIcons.LogOut className="w-5 h-5" />
+              </button>
+            </div>
           </div>
         </div>
       </aside>
