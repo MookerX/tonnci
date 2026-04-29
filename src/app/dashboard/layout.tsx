@@ -31,6 +31,7 @@ function SidebarMenuItem({
   toggleMenu: (key: string) => void;
   isActive: (path: string | null | undefined) => boolean;
   renderMenuIcon: (icon: string | null | undefined) => React.ReactNode;
+  hasMenu: (key: string) => boolean;
 }) {
   const hasChildren = item.children && item.children.length > 0;
   const isOpen = openKeys.includes(item.key);
@@ -81,6 +82,7 @@ function SidebarMenuItem({
                 toggleMenu={toggleMenu}
                 isActive={isActive}
                 renderMenuIcon={renderMenuIcon}
+                hasMenu={hasMenu}
               />
               ) : null
             ))}
@@ -394,6 +396,7 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
               toggleMenu={toggleMenu}
               isActive={isActive}
               renderMenuIcon={renderMenuIcon}
+              hasMenu={hasMenu}
             />
           ))}
         </nav>
