@@ -70,6 +70,8 @@ function SidebarMenuItem({
         {!collapsed && isOpen && (
           <div>
             {item.children.map((child: any) => (
+              // 子菜单权限过滤：目录类型始终可见，其他根据 hasMenu 判断
+              hasMenu(child.key) || child.dbMenu?.menuType === 'directory' ? (
               <SidebarMenuItem
                 key={child.key}
                 item={child}
@@ -80,6 +82,7 @@ function SidebarMenuItem({
                 isActive={isActive}
                 renderMenuIcon={renderMenuIcon}
               />
+              ) : null
             ))}
           </div>
         )}
