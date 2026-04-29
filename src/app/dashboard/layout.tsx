@@ -23,6 +23,7 @@ function SidebarMenuItem({
   toggleMenu,
   isActive,
   renderMenuIcon,
+  hasMenu,
 }: {
   item: any;
   level: number;
