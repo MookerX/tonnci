@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { fetchApi } from "@/lib/utils/fetch";
 import { PagePermission } from "@/components/AuthProvider";
 
@@ -104,8 +104,8 @@ export default function SystemLogPage() {
             {loading ? <tr><td colSpan={6} className="px-4 py-8 text-center text-gray-400">加载中...</td></tr> :
             logs.length === 0 ? <tr><td colSpan={6} className="px-4 py-8 text-center text-gray-400">暂无数据</td></tr> :
             logs.map(log => (
-              <>
-                <tr key={log.id} className="border-b hover:bg-gray-50">
+              <React.Fragment key={log.id}>
+                <tr className="border-b hover:bg-gray-50">
                   <td className="px-4 py-2.5">{log.operatorName || log.operator || "-"}</td>
                   <td className="px-4 py-2.5">{log.module || "-"}</td>
                   <td className="px-4 py-2.5"><span className="px-2 py-0.5 bg-blue-50 text-blue-700 rounded text-xs">{typeMap[log.action || log.type] || log.action || log.type || "-"}</span></td>
@@ -126,13 +126,13 @@ export default function SystemLogPage() {
                   <td className="px-4 py-2.5 text-gray-500">{log.createdAt ? new Date(log.createdAt).toLocaleString() : "-"}</td>
                 </tr>
                 {expandedId === log.id && (
-                  <tr key={`${log.id}-detail`}>
+                  <tr>
                     <td colSpan={6} className="p-0">
                       {renderDetail(log)}
                     </td>
                   </tr>
                 )}
-              </>
+              </React.Fragment>
             ))}
           </tbody>
         </table>
