@@ -28,7 +28,7 @@ import { Input } from "@/components/ui/input";
 
 interface Menu {
   id: number;
-  parentId?: number;
+  parentId?: number | null;
   menuName: string;
   menuType: string;
   path?: string;
@@ -146,7 +146,7 @@ export default function SystemMenuPage() {
   const [showForm, setShowForm] = useState(false);
   const [editingMenu, setEditingMenu] = useState<Menu | null>(null);
   const [form, setForm] = useState({
-    parentId: undefined as number | undefined,
+    parentId: null as number | null,
     menuName: "",
     menuType: "menu",
     path: "",
@@ -294,7 +294,7 @@ export default function SystemMenuPage() {
     setExpandedIds(newExpanded);
   };
 
-  const handleOpenForm = (menu?: Menu | any, parentId?: number) => {
+  const handleOpenForm = (menu?: Menu | any, parentId?: number | null) => {
     if (menu) {
       // 可能是数据库菜单或路由列表中的路由对象
       const menuId = menu.menuId ?? menu.id;
@@ -315,7 +315,7 @@ export default function SystemMenuPage() {
     } else {
       setEditingMenu(null);
       setForm({
-        parentId: parentId,
+        parentId: parentId ?? null,
         menuName: "",
         menuType: "menu",
         path: "",
@@ -422,7 +422,9 @@ export default function SystemMenuPage() {
       transition,
       opacity: isDragging || activeDragId === menu.id ? 0.5 : 1,
     };
-    const IconComp = menu.icon ? (LucideIcons as any)[menu.icon] : null;
+    // 尝试从 LucideIcons 中获取图标，找不到则显示图标名称
+    const iconName = menu.icon;
+    const IconComp = iconName ? (LucideIcons as any)[iconName] : null;
 
     return (
       <div ref={setNodeRef} style={style}>
@@ -446,7 +448,11 @@ export default function SystemMenuPage() {
             )}
 
             <span>{getMenuTypeIcon(menu.menuType)}</span>
-            {IconComp && <IconComp size={14} className="text-gray-400" />}
+            {IconComp ? (
+              <IconComp size={14} className="text-gray-400" />
+            ) : iconName ? (
+              <span className="text-xs text-gray-400 px-1" title={iconName}>[{iconName}]</span>
+            ) : null}
             <span className="font-medium">{menu.menuName}</span>
             {menu.path && <span className="text-xs text-gray-400 font-mono">{menu.path}</span>}
             {menu.permission && (
@@ -705,7 +711,7 @@ export default function SystemMenuPage() {
                 <select
                   className="w-full border rounded px-3 py-2 text-sm"
                   value={form.parentId || ""}
-                  onChange={e => setForm({...form, parentId: e.target.value ? parseInt(e.target.value) : undefined})}
+                  onChange={e => setForm({...form, parentId: e.target.value ? parseInt(e.target.value) : null})}
                 >
                   <option value="">无（顶级菜单）</option>
                   {flatMenuList.filter(m => m.id !== editingMenu?.id).map(m => (

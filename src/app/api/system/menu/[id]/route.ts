@@ -153,7 +153,8 @@ export async function PUT(
       modifiedBy: authResult.userId,
     };
 
-    if (data.parentId !== undefined) updateData.parentId = data.parentId;
+    // parentId: null = 顶级菜单, undefined = 不修改, number = 设置父菜单
+    if ('parentId' in data) updateData.parentId = data.parentId;
     if (data.menuName !== undefined) updateData.menuName = data.menuName;
     if (data.menuCode !== undefined) updateData.menuCode = data.menuCode;
     if (data.icon !== undefined) updateData.icon = data.icon;
