@@ -435,7 +435,7 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
                 title={collapsed ? "展开菜单" : "收起菜单"}
               >
                 <svg
-                  className={`w-5 h-5 transition-transform ${collapsed ? "" : "rotate-180"}`}
+                  className={`w-5 h-5 transition-transform ${collapsed ? "rotate-180" : ""}`}
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
