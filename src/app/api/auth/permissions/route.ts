@@ -106,8 +106,9 @@ export async function GET(request: NextRequest) {
     // 5. 根据权限推算可访问的菜单
     const menus: string[] = [];
 
-    // 菜单key与权限模块的映射关系
+    // 菜单key与权限模块的映射关系（支持 menuCode 和 menuName）
     const menuPermissionMap: Record<string, string> = {
+      // 系统管理相关
       'system-user': 'system:user',
       'system-role': 'system:role',
       'system-dept': 'system:dept',
@@ -116,33 +117,76 @@ export async function GET(request: NextRequest) {
       'system-database': 'system:database',
       'system-storage': 'system:storage',
       'system-config': 'system:config',
+      // 兼容 menuName
+      '用户管理': 'system:user',
+      '角色管理': 'system:role',
+      '部门管理': 'system:dept',
+      '菜单管理': 'system:menu',
+      '系统管理': 'system:menu',
+      '操作日志': 'system:log',
+      '数据库配置': 'system:database',
+      '存储配置': 'system:storage',
+      '参数配置': 'system:config',
+      // 组织管理
+      '组织管理': 'system:dept',
+      // 工艺管理
       'tech-bom': 'tech:material',
       'tech-drawing': 'tech:drawing',
       'tech-process': 'tech:process',
       'tech-route': 'tech:route',
       'tech-manhour': 'tech:route',
       'tech-task': 'techTask:techTask',
+      // 订单管理
       'order': 'order:productionOrder',
+      '生产订单': 'order:productionOrder',
+      // 生产管理
       'prod-task': 'production:productionTask',
       'prod-nesting': 'production:nesting',
       'prod-report': 'production:workReport',
       'prod-instruction': 'production:productionTask',
+      '生产任务': 'production:productionTask',
+      '激光套料': 'production:nesting',
+      '生产报工': 'production:workReport',
+      '生产指令': 'production:productionTask',
+      // 库存管理
       'inventory': 'inventory:inventory',
+      '库存查询': 'inventory:inventory',
+      // 质量管理
       'quality': 'quality:qcRecord',
+      '质量检验': 'quality:qcRecord',
+      // 采购管理
       'purchase-supplier': 'purchase:supplier',
       'purchase-demand': 'purchase:purchaseRequirement',
       'purchase-order': 'purchase:purchaseOrder',
       'purchase-receive': 'purchase:purchaseReceive',
+      '供应商管理': 'purchase:supplier',
+      '采购需求': 'purchase:purchaseRequirement',
+      '采购订单': 'purchase:purchaseOrder',
+      '到货入库': 'purchase:purchaseReceive',
+      // 发货管理
       'delivery-plan': 'delivery:deliveryPlan',
       'delivery-ship': 'delivery:deliveryPlan',
       'delivery-sign': 'delivery:afterSalesRecord',
+      '发货计划': 'delivery:deliveryPlan',
+      '发货出库': 'delivery:deliveryPlan',
+      '签收登记': 'delivery:afterSalesRecord',
+      // 财务管理
       'account-recon': 'accounting:customerReconciliation',
       'account-invoice': 'accounting:invoice',
       'account-payment': 'accounting:paymentRecord',
+      '客户对账': 'accounting:customerReconciliation',
+      '发票管理': 'accounting:invoice',
+      '回款管理': 'accounting:paymentRecord',
+      // 工资管理
       'wages-data': 'wages:wageSettlement',
       'wages-calc': 'wages:wageSettlement',
       'wages-pay': 'wages:wagePaymentRecord',
+      '工资数据': 'wages:wageSettlement',
+      '工资结算': 'wages:wageSettlement',
+      '工资发放': 'wages:wagePaymentRecord',
+      // 客户门户
       'customer-portal': 'order:productionOrder',
+      '客户查询': 'order:productionOrder',
     };
 
     if (isSuperAdmin) {
