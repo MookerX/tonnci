@@ -434,36 +434,33 @@ export default function SystemMenuPage() {
     const hasChildren = menu.children && menu.children.length > 0;
     const isExpanded = expandedIds.has(menu.id);
 
-    // 只有顶层菜单才能拖拽
-    const isSortable = level === 0;
+    // 所有菜单都可以拖拽
     const {
       attributes, listeners, setNodeRef, transform, transition, isDragging,
-    } = isSortable ? useSortable({ id: menu.id }) : { attributes: {}, listeners: {}, setNodeRef: (el: any) => {}, transform: null, transition: null, isDragging: false };
+    } = useSortable({ id: menu.id });
 
-    const style = isSortable ? {
+    const style = {
       transform: CSS.Transform.toString(transform),
       transition,
       opacity: isDragging || activeDragId === menu.id ? 0.5 : 1,
-    } : {};
+    };
 
     // 尝试从 LucideIcons 中获取图标，找不到则显示图标名称
     const iconName = menu.icon;
     const IconComp = iconName ? (LucideIcons as any)[iconName] : null;
 
     return (
+      <SortableContext items={hasChildren ? menu.children!.map(c => c.id) : []} strategy={verticalListSortingStrategy}>
       <div ref={setNodeRef} style={style}>
         <div
           className="flex items-center justify-between py-2 px-3 hover:bg-gray-50 border-b border-gray-100 group"
           style={{ marginLeft: level * 24 }}
         >
           <div className="flex items-center gap-2 flex-1">
-            {/* 拖拽把手 - 只在顶层显示 */}
-            {isSortable && (
-              <button {...attributes} {...listeners} className="w-5 h-5 flex items-center justify-center text-gray-300 hover:text-gray-500 cursor-grab active:cursor-grabbing">
-                <LucideIcons.GripVertical size={14} />
-              </button>
-            )}
-            {!isSortable && <span className="w-5" />}
+            {/* 拖拽把手 */}
+            <button {...attributes} {...listeners} className="w-5 h-5 flex items-center justify-center text-gray-300 hover:text-gray-500 cursor-grab active:cursor-grabbing">
+              <LucideIcons.GripVertical size={14} />
+            </button>
 
             {/* 展开/折叠 */}
             {hasChildren ? (
@@ -516,6 +513,7 @@ export default function SystemMenuPage() {
           </div>
         )}
       </div>
+      </SortableContext>
     );
   };
 
