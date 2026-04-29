@@ -316,7 +316,7 @@ export default function SystemMenuPage() {
   const fetchMenus = async () => {
     setLoading(true);
     try {
-      const data = await fetchApi("/api/system/menu", { headers });
+      const data = await fetchApi("/api/system/menu?type=tree", { headers });
       if (data.code === 200) {
         setMenuTree(data.data || []);
         const ids = new Set<number>();
