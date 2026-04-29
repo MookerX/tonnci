@@ -193,6 +193,7 @@ export default function SystemMenuPage() {
   const [loading, setLoading] = useState(true);
   const [expandedIds, setExpandedIds] = useState<Set<number>>(new Set());
   const [expandedModules, setExpandedModules] = useState<Set<string>>(new Set());
+  const [activeTab, setActiveTab] = useState<'tree' | 'routes'>('tree');
   const [showForm, setShowForm] = useState(false);
   const [showPermForm, setShowPermForm] = useState(false);
   const [editingMenu, setEditingMenu] = useState<Menu | null>(null);
@@ -634,6 +635,30 @@ export default function SystemMenuPage() {
         </div>
       </div>
 
+      {/* Tab 切换 */}
+      <div className="flex border-b mb-4">
+        <button
+          onClick={() => setActiveTab('tree')}
+          className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+            activeTab === 'tree'
+              ? 'border-blue-600 text-blue-600'
+              : 'border-transparent text-gray-500 hover:text-gray-700'
+          }`}
+        >
+          菜单树
+        </button>
+        <button
+          onClick={() => setActiveTab('routes')}
+          className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+            activeTab === 'routes'
+              ? 'border-blue-600 text-blue-600'
+              : 'border-transparent text-gray-500 hover:text-gray-700'
+          }`}
+        >
+          路由列表
+        </button>
+      </div>
+
       {/* 提示信息 */}
       <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4 text-sm">
         <p className="text-blue-700">
@@ -692,6 +717,7 @@ export default function SystemMenuPage() {
       </div>
 
       {/* 菜单树 */}
+      {activeTab === 'tree' && (
       <div className="bg-white rounded-lg border overflow-hidden">
         <div className="p-3 border-b bg-gray-50">
           <input
@@ -716,6 +742,87 @@ export default function SystemMenuPage() {
           </DndContext>
         )}
       </div>
+      )}
+
+      {/* 路由列表 */}
+      {activeTab === 'routes' && (
+        <div className="bg-white rounded-lg border overflow-hidden">
+          <div className="p-4">
+            <div className="text-sm text-gray-500 mb-3">
+              路由列表用于控制菜单显示。勾选"显示"即可在侧边栏看到对应菜单项。
+              若需添加新路由，请在 <code className="bg-gray-100 px-1">next.config.js</code> 中配置，或通过代码扫描自动发现。
+            </div>
+            {loading ? (
+              <div className="text-center text-gray-400 py-8">加载中...</div>
+            ) : flatMenuList.length === 0 ? (
+              <div className="text-center text-gray-400 py-8">暂无路由数据</div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="bg-gray-50 border-b">
+                      <th className="px-3 py-2 text-left font-medium text-gray-600 w-8">显示</th>
+                      <th className="px-3 py-2 text-left font-medium text-gray-600">菜单名称</th>
+                      <th className="px-3 py-2 text-left font-medium text-gray-600">路由路径</th>
+                      <th className="px-3 py-2 text-left font-medium text-gray-600">菜单类型</th>
+                      <th className="px-3 py-2 text-left font-medium text-gray-600">操作</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {flatMenuList.map(menu => (
+                      <tr key={menu.id} className="border-b last:border-b-0 hover:bg-gray-50">
+                        <td className="px-3 py-2">
+                          <input
+                            type="checkbox"
+                            checked={menu.isVisible !== false}
+                            onChange={async (e) => {
+                              try {
+                                await fetch(`/api/system/menu/${menu.id}`, {
+                                  method: 'PUT',
+                                  headers: { 'Content-Type': 'application/json' },
+                                  body: JSON.stringify({ isVisible: e.target.checked }),
+                                });
+                                fetchMenus();
+                              } catch (err) {
+                                console.error('更新失败', err);
+                              }
+                            }}
+                            className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                          />
+                        </td>
+                        <td className="px-3 py-2 font-medium text-gray-800">{menu.menuName}</td>
+                        <td className="px-3 py-2 text-gray-500 font-mono text-xs">
+                          {menu.path || '-'}
+                        </td>
+                        <td className="px-3 py-2">
+                          <span className={`px-2 py-0.5 rounded text-xs font-medium ${
+                            menu.menuType === 'M' ? 'bg-blue-100 text-blue-700' :
+                            menu.menuType === 'C' ? 'bg-green-100 text-green-700' :
+                            menu.menuType === 'A' ? 'bg-purple-100 text-purple-700' :
+                            'bg-gray-100 text-gray-700'
+                          }`}>
+                            {getMenuTypeName(menu.menuType)}
+                          </span>
+                        </td>
+                        <td className="px-3 py-2">
+                          <PermissionGuard permission="system:menu:update">
+                            <button
+                              onClick={() => handleOpenForm(menu)}
+                              className="text-blue-600 hover:text-blue-800 text-xs mr-2"
+                            >
+                              编辑
+                            </button>
+                          </PermissionGuard>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* 菜单表单弹窗 */}
       {showForm && (
