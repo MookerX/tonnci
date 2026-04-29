@@ -80,6 +80,11 @@ pnpm dev
 # 7. 访问 http://localhost:5000 进行系统初始化
 ```
 
+**操作注意事项：**
+
+- **清空数据库数据前必须确认**：任何涉及删除数据库数据的操作（如 `prisma db push --force-reset`、手动 DELETE SQL 等），必须先与用户确认，获得同意后再执行。
+- **优先使用非破坏性命令**：同步数据库结构优先使用 `prisma db push`，避免使用 `--force-reset` 参数。
+
 **常见问题：**
 
 - `Unexpected token '<', "<!DOCTYPE "... is not valid JSON`：通常是数据库未启动或 .env 未配置，API 返回 HTML 错误页而非 JSON。请检查 MySQL 连接和 .env 配置。
