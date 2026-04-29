@@ -8,6 +8,7 @@ export default function SystemLogPage() {
   const [logs, setLogs] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
+  const [expandedId, setExpandedId] = useState<number | null>(null);
 
   const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
   const headers: any = { "Content-Type": "application/json" };
@@ -26,6 +27,62 @@ export default function SystemLogPage() {
   }, [page]);
 
   const typeMap: Record<string, string> = { create: "新增", update: "修改", delete: "删除", login: "登录", logout: "登出", import: "导入", export: "导出" };
+
+  // 判断是否有详细数据
+  const hasDetail = (log: any) => log.oldData || log.newData;
+
+  // 渲染详情对比
+  const renderDetail = (log: any) => {
+    const { oldData, newData } = log;
+    if (!oldData && !newData) return null;
+
+    // 获取所有变化的字段
+    const fields: { key: string; oldVal: any; newVal: any }[] = [];
+    const allKeys = new Set([...Object.keys(oldData || {}), ...Object.keys(newData || {})]);
+    
+    for (const key of allKeys) {
+      // 跳过不需要显示的字段
+      if (['id', 'createdAt', 'updatedAt', 'createdBy', 'modifiedBy', 'isDelete', 'password', 'roleIds', 'menuIds'].includes(key)) {
+        continue;
+      }
+      const oldVal = oldData?.[key];
+      const newVal = newData?.[key];
+      if (JSON.stringify(oldVal) !== JSON.stringify(newVal)) {
+        fields.push({ key, oldVal, newVal });
+      }
+    }
+
+    if (fields.length === 0) return null;
+
+    return (
+      <div className="p-4 bg-gray-50 text-sm">
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <h4 className="font-medium text-gray-600 mb-2">修改前</h4>
+            <div className="space-y-1 text-xs">
+              {fields.map(({ key, oldVal }) => (
+                <div key={key}>
+                  <span className="text-gray-500">{key}: </span>
+                  <span className="text-red-600">{oldVal === null || oldVal === undefined ? '(空)' : String(oldVal)}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+          <div>
+            <h4 className="font-medium text-gray-600 mb-2">修改后</h4>
+            <div className="space-y-1 text-xs">
+              {fields.map(({ key, newVal }) => (
+                <div key={key}>
+                  <span className="text-gray-500">{key}: </span>
+                  <span className="text-green-600">{newVal === null || newVal === undefined ? '(空)' : String(newVal)}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  };
 
   return (
     <PagePermission permission="system:log:query">
@@ -47,14 +104,35 @@ export default function SystemLogPage() {
             {loading ? <tr><td colSpan={6} className="px-4 py-8 text-center text-gray-400">加载中...</td></tr> :
             logs.length === 0 ? <tr><td colSpan={6} className="px-4 py-8 text-center text-gray-400">暂无数据</td></tr> :
             logs.map(log => (
-              <tr key={log.id} className="border-b hover:bg-gray-50">
-                <td className="px-4 py-2.5">{log.operatorName || log.operator || "-"}</td>
-                <td className="px-4 py-2.5">{log.module || "-"}</td>
-                <td className="px-4 py-2.5"><span className="px-2 py-0.5 bg-blue-50 text-blue-700 rounded text-xs">{typeMap[log.action || log.type] || log.action || log.type || "-"}</span></td>
-                <td className="px-4 py-2.5 max-w-xs truncate">{log.description || log.desc || "-"}</td>
-                <td className="px-4 py-2.5 text-gray-500">{log.ip || "-"}</td>
-                <td className="px-4 py-2.5 text-gray-500">{log.createdAt ? new Date(log.createdAt).toLocaleString() : "-"}</td>
-              </tr>
+              <>
+                <tr key={log.id} className="border-b hover:bg-gray-50">
+                  <td className="px-4 py-2.5">{log.operatorName || log.operator || "-"}</td>
+                  <td className="px-4 py-2.5">{log.module || "-"}</td>
+                  <td className="px-4 py-2.5"><span className="px-2 py-0.5 bg-blue-50 text-blue-700 rounded text-xs">{typeMap[log.action || log.type] || log.action || log.type || "-"}</span></td>
+                  <td className="px-4 py-2.5 max-w-xs">
+                    <div className="flex items-center gap-2">
+                      <span className="truncate">{log.description || log.desc || "-"}</span>
+                      {hasDetail(log) && (
+                        <button
+                          onClick={() => setExpandedId(expandedId === log.id ? null : log.id)}
+                          className="text-blue-600 hover:text-blue-800 text-xs whitespace-nowrap"
+                        >
+                          {expandedId === log.id ? "收起" : "查看详情"}
+                        </button>
+                      )}
+                    </div>
+                  </td>
+                  <td className="px-4 py-2.5 text-gray-500">{log.ip || "-"}</td>
+                  <td className="px-4 py-2.5 text-gray-500">{log.createdAt ? new Date(log.createdAt).toLocaleString() : "-"}</td>
+                </tr>
+                {expandedId === log.id && (
+                  <tr key={`${log.id}-detail`}>
+                    <td colSpan={6} className="p-0">
+                      {renderDetail(log)}
+                    </td>
+                  </tr>
+                )}
+              </>
             ))}
           </tbody>
         </table>

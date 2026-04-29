@@ -96,6 +96,8 @@ model OperationLog {
   operatorName  String?   @map("operator_name") @db.VarChar(50)
   operationDesc String?   @map("operation_desc") @db.Text
   requestParams String?   @map("request_params") @db.Text
+  oldData       String?   @map("old_data") @db.Text
+  newData       String?   @map("new_data") @db.Text
   ipAddress     String?   @map("ip_address") @db.VarChar(50)
   status        String    @default("success") @db.VarChar(20)
   errorMessage  String?   @map("error_message") @db.Text

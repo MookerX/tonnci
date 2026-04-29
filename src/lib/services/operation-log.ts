@@ -123,6 +123,8 @@ class OperationLogService {
           ipAddress: logData.ipAddress || null,
           status: logData.status || 'success',
           errorMessage: logData.errorMsg || null,
+          oldData: (logData as any).oldData ? JSON.stringify((logData as any).oldData) : null,
+          newData: (logData as any).newData ? JSON.stringify((logData as any).newData) : null,
         },
       });
     } catch (error) {
@@ -234,16 +236,59 @@ class OperationLogService {
     afterData: any,
     ipAddress?: string
   ): Promise<void> {
+    // 生成详细的变更描述
+    const changes = this.generateChangeDescription(beforeData, afterData);
+    const desc = changes ? `更新${moduleName}：${changes}` : `更新${moduleName}`;
+    
     await this.logSuccess({
       moduleName,
       businessType: BusinessType.UPDATE,
       operatorId,
       operatorName,
-      operationDesc: `更新${moduleName}`,
+      operationDesc: desc,
       requestParams: beforeData,
       responseData: afterData,
+      oldData,
+      newData,
       ipAddress,
     });
+  }
+
+  /**
+   * 生成变更描述
+   */
+  private generateChangeDescription(oldData: any, newData: any): string {
+    if (!oldData || !newData) return '';
+    
+    const changes: string[] = [];
+    
+    for (const key of Object.keys(newData)) {
+      const oldVal = oldData[key];
+      const newVal = newData[key];
+      
+      // 跳过不需要记录的字段
+      if (['id', 'createdAt', 'updatedAt', 'createdBy', 'modifiedBy', 'isDelete', 'password', 'roleIds', 'menuIds'].includes(key)) {
+        continue;
+      }
+      
+      // 比较值
+      if (JSON.stringify(oldVal) !== JSON.stringify(newVal)) {
+        const oldStr = this.formatValue(oldVal);
+        const newStr = this.formatValue(newVal);
+        changes.push(`${key}: ${oldStr || '(空)'} → ${newStr || '(空)'}`);
+      }
+    }
+    
+    return changes.join('; ');
+  }
+
+  /**
+   * 格式化值为可读字符串
+   */
+  private formatValue(val: any): string {
+    if (val === null || val === undefined) return '';
+    if (typeof val === 'object') return JSON.stringify(val);
+    return String(val);
   }
 
   /**

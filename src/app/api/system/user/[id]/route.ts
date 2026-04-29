@@ -199,13 +199,13 @@ export async function PUT(
       data: updateData,
     });
 
-    // 记录日志
+    // 记录日志 - 传入完整的旧数据用于对比
     await operationLog.logUpdate(
       '用户管理',
       authResult.userId,
       authResult.username,
-      { id: existingUser.id, username: existingUser.username },
-      { id: updated.id, username: updated.username },
+      existingUser,
+      updated,
       clientIp
     );
 

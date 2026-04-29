@@ -45,6 +45,8 @@ export async function GET(request: NextRequest) {
       status: log.status,
       errorMessage: log.errorMessage,
       createdAt: log.createdAt,
+      oldData: log.oldData ? JSON.parse(log.oldData) : null,
+      newData: log.newData ? JSON.parse(log.newData) : null,
     }));
 
     return NextResponse.json({
