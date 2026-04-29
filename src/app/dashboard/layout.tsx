@@ -13,6 +13,103 @@ import { fetchApi } from "@/lib/utils/fetch";
 import { AuthProvider, useAuth, RouteGuard } from "@/components/AuthProvider";
 
 // =============================================================================
+// 递归侧边栏菜单项组件
+// =============================================================================
+function SidebarMenuItem({
+  item,
+  level,
+  collapsed,
+  openKeys,
+  toggleMenu,
+  isActive,
+  renderMenuIcon,
+}: {
+  item: any;
+  level: number;
+  collapsed: boolean;
+  openKeys: string[];
+  toggleMenu: (key: string) => void;
+  isActive: (path: string | null | undefined) => boolean;
+  renderMenuIcon: (icon: string | null | undefined) => React.ReactNode;
+}) {
+  const hasChildren = item.children && item.children.length > 0;
+  const isOpen = openKeys.includes(item.key);
+  const paddingLeft = level === 0 ? "px-4" : `pl-${Math.min(8 + level * 4, 20)} pr-4`;
+
+  // 有子菜单 → 可展开目录
+  if (hasChildren) {
+    return (
+      <div>
+        <button
+          onClick={() => toggleMenu(item.key)}
+          className={`w-full flex items-center ${level === 0 ? "px-4" : ""} ${level > 0 ? `pr-4` : ""} h-10 text-sm transition-colors ${
+            isActive(item.path)
+              ? "text-white bg-slate-700/60"
+              : "text-slate-300 hover:text-white hover:bg-slate-700/40"
+          }`}
+          style={level > 0 ? { paddingLeft: `${16 + level * 16}px` } : undefined}
+          title={collapsed ? item.label : undefined}
+        >
+          <span className="w-5 h-5 flex-shrink-0 flex items-center justify-center">
+            {renderMenuIcon(item.icon)}
+          </span>
+          {!collapsed && (
+            <>
+              <span className="ml-3 flex-1 text-left">{item.label}</span>
+              <svg
+                className={`w-4 h-4 transition-transform ${isOpen ? "rotate-90" : ""}`}
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+              </svg>
+            </>
+          )}
+        </button>
+        {!collapsed && isOpen && (
+          <div>
+            {item.children.map((child: any) => (
+              <SidebarMenuItem
+                key={child.key}
+                item={child}
+                level={level + 1}
+                collapsed={collapsed}
+                openKeys={openKeys}
+                toggleMenu={toggleMenu}
+                isActive={isActive}
+                renderMenuIcon={renderMenuIcon}
+              />
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  // 无子菜单 → 链接
+  return (
+    <a
+      href={item.path || '#'}
+      className={`flex items-center ${level === 0 ? "px-4" : ""} ${level > 0 ? "pr-4" : ""} ${level === 0 ? "h-10" : "h-9"} text-sm transition-colors ${
+        isActive(item.path)
+          ? "text-blue-400 bg-blue-500/10 border-r-2 border-blue-400"
+          : level === 0
+          ? "text-slate-300 hover:text-white hover:bg-slate-700/40"
+          : "text-slate-400 hover:text-white hover:bg-slate-700/30"
+      }`}
+      style={level > 0 ? { paddingLeft: `${28 + level * 16}px` } : undefined}
+      title={collapsed ? item.label : undefined}
+    >
+      <span className={`${level === 0 ? "w-5 h-5" : "w-4 h-4"} flex-shrink-0 flex items-center justify-center ${level > 0 ? "mr-2" : ""}`}>
+        {renderMenuIcon(item.icon)}
+      </span>
+      {!collapsed && <span className={level === 0 ? "ml-3" : ""}>{item.label}</span>}
+    </a>
+  );
+}
+
+// =============================================================================
 // 内部布局组件 - 使用 useAuth
 // =============================================================================
 function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
@@ -235,8 +332,12 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
   // 判断菜单是否可见（根据权限过滤）
   const isMenuVisible = (menu: any) => {
     if (menu.key === "home" || menu.key === "首页") return true;
+    // 目录类型始终可见（作为容器）
+    if (menu.dbMenu?.menuType === 'directory') return true;
+    // 顶级菜单检查权限
     if (menu.children && menu.children.length > 0) {
-      return menu.children.some((child: any) => hasMenu(child.key));
+      // 如果所有子菜单都不可见，则隐藏父菜单
+      return menu.children.some((child: any) => isMenuVisible(child));
     }
     return hasMenu(menu.key);
   };
@@ -280,103 +381,18 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
 
         {/* 菜单区域 - 根据权限过滤 */}
         <nav className="flex-1 overflow-y-auto py-2 scrollbar-thin">
-          {sidebarItems.filter(isMenuVisible).map((menu) => {
-            const hasChildren = menu.children && menu.children.length > 0;
-            const parentActive = isParentActive(menu);
-            const isOpen = openKeys.includes(menu.key);
-
-            // 过滤不可见的子菜单
-            const visibleChildren = menu.children?.filter((child: any) => hasMenu(child.key));
-            // 判断是否为目录类型（目录类型不跳转，仅展开子菜单）
-            const isDirectory = menu.dbMenu?.menuType === 'directory';
-            // 如果是目录类型，应该显示展开按钮，无论子菜单是否可见
-            const shouldShowExpandable = hasChildren && (!isDirectory || visibleChildren?.length > 0);
-            // 如果是目录且有子菜单，即使全部被过滤也应该显示（作为容器）
-            const showAsContainer = isDirectory && hasChildren;
-
-            if (shouldShowExpandable || showAsContainer) {
-              return (
-                <div key={menu.key}>
-                  <button
-                    onClick={() => toggleMenu(menu.key)}
-                    className={`w-full flex items-center px-4 h-10 text-sm transition-colors ${
-                      parentActive
-                        ? "text-white bg-slate-700/60"
-                        : "text-slate-300 hover:text-white hover:bg-slate-700/40"
-                    }`}
-                    title={collapsed ? menu.label : undefined}
-                  >
-                    <span className="w-5 h-5 flex-shrink-0 flex items-center justify-center">
-                      {renderMenuIcon(menu.icon)}
-                    </span>
-                    {!collapsed && (
-                      <>
-                        <span className="ml-3 flex-1 text-left">{menu.label}</span>
-                        <svg
-                          className={`w-4 h-4 transition-transform ${
-                            isOpen ? "rotate-90" : ""
-                          }`}
-                          fill="none"
-                          stroke="currentColor"
-                          viewBox="0 0 24 24"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M9 5l7 7-7 7"
-                          />
-                        </svg>
-                      </>
-                    )}
-                  </button>
-                  {!collapsed && isOpen && visibleChildren && visibleChildren.length > 0 && (
-                    <div>
-                      {visibleChildren.map((child: any) => (
-                        <a
-                          key={child.key}
-                          href={child.path || '#'}
-                          className={`flex items-center pl-12 pr-4 h-9 text-sm transition-colors ${
-                            isActive(child.path)
-                              ? "text-blue-400 bg-blue-500/10 border-r-2 border-blue-400"
-                              : "text-slate-400 hover:text-white hover:bg-slate-700/30"
-                          }`}
-                        >
-                          <span className="w-4 h-4 flex-shrink-0 flex items-center justify-center mr-2">
-                            {renderMenuIcon(child.icon)}
-                          </span>
-                          <span className="truncate">{child.label}</span>
-                        </a>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              );
-            }
-
-            // 无子菜单的一级菜单
-            if (!hasChildren) {
-              return (
-                <a
-                  key={menu.key}
-                  href={menu.path || '#'}
-                  className={`flex items-center px-4 h-10 text-sm transition-colors ${
-                    isActive(menu.path)
-                      ? "text-blue-400 bg-blue-500/10 border-r-2 border-blue-400"
-                      : "text-slate-300 hover:text-white hover:bg-slate-700/40"
-                  }`}
-                  title={collapsed ? menu.label : undefined}
-                >
-                  <span className="w-5 h-5 flex-shrink-0 flex items-center justify-center">
-                    {renderMenuIcon(menu.icon)}
-                  </span>
-                  {!collapsed && <span className="ml-3">{menu.label}</span>}
-                </a>
-              );
-            }
-
-            return null;
-          })}
+          {sidebarItems.filter(isMenuVisible).map((menu: any) => (
+            <SidebarMenuItem
+              key={menu.key}
+              item={menu}
+              level={0}
+              collapsed={collapsed}
+              openKeys={openKeys}
+              toggleMenu={toggleMenu}
+              isActive={isActive}
+              renderMenuIcon={renderMenuIcon}
+            />
+          ))}
         </nav>
 
         {/* 折叠按钮 */}
