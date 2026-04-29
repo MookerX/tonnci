@@ -405,25 +405,27 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
           <div className="flex items-center gap-2">
             {/* 左侧：用户头像、姓名、部门 */}
             <div className="flex items-center flex-1 min-w-0">
-              <div 
-                onClick={() => setShowProfile(true)}
-                className="w-8 h-8 bg-white rounded-full flex items-center justify-center text-sm font-bold cursor-pointer hover:bg-slate-700 overflow-hidden border border-slate-600 flex-shrink-0"
-              >
-                {user?.avatar ? (
-                  <img src={user.avatar.startsWith('/') ? user.avatar : user.avatar} alt="头像" className="w-full h-full object-cover" />
-                ) : (
-                  <img src="/logo.png" alt="默认头像" className="w-full h-full object-contain p-0.5" />
-                )}
-              </div>
               {!collapsed && (
-                <div className="ml-2 flex-1 min-w-0">
-                  <p className="text-sm font-medium text-white truncate">
-                    {user?.realName || user?.username || "--"}
-                  </p>
-                  <p className="text-xs text-slate-400 truncate">
-                    {user?.dept?.deptName || "系统管理员"}
-                  </p>
-                </div>
+                <>
+                  <div 
+                    onClick={() => setShowProfile(true)}
+                    className="w-8 h-8 bg-white rounded-full flex items-center justify-center text-sm font-bold cursor-pointer hover:bg-slate-700 overflow-hidden border border-slate-600 flex-shrink-0"
+                  >
+                    {user?.avatar ? (
+                      <img src={user.avatar.startsWith('/') ? user.avatar : user.avatar} alt="头像" className="w-full h-full object-cover" />
+                    ) : (
+                      <img src="/logo.png" alt="默认头像" className="w-full h-full object-contain p-0.5" />
+                    )}
+                  </div>
+                  <div className="ml-2 flex-1 min-w-0">
+                    <p className="text-sm font-medium text-white truncate">
+                      {user?.realName || user?.username || "--"}
+                    </p>
+                    <p className="text-xs text-slate-400 truncate">
+                      {user?.dept?.deptName || "系统管理员"}
+                    </p>
+                  </div>
+                </>
               )}
             </div>
 
