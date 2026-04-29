@@ -148,8 +148,6 @@ function IconPickerModal({
 const menuTypeOptions = [
   { value: 'directory', label: '目录' },
   { value: 'menu', label: '菜单' },
-  { value: 'button', label: '按钮' },
-  { value: 'permission', label: '数据权限' },
 ];
 
 // 将权限配置转换为树形结构
@@ -337,7 +335,10 @@ export default function SystemMenuPage() {
   const fetchRoutes = useCallback(async () => {
     setRouteLoading(true);
     try {
-      const data = await fetchApi("/api/system/menu/routes", { headers });
+      const token = localStorage.getItem("token");
+      const authHeaders: any = { "Content-Type": "application/json" };
+      if (token) authHeaders.Authorization = `Bearer ${token}`;
+      const data = await fetchApi("/api/system/menu/routes", { headers: authHeaders });
       if (data.code === 200) {
         setRouteList(data.data || []);
       }
@@ -345,7 +346,7 @@ export default function SystemMenuPage() {
       console.error(e);
     }
     setRouteLoading(false);
-  }, [headers]);
+  }, []);
 
   useEffect(() => {
     if (activeTab === 'routes') {
@@ -518,8 +519,6 @@ export default function SystemMenuPage() {
     switch (type) {
       case 'directory': return "📁";
       case 'menu': return "📄";
-      case 'button': return "🔘";
-      case 'permission': return "🔐";
       default: return "📄";
     }
   };
@@ -528,8 +527,6 @@ export default function SystemMenuPage() {
     switch (type) {
       case 'directory': return '目录';
       case 'menu': return '菜单';
-      case 'button': return '按钮';
-      case 'permission': return '数据权限';
       default: return type;
     }
   };
@@ -589,9 +586,7 @@ export default function SystemMenuPage() {
             )}
             <span className={`px-1.5 py-0.5 text-xs rounded ${
               menu.menuType === 'directory' ? 'bg-blue-100 text-blue-600' :
-              menu.menuType === 'menu' ? 'bg-green-100 text-green-600' :
-              menu.menuType === 'permission' ? 'bg-purple-100 text-purple-600' :
-              'bg-orange-100 text-orange-600'
+              'bg-green-100 text-green-600'
             }`}>
               {getMenuTypeName(menu.menuType)}
             </span>
@@ -600,16 +595,9 @@ export default function SystemMenuPage() {
             </span>
           </div>
           <div className="flex items-center gap-2">
-            {menu.menuType === 'permission' && (
-              <button onClick={() => handleOpenPermissionForm(menu)} className="text-purple-600 hover:underline text-sm">
-                配置权限
-              </button>
-            )}
-            {menu.menuType !== 'button' && (
-              <PermissionGuard permission="system:menu:create"><button onClick={() => handleOpenForm(undefined, menu.id)} className="text-blue-600 hover:underline text-sm">
-                添加子菜单
-              </button></PermissionGuard>
-            )}
+            <PermissionGuard permission="system:menu:create"><button onClick={() => handleOpenForm(undefined, menu.id)} className="text-blue-600 hover:underline text-sm">
+              添加子菜单
+            </button></PermissionGuard>
             <PermissionGuard permission="system:menu:update"><button onClick={() => handleOpenForm(menu)} className="text-gray-600 hover:underline text-sm">编辑</button></PermissionGuard>
             <PermissionGuard permission="system:menu:update"><button onClick={() => handleToggleStatus(menu)} className="text-yellow-600 hover:underline text-sm">
               {menu.status === 'active' ? '禁用' : '启用'}
@@ -814,9 +802,8 @@ export default function SystemMenuPage() {
                             <span className={`px-2 py-0.5 rounded text-xs font-medium ${
                               route.menuType === 'directory' ? 'bg-blue-100 text-blue-700' :
                               route.menuType === 'menu' ? 'bg-green-100 text-green-700' :
-                              route.menuType === 'button' ? 'bg-purple-100 text-purple-700' :
-                              route.menuType === 'permission' ? 'bg-orange-100 text-orange-700' :
-                              'bg-gray-100 text-gray-700'
+                              route.menuType === 'directory' ? 'bg-blue-100 text-blue-700' :
+                              'bg-green-100 text-green-700'
                             }`}>
                               {getMenuTypeName(route.menuType)}
                             </span>
@@ -958,7 +945,7 @@ export default function SystemMenuPage() {
                   className="w-full border rounded px-3 py-2 text-sm font-mono"
                   value={form.path}
                   onChange={e => setForm({...form, path: e.target.value})}
-                  placeholder={form.menuType === 'button' ? "按钮不需要路由" : "/xxx/yyy"}
+                  placeholder="/xxx/yyy"
                 />
               </div>
               {form.menuType === 'menu' && (
@@ -970,18 +957,6 @@ export default function SystemMenuPage() {
                     onChange={e => setForm({...form, component: e.target.value})}
                     placeholder="src/app/dashboard/xxx/page.tsx"
                   />
-                </div>
-              )}
-              {form.menuType === 'button' && (
-                <div>
-                  <label className="block text-xs text-gray-500 mb-1">权限标识 *</label>
-                  <input
-                    className="w-full border rounded px-3 py-2 text-sm font-mono"
-                    value={form.permission}
-                    onChange={e => setForm({...form, permission: e.target.value})}
-                    placeholder="user:query"
-                  />
-                  <p className="text-xs text-gray-400 mt-1">格式：模块:表名:操作，如 user:query、file:upload</p>
                 </div>
               )}
               <div className="grid grid-cols-2 gap-4">
