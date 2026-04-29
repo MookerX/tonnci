@@ -5,7 +5,7 @@ export interface StaticRoute {
   key: string;
   label: string;
   icon: string;
-  path: string;
+  path?: string;
   children?: StaticRoute[];
 }
 

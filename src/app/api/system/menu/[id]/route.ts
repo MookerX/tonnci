@@ -159,7 +159,6 @@ export async function PUT(
     if (data.menuCode !== undefined) updateData.menuCode = data.menuCode;
     if (data.icon !== undefined) updateData.icon = data.icon;
     if (data.path !== undefined) updateData.path = data.path;
-    if (data.component !== undefined) updateData.component = data.component;
     if (data.sortOrder !== undefined) updateData.sortOrder = data.sortOrder;
     if (data.visible !== undefined) updateData.visible = data.visible;
     if (data.isVisible !== undefined) updateData.visible = data.isVisible ? 'visible' : 'hidden';

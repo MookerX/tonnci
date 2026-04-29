@@ -32,7 +32,6 @@ interface Menu {
   menuName: string;
   menuType: string;
   path?: string;
-  component?: string;
   icon?: string;
   permission?: string;
   sortOrder: number;
@@ -150,7 +149,6 @@ export default function SystemMenuPage() {
     menuName: "",
     menuType: "menu",
     path: "",
-    component: "",
     icon: "",
     permission: "",
     sortOrder: 0,
@@ -318,7 +316,6 @@ export default function SystemMenuPage() {
         menuName: menu.menuName || "",
         menuType: menu.menuType || "menu",
         path: menu.path || "",
-        component: menu.component || "",
         icon: menu.icon || "",
         permission: menu.permission || "",
         sortOrder: menu.sortOrder ?? 0,
@@ -333,7 +330,6 @@ export default function SystemMenuPage() {
         menuName: "",
         menuType: "menu",
         path: "",
-        component: "",
         icon: "",
         permission: "",
         sortOrder: 0,
@@ -687,7 +683,6 @@ export default function SystemMenuPage() {
                                         menuName: displayName,
                                         path: route.path,
                                         menuType: 'menu',
-                                        component: route.path.replace('/dashboard', ''),
                                         sortOrder: 99,
                                         status: 'active',
                                         visible: 'visible',
@@ -768,17 +763,6 @@ export default function SystemMenuPage() {
                   placeholder="/xxx/yyy"
                 />
               </div>
-              {form.menuType === 'menu' && (
-                <div>
-                  <label className="block text-xs text-gray-500 mb-1">组件路径</label>
-                  <input
-                    className="w-full border rounded px-3 py-2 text-sm font-mono"
-                    value={form.component}
-                    onChange={e => setForm({...form, component: e.target.value})}
-                    placeholder="src/app/dashboard/xxx/page.tsx"
-                  />
-                </div>
-              )}
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs text-gray-500 mb-1">图标</label>

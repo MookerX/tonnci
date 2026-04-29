@@ -18,10 +18,9 @@ const createMenuSchema = z.object({
   parentId: z.number().int().positive().optional().nullable(),
   menuName: z.string().min(1, '菜单名称不能为空').max(100),
   menuCode: z.string().max(50).optional().nullable(),
-  menuType: z.enum(['directory', 'menu', 'button']).default('menu'),
+  menuType: z.enum(['directory', 'menu']).default('menu'),
   icon: z.string().max(50).optional().nullable(),
   path: z.string().max(255).optional().nullable(),
-  component: z.string().max(255).optional().nullable(),
   sortOrder: z.number().int().optional().default(0),
   isVisible: z.boolean().optional(),
   visible: z.enum(['visible', 'hidden']).optional(),
@@ -35,9 +34,9 @@ const updateMenuSchema = z.object({
   parentId: z.number().int().positive().optional().nullable(),
   menuName: z.string().min(1, '菜单名称不能为空').max(100).optional(),
   menuCode: z.string().max(50).optional().nullable(),
+  menuType: z.enum(['directory', 'menu']).optional(),
   icon: z.string().max(50).optional().nullable(),
   path: z.string().max(255).optional().nullable(),
-  component: z.string().max(255).optional().nullable(),
   sortOrder: z.number().int().optional(),
   visible: z.enum(['visible', 'hidden']).optional(),
   status: z.enum(['active', 'disabled']).optional(),
@@ -71,7 +70,6 @@ export async function GET(request: NextRequest) {
         menuType: true,
         icon: true,
         path: true,
-        component: true,
         sortOrder: true,
         visible: true,
         status: true,
@@ -196,10 +194,9 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // 目录类型不能有路径和组件
+    // 目录类型不能有路径
     if (data.menuType === 'directory') {
       data.path = null;
-      data.component = null;
     }
 
     const menu = await prisma.menu.create({
@@ -210,7 +207,6 @@ export async function POST(request: NextRequest) {
         menuType: data.menuType,
         icon: data.icon || null,
         path: data.path || null,
-        component: data.component || null,
         sortOrder: data.sortOrder,
         visible: data.isVisible !== undefined
           ? (data.isVisible ? 'visible' : 'hidden')

@@ -67,7 +67,7 @@ export async function GET(request: NextRequest) {
     });
 
     // 3. 合并：以文件系统路由为主，标注是否在数据库中
-    const dbRouteSet = new Map(dbMenus.map(m => [m.path, m]));
+    const dbRouteSet = new Map(dbMenus.filter(m => m.path).map(m => [m.path!, m]));
 
     const result = uniqueFsRoutes.map(routePath => {
       const dbMenu = dbRouteSet.get(routePath);
