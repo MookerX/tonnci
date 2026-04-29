@@ -237,17 +237,6 @@ export default function SystemMenuPage() {
     });
   }, [menuTree]);
 
-  // 切换菜单可见性
-  const handleToggleVisible = useCallback(async (menu: Menu) => {
-    const newVisible = !menu.isVisible;
-    setMenuTree(prev => updateMenuInTree(prev, menu.id, m => ({ ...m, isVisible: newVisible })));
-    await fetchApi(`/api/system/menu/${menu.id}`, {
-      method: "PUT",
-      body: JSON.stringify({ isVisible: newVisible }),
-    });
-    success(newVisible ? "菜单已显示" : "菜单已隐藏");
-  }, [success]);
-
   // 选择图标
   const handleSelectIcon = useCallback((icon: string) => {
     setForm(prev => ({ ...prev, icon }));
@@ -305,20 +294,22 @@ export default function SystemMenuPage() {
     setExpandedIds(newExpanded);
   };
 
-  const handleOpenForm = (menu?: Menu, parentId?: number) => {
+  const handleOpenForm = (menu?: Menu | any, parentId?: number) => {
     if (menu) {
-      setEditingMenu(menu);
+      // 可能是数据库菜单或路由列表中的路由对象
+      const menuId = menu.menuId ?? menu.id;
+      setEditingMenu({ ...menu, id: menuId });
       setForm({
         parentId: menu.parentId,
-        menuName: menu.menuName,
-        menuType: menu.menuType,
+        menuName: menu.menuName || "",
+        menuType: menu.menuType || "menu",
         path: menu.path || "",
         component: menu.component || "",
         icon: menu.icon || "",
         permission: menu.permission || "",
-        sortOrder: menu.sortOrder,
-        status: menu.status,
-        isVisible: menu.isVisible,
+        sortOrder: menu.sortOrder ?? 0,
+        status: menu.status || "active",
+        isVisible: menu.isVisible ?? (menu.visible === 'visible'),
         isCache: false,
       });
     } else {
@@ -454,15 +445,6 @@ export default function SystemMenuPage() {
               <span className="w-5" />
             )}
 
-            {/* 可见性 */}
-            <button
-              onClick={() => handleToggleVisible(menu)}
-              className={`w-5 h-5 flex items-center justify-center rounded ${menu.isVisible ? "text-green-500" : "text-gray-300"}`}
-              title={menu.isVisible ? "隐藏" : "显示"}
-            >
-              {menu.isVisible ? <LucideIcons.Eye size={14} /> : <LucideIcons.EyeOff size={14} />}
-            </button>
-
             <span>{getMenuTypeIcon(menu.menuType)}</span>
             {IconComp && <IconComp size={14} className="text-gray-400" />}
             <span className="font-medium">{menu.menuName}</span>
@@ -540,14 +522,6 @@ export default function SystemMenuPage() {
         >
           路由列表
         </button>
-      </div>
-
-      {/* 提示信息 */}
-      <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4 text-sm">
-        <p className="text-blue-700">
-          <strong>权限说明：</strong>权限标识细化到数据表的增删改查操作（query/create/update/delete）和文件操作（upload/download）。
-          使用"数据权限"类型的菜单来管理表级权限，权限标识格式：<code className="bg-blue-100 px-1">模块:表名:操作</code>，如 <code className="bg-blue-100 px-1">system:user:query</code>。
-        </p>
       </div>
 
       {/* 菜单树 */}
@@ -813,7 +787,7 @@ export default function SystemMenuPage() {
               {form.menuType === 'menu' && (
                 <div className="flex items-center gap-4">
                   <label className="flex items-center gap-1">
-                    <input type="checkbox" checked={form.isVisible} onChange={e => setForm({...form, isVisible: e.target.checked})} />
+                    <input type="checkbox" checked={!!form.isVisible} onChange={e => setForm({...form, isVisible: e.target.checked})} />
                     <span className="text-sm">显示菜单</span>
                   </label>
                 </div>
