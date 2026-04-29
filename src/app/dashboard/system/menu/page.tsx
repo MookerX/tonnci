@@ -199,57 +199,7 @@ export default function SystemMenuPage() {
     });
   };
 
-  // 拖拽结束时排序
-  const handleDragEnd = useCallback(async (event: DragEndEvent) => {
-    const { active, over } = event;
-    setActiveDragId(null);
-    if (!over || active.id === over.id) return;
-
-    const activeId = active.id as number;
-    const overId = over.id as number;
-
-    // 找 active 和 over 的父菜单（确定同层级）
-    const activeParent = findParentMenu(menuTree, activeId);
-    const overParent = findParentMenu(menuTree, overId);
-
-    if (activeParent?.id !== overParent?.id) return;
-
-    // 获取同级列表
-    const siblingList = activeParent ? (activeParent.children || []) : menuTree;
-    const oldIndex = siblingList.findIndex(m => m.id === activeId);
-    const newIndex = siblingList.findIndex(m => m.id === overId);
-    if (oldIndex === -1 || newIndex === -1) return;
-
-    const reordered = arrayMove(siblingList, oldIndex, newIndex);
-
-    // 更新树
-    if (activeParent) {
-      setMenuTree(prev => updateMenuInTree(prev, activeParent.id, m => ({ ...m, children: reordered })));
-    } else {
-      setMenuTree(reordered);
-    }
-
-    // 批量更新 sortOrder 到后端（使用间隔值 10，方便后续插入）
-    const updates = reordered.map((m, idx) => ({ id: m.id, sortOrder: (idx + 1) * 10 }));
-    const res = await fetchApi("/api/system/menu/sort", {
-      method: "PUT",
-      body: JSON.stringify({ orders: updates }),
-    });
-    if (res.code === 200) {
-      success("排序已保存");
-    }
-  }, [menuTree, success]);
-
-  // 选择图标
-  const handleSelectIcon = useCallback((icon: string) => {
-    setForm(prev => ({ ...prev, icon }));
-    setShowIconPicker(false);
-  }, []);
-
-  const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
-  const headers: any = { "Content-Type": "application/json" };
-  if (token) headers.Authorization = `Bearer ${token}`;
-
+  // 获取菜单列表
   const fetchMenus = async () => {
     setLoading(true);
     try {
@@ -267,6 +217,66 @@ export default function SystemMenuPage() {
   };
 
   useEffect(() => { fetchMenus(); }, []);
+
+  // 拖拽结束时排序
+  const handleDragEnd = useCallback(async (event: DragEndEvent) => {
+    const { active, over } = event;
+    setActiveDragId(null);
+    if (!over || active.id === over.id) return;
+
+    const activeId = active.id as number;
+    const overId = over.id as number;
+
+    // 找 active 和 over 的父菜单（确定同层级）
+    const activeParent = findParentMenu(menuTree, activeId);
+    const overParent = findParentMenu(menuTree, overId);
+
+    if (activeParent?.id !== overParent?.id) {
+      return;
+    }
+
+    // 获取同级列表
+    const siblingList = activeParent ? (activeParent.children || []) : menuTree;
+    console.log('同级列表:', siblingList.map(m => ({ id: m.id, name: m.menuName })));
+
+    const oldIndex = siblingList.findIndex(m => m.id === activeId);
+    const newIndex = siblingList.findIndex(m => m.id === overId);
+    if (oldIndex === -1 || newIndex === -1) {
+      return;
+    }
+
+    const reordered = arrayMove(siblingList, oldIndex, newIndex);
+
+    // 更新树
+    if (activeParent) {
+      setMenuTree(prev => updateMenuInTree(prev, activeParent.id, m => ({ ...m, children: reordered })));
+    } else {
+      setMenuTree(reordered);
+    }
+
+    // 批量更新 sortOrder 到后端（使用间隔值 10，方便后续插入）
+    const updates = reordered.map((m, idx) => ({ id: m.id, sortOrder: (idx + 1) * 10 }));
+    const res = await fetchApi("/api/system/menu/sort", {
+      method: "PUT",
+      body: JSON.stringify({ orders: updates }),
+    });
+    console.log('更新响应:', res);
+    if (res.code === 200) {
+      success("排序已保存");
+      // 重新获取菜单树以确保数据同步
+      fetchMenus();
+    }
+  }, [menuTree, success, fetchMenus]);
+
+  const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
+  const headers: any = { "Content-Type": "application/json" };
+  if (token) headers.Authorization = `Bearer ${token}`;
+
+  // 选择图标
+  const handleSelectIcon = useCallback((icon: string) => {
+    setForm(prev => ({ ...prev, icon }));
+    setShowIconPicker(false);
+  }, []);
 
   // 获取文件系统路由列表
   const fetchRoutes = useCallback(async () => {
@@ -485,11 +495,13 @@ export default function SystemMenuPage() {
           </div>
         </div>
         {hasChildren && isExpanded && (
+          <SortableContext items={menu.children!.map(c => c.id)} strategy={verticalListSortingStrategy}>
           <div>
             {menu.children!.map(child => (
               <SortableMenuNode key={child.id} menu={child} level={level + 1} />
             ))}
           </div>
+          </SortableContext>
         )}
       </div>
     );
