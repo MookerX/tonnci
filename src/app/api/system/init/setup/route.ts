@@ -204,10 +204,10 @@ export async function POST(request: NextRequest) {
         });
 
         const subMenus = [
-          { menuName: "用户管理", menuType: "menu", path: "/dashboard/system/user", component: "dashboard/system/user/page", sortOrder: 1 },
-          { menuName: "角色管理", menuType: "menu", path: "/dashboard/system/role", component: "dashboard/system/role/page", sortOrder: 2 },
-          { menuName: "部门管理", menuType: "menu", path: "/dashboard/system/dept", component: "dashboard/system/dept/page", sortOrder: 3 },
-          { menuName: "菜单管理", menuType: "menu", path: "/dashboard/system/menu", component: "dashboard/system/menu/page", sortOrder: 4 },
+          { menuName: "用户管理", menuType: "menu", path: "/dashboard/system/user", sortOrder: 1 },
+          { menuName: "角色管理", menuType: "menu", path: "/dashboard/system/role", sortOrder: 2 },
+          { menuName: "部门管理", menuType: "menu", path: "/dashboard/system/dept", sortOrder: 3 },
+          { menuName: "菜单管理", menuType: "menu", path: "/dashboard/system/menu", sortOrder: 4 },
         ];
 
         for (const menu of subMenus) {

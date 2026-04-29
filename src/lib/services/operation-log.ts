@@ -59,6 +59,8 @@ export interface LogData {
   executionTime?: number;
   status?: 'success' | 'fail' | 'warning';
   errorMsg?: string;
+  oldData?: any;
+  newData?: any;
 }
 
 // =============================================================================

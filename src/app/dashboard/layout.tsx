@@ -31,7 +31,7 @@ function SidebarMenuItem({
   openKeys: string[];
   toggleMenu: (key: string) => void;
   isActive: (path: string | null | undefined) => boolean;
-  renderMenuIcon: (icon: string | null | undefined) => React.ReactNode;
+  renderMenuIcon: (icon: string | null | undefined, size?: number) => React.ReactNode;
   hasMenu: (key: string) => boolean;
 }) {
   const hasChildren = item.children && item.children.length > 0;
@@ -324,7 +324,7 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
     menu.children?.some((c: any) => pathname.startsWith(c.path)) || false;
 
   // 渲染菜单图标（支持Lucide组件名或SVG路径）
-  const renderMenuIcon = (iconName: string | undefined, size = 20) => {
+  const renderMenuIcon = (iconName: string | null | undefined, size = 20) => {
     if (!iconName) return null;
     const Ic = (LucideIcons as any)[iconName];
     if (Ic) return <Ic size={size} />;
