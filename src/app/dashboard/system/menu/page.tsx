@@ -159,42 +159,44 @@ export default function SystemMenuPage() {
   const [keyword, setKeyword] = useState("");
   const [showIconPicker, setShowIconPicker] = useState(false);
   const [activeDragId, setActiveDragId] = useState<number | null>(null);
+  
+  // 传感器配置
   const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
   );
 
-  // 根据 id 查找菜单
-  const findMenuById = (menus: Menu[], id: number): Menu | null => {
-    for (const m of menus) {
-      if (m.id === id) return m;
-      if (m.children) {
-        const found = findMenuById(m.children, id);
-        if (found) return found;
+  // 查找菜单所在层级和同级列表
+  const findMenuLevelAndSiblings = (menus: Menu[], id: number, parent: Menu | null = null): { level: number; siblings: Menu[]; parent: Menu | null } | null => {
+    for (let i = 0; i < menus.length; i++) {
+      const m = menus[i];
+      if (m.id === id) {
+        return { level: 0, siblings: menus, parent };
+      }
+      if (m.children && m.children.length > 0) {
+        const found = findMenuLevelAndSiblings(m.children, id, m);
+        if (found) {
+          return { ...found, level: found.level + 1 };
+        }
       }
     }
     return null;
   };
 
-  // 根据 id 查找父菜单
-  const findParentMenu = (menus: Menu[], id: number, parent: Menu | null = null): Menu | null => {
-    for (const m of menus) {
-      if (m.id === id) return parent;
-      if (m.children) {
-        const found = findParentMenu(m.children, id, m);
-        if (found !== undefined) return found;
-      }
-    }
-    return null;
-  };
-
-  // 更新菜单树中指定 id 的菜单
-  const updateMenuInTree = (menus: Menu[], id: number, updater: (m: Menu) => Menu): Menu[] => {
+  // 替换菜单树中指定菜单
+  const replaceInTree = (menus: Menu[], id: number, updater: (m: Menu) => Menu): Menu[] => {
     return menus.map(m => {
       if (m.id === id) return updater(m);
-      if (m.children) return { ...m, children: updateMenuInTree(m.children, id, updater) };
+      if (m.children) return { ...m, children: replaceInTree(m.children, id, updater) };
       return m;
     });
+  };
+
+  // 获取父菜单的子菜单列表引用
+  const getParentChildren = (menus: Menu[], id: number, parent: Menu | null): Menu[] | null => {
+    if (!parent) return menus;
+    if (parent.children) return parent.children;
+    return null;
   };
 
   // 获取菜单列表
@@ -217,7 +219,7 @@ export default function SystemMenuPage() {
   useEffect(() => { fetchMenus(); }, []);
 
   // 拖拽结束时排序
-  const handleDragEnd = useCallback(async (event: DragEndEvent) => {
+  const handleDragEnd = useCallback(async (event: any) => {
     const { active, over } = event;
     setActiveDragId(null);
     if (!over || active.id === over.id) return;
@@ -225,34 +227,31 @@ export default function SystemMenuPage() {
     const activeId = active.id as number;
     const overId = over.id as number;
 
-    // 找 active 和 over 的父菜单（确定同层级）
-    const activeParent = findParentMenu(menuTree, activeId);
-    const overParent = findParentMenu(menuTree, overId);
-    if (activeParent?.id !== overParent?.id) return;
+    // 只允许同级拖拽
+    const activeInfo = findMenuLevelAndSiblings(menuTree, activeId);
+    const overInfo = findMenuLevelAndSiblings(menuTree, overId);
+    
+    if (!activeInfo || !overInfo) return;
+    if (activeInfo.level !== overInfo.level) return; // 不同层级不允许拖拽
 
-    // 获取同级列表
-    const siblingList = activeParent ? (activeParent.children || []) : menuTree;
-    const oldIndex = siblingList.findIndex(m => m.id === activeId);
-    const newIndex = siblingList.findIndex(m => m.id === overId);
+    const { siblings } = activeInfo;
+    const oldIndex = siblings.findIndex(m => m.id === activeId);
+    const newIndex = siblings.findIndex(m => m.id === overId);
     if (oldIndex === -1 || newIndex === -1) return;
 
-    const reordered = arrayMove(siblingList, oldIndex, newIndex);
+    // 重新排序
+    const reordered = arrayMove(siblings, oldIndex, newIndex);
 
     // 更新树状态
-    if (activeParent) {
-      const newTree = updateMenuInTree(menuTree, activeParent.id, m => ({ ...m, children: reordered }));
+    if (activeInfo.parent) {
+      const newTree = replaceInTree(menuTree, activeInfo.parent.id, m => ({ ...m, children: reordered }));
       setMenuTree(newTree);
     } else {
       setMenuTree([...reordered]);
     }
 
-    // 批量更新 sortOrder 到后端（使用间隔值 10，方便后续插入）
+    // 保存到后端
     const updates = reordered.map((m, idx) => ({ id: m.id, sortOrder: (idx + 1) * 10 }));
-
-    const token = localStorage.getItem("token");
-    const headers: any = { "Content-Type": "application/json" };
-    if (token) headers.Authorization = `Bearer ${token}`;
-
     const res = await fetch("/api/system/menu/sort", {
       method: "PUT",
       headers,
@@ -434,14 +433,19 @@ export default function SystemMenuPage() {
   const SortableMenuNode = ({ menu, level = 0 }: { menu: Menu; level?: number }) => {
     const hasChildren = menu.children && menu.children.length > 0;
     const isExpanded = expandedIds.has(menu.id);
+
+    // 只有顶层菜单才能拖拽
+    const isSortable = level === 0;
     const {
       attributes, listeners, setNodeRef, transform, transition, isDragging,
-    } = useSortable({ id: menu.id });
-    const style = {
+    } = isSortable ? useSortable({ id: menu.id }) : { attributes: {}, listeners: {}, setNodeRef: (el: any) => {}, transform: null, transition: null, isDragging: false };
+
+    const style = isSortable ? {
       transform: CSS.Transform.toString(transform),
       transition,
       opacity: isDragging || activeDragId === menu.id ? 0.5 : 1,
-    };
+    } : {};
+
     // 尝试从 LucideIcons 中获取图标，找不到则显示图标名称
     const iconName = menu.icon;
     const IconComp = iconName ? (LucideIcons as any)[iconName] : null;
@@ -453,10 +457,13 @@ export default function SystemMenuPage() {
           style={{ marginLeft: level * 24 }}
         >
           <div className="flex items-center gap-2 flex-1">
-            {/* 拖拽把手 */}
-            <button {...attributes} {...listeners} className="w-5 h-5 flex items-center justify-center text-gray-300 hover:text-gray-500 cursor-grab active:cursor-grabbing">
-              <LucideIcons.GripVertical size={14} />
-            </button>
+            {/* 拖拽把手 - 只在顶层显示 */}
+            {isSortable && (
+              <button {...attributes} {...listeners} className="w-5 h-5 flex items-center justify-center text-gray-300 hover:text-gray-500 cursor-grab active:cursor-grabbing">
+                <LucideIcons.GripVertical size={14} />
+              </button>
+            )}
+            {!isSortable && <span className="w-5" />}
 
             {/* 展开/折叠 */}
             {hasChildren ? (
@@ -502,13 +509,11 @@ export default function SystemMenuPage() {
           </div>
         </div>
         {hasChildren && isExpanded && (
-          <SortableContext items={menu.children!.map(c => c.id)} strategy={verticalListSortingStrategy}>
           <div>
             {menu.children!.map(child => (
               <SortableMenuNode key={child.id} menu={child} level={level + 1} />
             ))}
           </div>
-          </SortableContext>
         )}
       </div>
     );
