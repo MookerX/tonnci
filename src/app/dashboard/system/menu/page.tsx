@@ -347,10 +347,20 @@ export default function SystemMenuPage() {
       return;
     }
     try {
-      let res;
-      const url = editingMenu ? `/api/system/menu/${editingMenu.id}` : "/api/system/menu";
-      const method = editingMenu ? "PUT" : "POST";
-      const data = await fetchApi(url, { method, headers, body: JSON.stringify(form) });
+      const menuId = editingMenu?.id;
+      const url = menuId ? `/api/system/menu/${menuId}` : "/api/system/menu";
+      const method = menuId ? "PUT" : "POST";
+      const token = localStorage.getItem("token");
+      const reqHeaders: any = { "Content-Type": "application/json" };
+      if (token) reqHeaders.Authorization = `Bearer ${token}`;
+
+      const res = await fetch(url, {
+        method,
+        headers: reqHeaders,
+        body: JSON.stringify(form),
+      });
+      const data = await res.json();
+
       if (data.code === 200) {
         setShowForm(false);
         fetchMenus();

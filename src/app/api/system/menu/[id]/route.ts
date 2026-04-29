@@ -17,11 +17,10 @@ const updateMenuSchema = z.object({
   parentId: z.number().int().positive().optional().nullable(),
   menuName: z.string().min(1, '菜单名称不能为空').max(100).optional(),
   menuCode: z.string().max(50).optional().nullable(),
+  menuType: z.enum(['directory', 'menu']).optional(),
   icon: z.string().max(50).optional().nullable(),
   path: z.string().max(255).optional().nullable(),
-  component: z.string().max(255).optional().nullable(),
   sortOrder: z.number().int().optional(),
-  isVisible: z.boolean().optional(),
   visible: z.enum(['visible', 'hidden']).optional(),
   status: z.enum(['active', 'disabled']).optional(),
   permission: z.string().max(100).optional().nullable(),
@@ -157,6 +156,7 @@ export async function PUT(
     if ('parentId' in data) updateData.parentId = data.parentId;
     if (data.menuName !== undefined) updateData.menuName = data.menuName;
     if (data.menuCode !== undefined) updateData.menuCode = data.menuCode;
+    if (data.menuType !== undefined) updateData.menuType = data.menuType;
     if (data.icon !== undefined) updateData.icon = data.icon;
     if (data.path !== undefined) updateData.path = data.path;
     if (data.sortOrder !== undefined) updateData.sortOrder = data.sortOrder;
