@@ -32,11 +32,25 @@ export async function GET(request: NextRequest) {
       }),
       prisma.operationLog.count({ where }),
     ]);
-    
+
+    // 转换字段名以匹配前端期望
+    const transformedList = list.map(log => ({
+      id: log.id,
+      module: log.moduleName,
+      action: log.businessType,
+      operator: log.operatorName,
+      operatorId: log.operatorId,
+      description: log.operationDesc,
+      ip: log.ipAddress,
+      status: log.status,
+      errorMessage: log.errorMessage,
+      createdAt: log.createdAt,
+    }));
+
     return NextResponse.json({
       code: 200,
       message: '获取成功',
-      data: { list, total, page, pageSize },
+      data: { list: transformedList, total, page, pageSize },
     });
   } catch (error) {
     console.error('获取操作日志失败:', error);
