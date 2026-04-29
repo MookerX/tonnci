@@ -226,12 +226,16 @@ export default function SystemMenuPage() {
 
     const activeId = active.id as number;
     const overId = over.id as number;
+    console.log('拖拽:', activeId, '->', overId);
 
     // 找 active 和 over 的父菜单（确定同层级）
     const activeParent = findParentMenu(menuTree, activeId);
     const overParent = findParentMenu(menuTree, overId);
+    console.log('activeParent:', activeParent?.id, activeParent?.menuName);
+    console.log('overParent:', overParent?.id, overParent?.menuName);
 
     if (activeParent?.id !== overParent?.id) {
+      console.log('不同级，无法排序');
       return;
     }
 
@@ -241,32 +245,45 @@ export default function SystemMenuPage() {
 
     const oldIndex = siblingList.findIndex(m => m.id === activeId);
     const newIndex = siblingList.findIndex(m => m.id === overId);
+    console.log('oldIndex:', oldIndex, 'newIndex:', newIndex);
     if (oldIndex === -1 || newIndex === -1) {
+      console.log('未找到菜单');
       return;
     }
 
     const reordered = arrayMove(siblingList, oldIndex, newIndex);
+    console.log('重排后:', reordered.map((m, idx) => ({ id: m.id, name: m.menuName })));
 
-    // 更新树
+    // 更新树状态
     if (activeParent) {
-      setMenuTree(prev => updateMenuInTree(prev, activeParent.id, m => ({ ...m, children: reordered })));
+      const newTree = updateMenuInTree(menuTree, activeParent.id, m => ({ ...m, children: reordered }));
+      setMenuTree(newTree);
     } else {
-      setMenuTree(reordered);
+      setMenuTree([...reordered]);
     }
 
     // 批量更新 sortOrder 到后端（使用间隔值 10，方便后续插入）
     const updates = reordered.map((m, idx) => ({ id: m.id, sortOrder: (idx + 1) * 10 }));
-    const res = await fetchApi("/api/system/menu/sort", {
+    console.log('更新请求:', updates);
+
+    const token = localStorage.getItem("token");
+    const headers: any = { "Content-Type": "application/json" };
+    if (token) headers.Authorization = `Bearer ${token}`;
+
+    const res = await fetch("/api/system/menu/sort", {
       method: "PUT",
+      headers,
       body: JSON.stringify({ orders: updates }),
-    });
+    }).then(r => r.json());
     console.log('更新响应:', res);
     if (res.code === 200) {
       success("排序已保存");
-      // 重新获取菜单树以确保数据同步
+      // 重新获取菜单树
       fetchMenus();
+    } else {
+      error(res.message || '保存失败');
     }
-  }, [menuTree, success, fetchMenus]);
+  }, [menuTree, success, error, fetchMenus]);
 
   const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
   const headers: any = { "Content-Type": "application/json" };
