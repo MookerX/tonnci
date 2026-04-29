@@ -426,40 +426,31 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
             )}
           </div>
           
-          {/* 折叠和退出按钮 */}
-          <div className="flex items-center gap-2">
+          {/* 操作按钮 - 垂直排列 */}
+          <div className={`flex ${collapsed ? 'flex-col items-center' : 'flex-col items-center'} gap-1`}>
             <button
               onClick={() => setCollapsed(!collapsed)}
-              className="flex-1 flex items-center justify-center h-8 text-slate-400 hover:text-white hover:bg-slate-700/40 rounded transition-colors"
+              className="w-full flex items-center justify-center h-8 text-slate-400 hover:text-white hover:bg-slate-700/40 rounded transition-colors"
               title={collapsed ? "展开菜单" : "收起菜单"}
             >
               <svg
-                className={`w-5 h-5 transition-transform ${collapsed ? "rotate-180" : ""}`}
+                className={`w-5 h-5 transition-transform ${collapsed ? "" : "rotate-180"}`}
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
               >
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 19l-7-7 7-7m8 14l-7-7 7-7" />
               </svg>
+              {!collapsed && <span className="ml-2 text-sm">收起菜单</span>}
             </button>
-            {!collapsed && (
-              <button
-                onClick={logout}
-                className="flex items-center justify-center h-8 px-2 text-slate-400 hover:text-red-400 hover:bg-slate-700/40 rounded transition-colors"
-                title="退出登录"
-              >
-                <LucideIcons.LogOut className="w-5 h-5" />
-              </button>
-            )}
-            {collapsed && (
-              <button
-                onClick={logout}
-                className="flex-1 flex items-center justify-center h-8 text-slate-400 hover:text-red-400 hover:bg-slate-700/40 rounded transition-colors"
-                title="退出登录"
-              >
-                <LucideIcons.LogOut className="w-5 h-5" />
-              </button>
-            )}
+            <button
+              onClick={logout}
+              className="w-full flex items-center justify-center h-8 text-slate-400 hover:text-red-400 hover:bg-slate-700/40 rounded transition-colors"
+              title="退出登录"
+            >
+              <LucideIcons.LogOut className="w-5 h-5" />
+              {!collapsed && <span className="ml-2 text-sm">退出登录</span>}
+            </button>
           </div>
         </div>
       </aside>
