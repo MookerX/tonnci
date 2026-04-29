@@ -194,6 +194,8 @@ export default function SystemMenuPage() {
   const [expandedIds, setExpandedIds] = useState<Set<number>>(new Set());
   const [expandedModules, setExpandedModules] = useState<Set<string>>(new Set());
   const [activeTab, setActiveTab] = useState<'tree' | 'routes'>('tree');
+  const [routeList, setRouteList] = useState<any[]>([]);
+  const [routeLoading, setRouteLoading] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [showPermForm, setShowPermForm] = useState(false);
   const [editingMenu, setEditingMenu] = useState<Menu | null>(null);
@@ -330,6 +332,26 @@ export default function SystemMenuPage() {
   };
 
   useEffect(() => { fetchMenus(); }, []);
+
+  // 获取文件系统路由列表
+  const fetchRoutes = useCallback(async () => {
+    setRouteLoading(true);
+    try {
+      const data = await fetchApi("/api/system/menu/routes", { headers });
+      if (data.code === 200) {
+        setRouteList(data.data || []);
+      }
+    } catch (e) {
+      console.error(e);
+    }
+    setRouteLoading(false);
+  }, [headers]);
+
+  useEffect(() => {
+    if (activeTab === 'routes') {
+      fetchRoutes();
+    }
+  }, [activeTab, fetchRoutes]);
 
   const toggleExpand = (id: number) => {
     const newExpanded = new Set(expandedIds);
@@ -749,70 +771,133 @@ export default function SystemMenuPage() {
         <div className="bg-white rounded-lg border overflow-hidden">
           <div className="p-4">
             <div className="text-sm text-gray-500 mb-3">
-              路由列表用于控制菜单显示。勾选"显示"即可在侧边栏看到对应菜单项。
-              若需添加新路由，请在 <code className="bg-gray-100 px-1">next.config.js</code> 中配置，或通过代码扫描自动发现。
+              路由列表显示所有已存在的文件系统路由。绿色标签表示已入库，可直接在侧边栏显示。
+              灰色标签表示未入库，点击「入库」按钮可将其添加到菜单。
             </div>
-            {loading ? (
+            {routeLoading ? (
               <div className="text-center text-gray-400 py-8">加载中...</div>
-            ) : flatMenuList.length === 0 ? (
+            ) : routeList.length === 0 ? (
               <div className="text-center text-gray-400 py-8">暂无路由数据</div>
             ) : (
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="bg-gray-50 border-b">
-                      <th className="px-3 py-2 text-left font-medium text-gray-600 w-8">显示</th>
-                      <th className="px-3 py-2 text-left font-medium text-gray-600">菜单名称</th>
+                      <th className="px-3 py-2 text-left font-medium text-gray-600">状态</th>
                       <th className="px-3 py-2 text-left font-medium text-gray-600">路由路径</th>
+                      <th className="px-3 py-2 text-left font-medium text-gray-600">菜单名称</th>
                       <th className="px-3 py-2 text-left font-medium text-gray-600">菜单类型</th>
+                      <th className="px-3 py-2 text-left font-medium text-gray-600">排序</th>
                       <th className="px-3 py-2 text-left font-medium text-gray-600">操作</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {flatMenuList.map(menu => (
-                      <tr key={menu.id} className="border-b last:border-b-0 hover:bg-gray-50">
+                    {routeList.map(route => (
+                      <tr key={route.path} className="border-b last:border-b-0 hover:bg-gray-50">
                         <td className="px-3 py-2">
-                          <input
-                            type="checkbox"
-                            checked={menu.isVisible !== false}
-                            onChange={async (e) => {
-                              try {
-                                await fetch(`/api/system/menu/${menu.id}`, {
-                                  method: 'PUT',
-                                  headers: { 'Content-Type': 'application/json' },
-                                  body: JSON.stringify({ isVisible: e.target.checked }),
-                                });
-                                fetchMenus();
-                              } catch (err) {
-                                console.error('更新失败', err);
-                              }
-                            }}
-                            className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                          />
+                          {route.inDb ? (
+                            <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-700">
+                              已入库
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-500">
+                              未入库
+                            </span>
+                          )}
                         </td>
-                        <td className="px-3 py-2 font-medium text-gray-800">{menu.menuName}</td>
-                        <td className="px-3 py-2 text-gray-500 font-mono text-xs">
-                          {menu.path || '-'}
+                        <td className="px-3 py-2 text-gray-800 font-mono text-xs">{route.path}</td>
+                        <td className="px-3 py-2 font-medium text-gray-800">
+                          {route.menuName || '-'}
                         </td>
                         <td className="px-3 py-2">
-                          <span className={`px-2 py-0.5 rounded text-xs font-medium ${
-                            menu.menuType === 'M' ? 'bg-blue-100 text-blue-700' :
-                            menu.menuType === 'C' ? 'bg-green-100 text-green-700' :
-                            menu.menuType === 'A' ? 'bg-purple-100 text-purple-700' :
-                            'bg-gray-100 text-gray-700'
-                          }`}>
-                            {getMenuTypeName(menu.menuType)}
-                          </span>
+                          {route.menuType ? (
+                            <span className={`px-2 py-0.5 rounded text-xs font-medium ${
+                              route.menuType === 'directory' ? 'bg-blue-100 text-blue-700' :
+                              route.menuType === 'menu' ? 'bg-green-100 text-green-700' :
+                              route.menuType === 'button' ? 'bg-purple-100 text-purple-700' :
+                              route.menuType === 'permission' ? 'bg-orange-100 text-orange-700' :
+                              'bg-gray-100 text-gray-700'
+                            }`}>
+                              {getMenuTypeName(route.menuType)}
+                            </span>
+                          ) : (
+                            <span className="text-gray-400 text-xs">-</span>
+                          )}
                         </td>
+                        <td className="px-3 py-2 text-gray-500">{route.sortOrder ?? '-'}</td>
                         <td className="px-3 py-2">
-                          <PermissionGuard permission="system:menu:update">
-                            <button
-                              onClick={() => handleOpenForm(menu)}
-                              className="text-blue-600 hover:text-blue-800 text-xs mr-2"
-                            >
-                              编辑
-                            </button>
-                          </PermissionGuard>
+                          {route.inDb ? (
+                            <>
+                              <PermissionGuard permission="system:menu:update">
+                                <button
+                                  onClick={() => handleOpenForm(route)}
+                                  className="text-blue-600 hover:text-blue-800 text-xs mr-2"
+                                >
+                                  编辑
+                                </button>
+                              </PermissionGuard>
+                              <button
+                                onClick={async () => {
+                                  try {
+                                    await fetch(`/api/system/menu/${route.menuId}`, {
+                                      method: 'PUT',
+                                      headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+                                      body: JSON.stringify({ isDelete: true }),
+                                    });
+                                    fetchRoutes();
+                                    fetchMenus();
+                                  } catch (err) {
+                                    console.error('删除失败', err);
+                                  }
+                                }}
+                                className="text-red-600 hover:text-red-800 text-xs"
+                              >
+                                移除
+                              </button>
+                            </>
+                          ) : (
+                            <PermissionGuard permission="system:menu:add">
+                              <button
+                                onClick={async () => {
+                                  // 提取路由名称
+                                  const parts = route.path.split('/');
+                                  const name = parts[parts.length - 1] || parts[parts.length - 2] || route.path;
+                                  // 转换为中文
+                                  const nameMap: Record<string, string> = {
+                                    'accounting': '财务对账', 'invoice': '发票管理', 'payment': '回款管理', 'reconciliation': '对账单',
+                                    'customer-portal': '客户查询', 'delivery': '发货管理', 'plan': '发货计划', 'ship': '发货出库', 'sign': '签收管理',
+                                    'inventory': '库房管理', 'order': '生产订单', 'production': '生产管理', 'instruction': '工序卡', 'nesting': '激光套料', 'report': '报工', 'task': '生产任务',
+                                    'purchase': '采购管理', 'demand': '采购需求', 'receive': '到货入库', 'supplier': '供应商管理',
+                                    'quality': '质量检验', 'system': '系统管理', 'config': '参数配置', 'database': '数据库', 'dept': '部门管理', 'log': '日志管理', 'menu': '菜单管理', 'role': '角色管理', 'storage': '存储配置', 'user': '用户管理',
+                                    'tech-task': '技术任务', 'tech': '工艺管理', 'bom': 'BOM管理', 'drawing': '图纸管理',
+                                  };
+                                  const displayName = nameMap[name] || name.replace(/-/g, '');
+                                  try {
+                                    await fetch('/api/system/menu', {
+                                      method: 'POST',
+                                      headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+                                      body: JSON.stringify({
+                                        menuName: displayName,
+                                        path: route.path,
+                                        menuType: 'menu',
+                                        component: route.path.replace('/dashboard', ''),
+                                        sortOrder: 99,
+                                        status: 'active',
+                                        visible: 'visible',
+                                      }),
+                                    });
+                                    fetchRoutes();
+                                    fetchMenus();
+                                  } catch (err) {
+                                    console.error('入库失败', err);
+                                  }
+                                }}
+                                className="text-green-600 hover:text-green-800 text-xs font-medium"
+                              >
+                                入库
+                              </button>
+                            </PermissionGuard>
+                          )}
                         </td>
                       </tr>
                     ))}
