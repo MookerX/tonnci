@@ -455,7 +455,10 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
                               : "text-slate-400 hover:text-white hover:bg-slate-700/30"
                           }`}
                         >
-                          {child.label}
+                          <span className="w-4 h-4 flex-shrink-0 flex items-center justify-center mr-2">
+                            {renderMenuIcon(child.icon)}
+                          </span>
+                          <span className="truncate">{child.label}</span>
                         </a>
                       ))}
                     </div>
