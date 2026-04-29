@@ -301,7 +301,6 @@ model Menu {
   menuType     String    @default("menu") @map("menu_type") @db.VarChar(20)
   icon         String?   @db.VarChar(50)
   path         String?   @db.VarChar(255)
-  component    String?   @db.VarChar(255)
   sortOrder    Int       @default(0) @map("sort_order")
   visible      String    @default("visible") @db.VarChar(20)
   status       String    @default("active") @db.VarChar(20)
