@@ -229,13 +229,16 @@ export default function SystemMenuPage() {
       setMenuTree(reordered);
     }
 
-    // 批量更新 sortOrder 到后端
-    const updates = reordered.map((m, idx) => ({ id: m.id, sortOrder: idx }));
-    await fetchApi("/api/system/menu/sort", {
+    // 批量更新 sortOrder 到后端（使用间隔值 10，方便后续插入）
+    const updates = reordered.map((m, idx) => ({ id: m.id, sortOrder: (idx + 1) * 10 }));
+    const res = await fetchApi("/api/system/menu/sort", {
       method: "PUT",
       body: JSON.stringify({ orders: updates }),
     });
-  }, [menuTree]);
+    if (res.code === 200) {
+      success("排序已保存");
+    }
+  }, [menuTree, success]);
 
   // 选择图标
   const handleSelectIcon = useCallback((icon: string) => {
