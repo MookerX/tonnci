@@ -3,7 +3,7 @@
 /**
  * 系统初始化设置API
  * 支持分步骤初始化：
- * 1. 保存配置文件（数据库、存储） -> /api/system/init/config/save
+ * 1. 保存配置文件（数据库） -> /api/system/init/config/save
  * 2. 创建超级管理员 -> 本接口
  * 3. 完成初始化 -> 本接口
  */
@@ -40,37 +40,72 @@ export async function GET() {
       });
     }
 
-    if (!config.initialized) {
+    // 检查是否已初始化（通过systemInitStatus表）
+    const databaseUrl = getDatabaseUrl();
+    if (!databaseUrl) {
       return NextResponse.json({
         code: 200,
-        message: "配置文件已存在，系统未初始化",
+        message: "配置文件存在，系统未初始化",
         data: {
           configured: true,
           initialized: false,
           config: {
-            systemName: config.systemName,
             database: {
               host: config.database.host,
               port: config.database.port,
               username: config.database.username,
               database: config.database.name,
             },
-            storage: config.storage,
-            initializedAt: config.initializedAt,
           },
         },
       });
     }
 
+    // 尝试连接数据库检查初始化状态
+    try {
+      const checkPrisma = new PrismaClient({
+        datasources: { db: { url: databaseUrl } },
+        log: ['error'],
+      });
+      
+      const initStatus = await checkPrisma.systemInitStatus.findFirst();
+      await checkPrisma.$disconnect();
+      
+      if (initStatus && initStatus.stepStatus === 'completed') {
+        return NextResponse.json({
+          code: 200,
+          message: "系统已初始化",
+          data: {
+            configured: true,
+            initialized: true,
+            config: {
+              database: {
+                host: config.database.host,
+                port: config.database.port,
+                username: config.database.username,
+                database: config.database.name,
+              },
+            },
+          },
+        });
+      }
+    } catch {
+      // 数据库连接失败或表不存在
+    }
+
     return NextResponse.json({
       code: 200,
-      message: "系统已初始化",
+      message: "配置文件存在，系统未初始化",
       data: {
         configured: true,
-        initialized: true,
+        initialized: false,
         config: {
-          systemName: config.systemName,
-          initializedAt: config.initializedAt,
+          database: {
+            host: config.database.host,
+            port: config.database.port,
+            username: config.database.username,
+            database: config.database.name,
+          },
         },
       },
     });
@@ -90,7 +125,7 @@ export async function POST(request: NextRequest) {
   if (!configExists()) {
     return NextResponse.json({
       code: 400,
-      message: "请先配置数据库和存储",
+      message: "请先配置数据库",
     });
   }
 
@@ -102,10 +137,12 @@ export async function POST(request: NextRequest) {
     });
   }
 
-  if (config.initialized) {
+  // 2. 获取数据库连接
+  const databaseUrl = getDatabaseUrl();
+  if (!databaseUrl) {
     return NextResponse.json({
-      code: 400,
-      message: "系统已初始化，如需重新初始化请先清除配置",
+      code: 500,
+      message: "无法获取数据库连接信息",
     });
   }
 
@@ -116,8 +153,8 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ code: 400, message: "无效的请求参数" });
   }
 
-  // 2. 参数校验
-  const { mode = 'new', admin } = data;
+  // 3. 参数校验
+  const { mode = 'new', admin, systemName = '腾曦生产管理系统' } = data;
 
   if (!admin?.username || admin.username.length < 2) {
     return NextResponse.json({ code: 400, message: "管理员用户名至少2个字符" });
@@ -125,12 +162,6 @@ export async function POST(request: NextRequest) {
 
   if (!admin?.password || admin.password.length < 6) {
     return NextResponse.json({ code: 400, message: "管理员密码至少6个字符" });
-  }
-
-  // 3. 获取数据库连接
-  const databaseUrl = getDatabaseUrl();
-  if (!databaseUrl) {
-    return NextResponse.json({ code: 500, message: "无法获取数据库连接信息" });
   }
 
   // 4. 创建独立的Prisma实例
@@ -147,7 +178,16 @@ export async function POST(request: NextRequest) {
     // 测试数据库连接
     await initPrisma.$connect();
 
-    // 5. 根据模式清理数据
+    // 5. 检查是否已初始化
+    const existingStatus = await initPrisma.systemInitStatus.findFirst();
+    if (existingStatus && existingStatus.stepStatus === 'completed') {
+      return NextResponse.json({
+        code: 400,
+        message: "系统已初始化，如需重新初始化请先清除配置",
+      });
+    }
+
+    // 6. 根据模式清理数据
     const reuseData = mode === 'reuse';
 
     if (!reuseData) {
@@ -162,7 +202,7 @@ export async function POST(request: NextRequest) {
       await initPrisma.systemInitStatus.deleteMany({});
     }
 
-    // 6. 创建超级管理员角色
+    // 7. 创建超级管理员角色
     let superAdminRole = await initPrisma.role.findFirst({
       where: { roleCode: "super_admin", isDelete: false },
     });
@@ -181,7 +221,7 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // 7. 创建IT部门
+    // 8. 创建IT部门
     let itDept = await initPrisma.dept.findFirst({
       where: { deptCode: "IT", isDelete: false },
     });
@@ -199,7 +239,7 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // 8. 创建超级管理员用户
+    // 9. 创建超级管理员用户
     const hashedPassword = await hashPassword(admin.password);
 
     let adminUser = await initPrisma.user.findFirst({
@@ -239,7 +279,7 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // 9. 创建角色-用户关联
+    // 10. 创建角色-用户关联
     const existingRoleUser = await initPrisma.userRole.findFirst({
       where: { userId: adminUser.id, roleId: superAdminRole.id },
     });
@@ -253,7 +293,7 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // 10. 创建默认菜单（仅在新建时）
+    // 11. 创建默认菜单（仅在新建时）
     if (!reuseData) {
       // 创建系统管理目录
       const systemDir = await initPrisma.menu.create({
@@ -287,7 +327,7 @@ export async function POST(request: NextRequest) {
         });
       }
 
-      // 11. 超级管理员拥有所有菜单权限
+      // 12. 超级管理员拥有所有菜单权限
       const allMenus = await initPrisma.menu.findMany({
         where: { isDelete: false },
       });
@@ -302,7 +342,7 @@ export async function POST(request: NextRequest) {
         });
       }
 
-      // 12. 部门权限
+      // 13. 部门权限
       await initPrisma.roleDeptScope.create({
         data: {
           roleId: superAdminRole.id,
@@ -311,7 +351,7 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // 13. 记录初始化状态
+    // 14. 记录初始化状态
     await initPrisma.systemInitStatus.upsert({
       where: { id: 1 },
       create: {
@@ -335,9 +375,9 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    // 14. 保存系统配置到数据库（仅系统名称和版本，敏感信息在加密配置文件中）
+    // 15. 保存系统配置到数据库
     const systemConfigs = [
-      { paramKey: 'system_name', paramValue: config.system.name || '腾曦生产管理系统', paramType: 'string', remark: '系统名称' },
+      { paramKey: 'system_name', paramValue: systemName, paramType: 'string', remark: '系统名称' },
       { paramKey: 'system_version', paramValue: '1.0.0', paramType: 'string', remark: '系统版本' },
     ];
 
@@ -354,9 +394,6 @@ export async function POST(request: NextRequest) {
         },
       });
     }
-
-    // 15. 标记系统已初始化
-    // 配置文件只保存数据库信息，不需要更新
 
     return NextResponse.json({
       code: 200,
