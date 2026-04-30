@@ -335,7 +335,32 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    // 14. 标记系统已初始化
+    // 14. 保存系统配置到数据库
+    const systemConfigs = [
+      { paramKey: 'system_name', paramValue: config.system.name || '腾曦生产管理系统', paramType: 'string', remark: '系统名称' },
+      { paramKey: 'system_version', paramValue: '1.0.0', paramType: 'string', remark: '系统版本' },
+      { paramKey: 'db_host', paramValue: config.database.host, paramType: 'string', remark: '数据库主机' },
+      { paramKey: 'db_port', paramValue: String(config.database.port), paramType: 'string', remark: '数据库端口' },
+      { paramKey: 'db_name', paramValue: config.database.name, paramType: 'string', remark: '数据库名称' },
+      { paramKey: 'storage_type', paramValue: config.storage.type, paramType: 'string', remark: '存储类型' },
+      { paramKey: 'storage_path', paramValue: config.storage.type === 'local' ? config.storage.path : (config.storage.nasHost || ''), paramType: 'string', remark: '存储路径' },
+    ];
+
+    for (const cfg of systemConfigs) {
+      await initPrisma.systemConfig.upsert({
+        where: { paramKey: cfg.paramKey },
+        create: {
+          ...cfg,
+          createdBy: SYSTEM_CREATOR_ID,
+        },
+        update: {
+          paramValue: cfg.paramValue,
+          modifiedBy: SYSTEM_CREATOR_ID,
+        },
+      });
+    }
+
+    // 15. 标记系统已初始化
     markAsInitialized({
       username: admin.username,
       realName: admin.realName,
