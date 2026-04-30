@@ -81,6 +81,22 @@ export async function POST(request: NextRequest) {
     // 检查是否有老数据
     const hasOldData = await checkOldData(configData);
 
+    // 如果没有老数据，同步数据库 schema
+    if (!hasOldData.hasData) {
+      try {
+        await syncDatabaseSchema(configData);
+      } catch (syncError: any) {
+        return NextResponse.json({
+          code: 500,
+          message: "数据库同步失败: " + syncError.message,
+          data: {
+            step: 'schema_sync',
+            error: syncError.message,
+          },
+        });
+      }
+    }
+
     return NextResponse.json({
       code: 200,
       message: "配置保存成功",
@@ -91,6 +107,7 @@ export async function POST(request: NextRequest) {
         hasOldData: hasOldData.hasData,
         tablesInfo: hasOldData.tablesInfo,
         step: 'config_saved',
+        schemaSynced: !hasOldData.hasData,
       },
     });
   } catch (error: any) {
@@ -205,6 +222,46 @@ async function checkOldData(config: SystemConfig): Promise<{ hasData: boolean; t
   } finally {
     if (connection) {
       await connection.end();
+    }
+  }
+}
+
+/**
+ * 同步数据库 schema
+ */
+async function syncDatabaseSchema(config: SystemConfig): Promise<void> {
+  // 使用 Prisma CLI 同步 schema
+  const { execSync } = require('child_process');
+  const path = require('path');
+
+  // 创建临时的 .env 文件用于同步
+  const fs = require('fs');
+  const tempEnvPath = path.join(process.cwd(), '.env.temp');
+
+  const envContent = `
+DATABASE_URL="mysql://${config.database.username}:${config.database.password}@${config.database.host}:${config.database.port}/${config.database.name}"
+`.trim();
+
+  fs.writeFileSync(tempEnvPath, envContent);
+
+  try {
+    // 执行 prisma db push
+    const result = execSync('npx prisma db push --skip-generate', {
+      env: {
+        ...process.env,
+        DATABASE_URL: `mysql://${config.database.username}:${config.database.password}@${config.database.host}:${config.database.port}/${config.database.name}`,
+      },
+      stdio: 'pipe',
+      timeout: 60000,
+    });
+    console.log('Database schema synced:', result.toString());
+  } catch (error: any) {
+    console.error('Schema sync error:', error.stderr?.toString() || error.message);
+    throw new Error('数据库表结构同步失败: ' + (error.stderr?.toString() || error.message));
+  } finally {
+    // 清理临时文件
+    if (fs.existsSync(tempEnvPath)) {
+      fs.unlinkSync(tempEnvPath);
     }
   }
 }

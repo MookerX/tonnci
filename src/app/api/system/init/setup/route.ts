@@ -211,6 +211,7 @@ export async function POST(request: NextRequest) {
             },
           });
         } else {
+          const { v4: uuidv4 } = require('uuid');
           adminUser = await tx.user.create({
             data: {
               username: admin.username,
@@ -218,6 +219,7 @@ export async function POST(request: NextRequest) {
               realName: admin.realName,
               phone: admin.phone || null,
               email: admin.email || null,
+              uuid: uuidv4(),
               deptId: itDept.id,
               userType: "internal",
               roleIds: JSON.stringify([superAdminRole.id]),
