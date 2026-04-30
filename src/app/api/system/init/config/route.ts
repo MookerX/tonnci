@@ -41,6 +41,9 @@ export async function GET() {
     // 检查是否已初始化完成
     let initialized = false;
     let adminInfo = null;
+    let initializedAt = null;
+    let systemName = "未设置";
+    let storageType = "未设置";
 
     try {
       // 创建新的 Prisma 客户端连接到配置中的数据库
@@ -61,11 +64,35 @@ export async function GET() {
 
       if (initStatus) {
         initialized = true;
+        initializedAt = initStatus.updatedAt;
         const configData = JSON.parse(initStatus.configData || "{}");
         adminInfo = {
           username: configData.adminUsername,
           realName: configData.adminRealName,
         };
+      }
+
+      // 读取系统配置
+      const systemConfigs = await configDb.systemConfig.findMany({
+        where: { isDelete: false },
+      });
+
+      for (const cfg of systemConfigs) {
+        if (cfg.paramKey === "system_name") {
+          systemName = cfg.paramValue || "未设置";
+        }
+      }
+
+      // 读取存储配置（如果有）
+      const storageConfig = await configDb.storageConfig.findFirst({
+        where: { isDelete: false },
+        orderBy: { createdAt: "desc" },
+      });
+      if (storageConfig) {
+        storageType = storageConfig.storageType === "local" ? "本地存储" 
+          : storageConfig.storageType === "nas" ? "NAS存储" 
+          : storageConfig.storageType === "oss" ? "对象存储" 
+          : "未设置";
       }
 
       await configDb.$disconnect();
@@ -80,6 +107,7 @@ export async function GET() {
       data: {
         exists: true,
         initialized,
+        initializedAt,
         // 数据库信息
         database: {
           host: config.database.host,
@@ -87,6 +115,9 @@ export async function GET() {
           name: config.database.name,
           hasCredentials: !!(config.database.username && config.database.password),
         },
+        // 系统信息
+        systemName,
+        storageType,
         adminInfo,
       },
     });
