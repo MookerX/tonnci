@@ -42,10 +42,7 @@ export async function GET() {
       message: "配置文件存在",
       data: {
         exists: true,
-        initialized: config.system.initialized,
-        initializedAt: config.system.initializedAt,
-        systemName: config.system.name,
-        // 不返回敏感信息
+        // 数据库信息
         database: {
           host: config.database.host,
           port: config.database.port,
@@ -53,11 +50,6 @@ export async function GET() {
           // 不返回用户名密码
           hasCredentials: !!(config.database.username && config.database.password),
         },
-        storage: {
-          type: config.storage.type,
-          path: config.storage.path,
-        },
-        adminInfo: config.system.adminInfo || null,
       },
     });
   } catch (error: any) {

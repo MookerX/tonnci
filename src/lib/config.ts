@@ -80,33 +80,6 @@ export interface SystemConfig {
     password: string;
     name: string;
   };
-  // 存储配置
-  storage: {
-    type: 'local' | 'nas' | 'oss';
-    path: string;
-    // NAS配置 (SMB协议)
-    share?: string;       // SMB共享路径，如 \\192.168.1.1\share 或 /share
-    nasHost?: string;
-    nasPort?: number;
-    nasUsername?: string;
-    nasPassword?: string;
-    domain?: string;       // SMB域（可选）
-    // OSS配置
-    endpoint?: string;
-    bucket?: string;
-    accessKey?: string;
-    secretKey?: string;
-  };
-  // 系统配置
-  system: {
-    name: string;
-    initialized: boolean;
-    initializedAt?: string;
-    adminInfo?: {
-      username: string;
-      realName?: string;
-    };
-  };
 }
 
 /**
@@ -120,14 +93,6 @@ export function getDefaultConfig(): SystemConfig {
       username: 'root',
       password: '',
       name: 'tengxi_pms',
-    },
-    storage: {
-      type: 'local',
-      path: path.join(process.cwd(), 'storage'),
-    },
-    system: {
-      name: '腾曦生产管理系统',
-      initialized: false,
     },
   };
 }
@@ -195,31 +160,9 @@ export function updateConfig(partial: Partial<SystemConfig>): boolean {
 
   const updated: SystemConfig = {
     database: { ...current.database, ...partial.database },
-    storage: { ...current.storage, ...partial.storage },
-    system: { ...current.system, ...partial.system },
   };
 
   return writeConfig(updated);
-}
-
-/**
- * 标记系统已初始化
- * @param adminInfo 管理员信息（可选）
- */
-export function markAsInitialized(adminInfo?: { username: string; realName?: string }): boolean {
-  const current = readConfig();
-  const currentSystem = current?.system || { name: '腾曦生产管理系统', initialized: false };
-  return updateConfig({
-    system: {
-      ...currentSystem,
-      initialized: true,
-      initializedAt: new Date().toISOString(),
-      adminInfo: adminInfo ? {
-        username: adminInfo.username,
-        realName: adminInfo.realName,
-      } : currentSystem.adminInfo,
-    },
-  });
 }
 
 /**

@@ -9,7 +9,7 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
-import { configExists, readConfig, markAsInitialized, getDatabaseUrl } from "@/lib/config";
+import { configExists, readConfig, getDatabaseUrl } from "@/lib/config";
 import { PrismaClient } from '@prisma/client';
 import { hashPassword } from "@/lib/auth/jwt";
 
@@ -356,10 +356,7 @@ export async function POST(request: NextRequest) {
     }
 
     // 15. 标记系统已初始化
-    markAsInitialized({
-      username: admin.username,
-      realName: admin.realName,
-    });
+    // 配置文件只保存数据库信息，不需要更新
 
     return NextResponse.json({
       code: 200,

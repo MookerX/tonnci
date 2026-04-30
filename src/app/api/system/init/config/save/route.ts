@@ -15,7 +15,7 @@ export async function POST(request: NextRequest) {
     const data = await request.json();
 
     // 验证必要参数
-    if (!data.database || !data.storage) {
+    if (!data.database) {
       return NextResponse.json({
         code: 400,
         message: "缺少必要的配置参数",
@@ -30,17 +30,6 @@ export async function POST(request: NextRequest) {
         password: data.database.password || '',
         name: data.database.name || 'tengxi_pms',
       },
-      storage: {
-        type: data.storage.type || 'local',
-        path: data.storage.path || '',
-        nasHost: data.storage.nasHost,
-        nasUsername: data.storage.nasUsername,
-        nasPassword: data.storage.nasPassword,
-      },
-      system: {
-        name: data.systemName || '腾曦生产管理系统',
-        initialized: false,
-      },
     };
 
     // 测试数据库连接
@@ -52,19 +41,6 @@ export async function POST(request: NextRequest) {
         data: {
           step: 'database',
           error: dbTestResult.error,
-        },
-      });
-    }
-
-    // 测试存储路径
-    const storageTestResult = testStoragePath(configData);
-    if (!storageTestResult.success) {
-      return NextResponse.json({
-        code: 400,
-        message: "存储路径不可用: " + storageTestResult.error,
-        data: {
-          step: 'storage',
-          error: storageTestResult.error,
         },
       });
     }
