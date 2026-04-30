@@ -353,11 +353,11 @@ export default function SetupPage() {
                   </div>
                   <div className="flex justify-between">
                     <span className="text-slate-400">存储类型</span>
-                    <span className="text-white">{originalConfig.storage?.type === 'local' ? '本地存储' : originalConfig.storage?.type === 'nas' ? 'NAS存储' : '对象存储'}</span>
+                    <span className="text-white">{originalConfig.storageType || '未设置'}</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-slate-400">管理员</span>
-                    <span className="text-white">{originalConfig.adminInfo?.username}</span>
+                    <span className="text-white">{originalConfig.adminInfo?.username || '未知'}</span>
                   </div>
                 </div>
               </div>

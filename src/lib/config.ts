@@ -69,6 +69,18 @@ function decrypt(ciphertext: string): string {
 }
 
 /**
+ * 初始化信息接口
+ */
+export interface InitInfo {
+  initialized: boolean;
+  initializedAt?: string;
+  adminUsername?: string;
+  adminRealName?: string;
+  systemName?: string;
+  storageType?: string;
+}
+
+/**
  * 系统配置接口
  */
 export interface SystemConfig {
@@ -80,6 +92,8 @@ export interface SystemConfig {
     password: string;
     name: string;
   };
+  // 初始化信息
+  initInfo?: InitInfo;
 }
 
 /**
@@ -93,6 +107,9 @@ export function getDefaultConfig(): SystemConfig {
       username: 'root',
       password: '',
       name: 'tengxi_pms',
+    },
+    initInfo: {
+      initialized: false,
     },
   };
 }
@@ -150,6 +167,26 @@ export function configExists(): boolean {
 }
 
 /**
+ * 更新初始化信息
+ */
+export function updateInitInfo(initInfo: InitInfo): boolean {
+  const current = readConfig();
+  if (!current) {
+    return false;
+  }
+
+  const updated: SystemConfig = {
+    ...current,
+    initInfo: {
+      ...current.initInfo,
+      ...initInfo,
+    },
+  };
+
+  return writeConfig(updated);
+}
+
+/**
  * 更新部分配置
  */
 export function updateConfig(partial: Partial<SystemConfig>): boolean {
@@ -160,6 +197,7 @@ export function updateConfig(partial: Partial<SystemConfig>): boolean {
 
   const updated: SystemConfig = {
     database: { ...current.database, ...partial.database },
+    initInfo: partial.initInfo !== undefined ? partial.initInfo : current.initInfo,
   };
 
   return writeConfig(updated);

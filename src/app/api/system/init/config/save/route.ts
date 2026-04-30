@@ -22,6 +22,10 @@ export async function POST(request: NextRequest) {
       });
     }
 
+    // 读取现有配置，保留初始化信息
+    const existingConfig = readConfig();
+    const existingInitInfo = existingConfig?.initInfo;
+
     const configData: SystemConfig = {
       database: {
         host: data.database.host || '127.0.0.1',
@@ -29,6 +33,9 @@ export async function POST(request: NextRequest) {
         username: data.database.username || 'root',
         password: data.database.password || '',
         name: data.database.name || 'tengxi_pms',
+      },
+      initInfo: existingInitInfo || {
+        initialized: false,
       },
     };
 
@@ -84,6 +91,7 @@ export async function POST(request: NextRequest) {
         tablesInfo: hasOldData.tablesInfo,
         step: 'config_saved',
         schemaSynced: !hasOldData.hasData,
+        initialized: configData.initInfo?.initialized || false,
       },
     });
   } catch (error: any) {
@@ -126,7 +134,7 @@ async function testDatabaseConnection(config: SystemConfig): Promise<{ success: 
  */
 function testStoragePath(config: SystemConfig): { success: boolean; error?: string } {
   try {
-    const storagePath = config.storage.path;
+    const storagePath = config.storage?.path;
 
     if (!storagePath) {
       return { success: false, error: "存储路径不能为空" };

@@ -9,7 +9,7 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
-import { configExists, readConfig, getDatabaseUrl } from "@/lib/config";
+import { configExists, readConfig, getDatabaseUrl, updateInitInfo } from "@/lib/config";
 import { PrismaClient } from '@prisma/client';
 import { hashPassword } from "@/lib/auth/jwt";
 
@@ -385,31 +385,7 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // 14. 记录初始化状态
-    await initPrisma.systemInitStatus.upsert({
-      where: { id: 1 },
-      create: {
-        initStep: "completed",
-        stepStatus: "completed",
-        completedAt: new Date(),
-        configData: JSON.stringify({
-          database: {
-            host: config.database.host,
-            port: config.database.port,
-            username: config.database.username,
-            database: config.database.name,
-          },
-          adminUsername: admin.username,
-          mode,
-        }),
-      },
-      update: {
-        stepStatus: "completed",
-        completedAt: new Date(),
-      },
-    });
-
-    // 15. 保存系统配置到数据库
+    // 14. 保存系统配置到数据库（不存敏感信息）
     const systemConfigs = [
       { paramKey: 'system_name', paramValue: systemName, paramType: 'string', remark: '系统名称' },
       { paramKey: 'system_version', paramValue: '1.0.0', paramType: 'string', remark: '系统版本' },
@@ -428,6 +404,15 @@ export async function POST(request: NextRequest) {
         },
       });
     }
+
+    // 15. 把初始化信息写入配置文件（配置文件存在=已初始化）
+    updateInitInfo({
+      initialized: true,
+      initializedAt: new Date().toISOString(),
+      adminUsername: admin.username,
+      adminRealName: admin.realName || '',
+      systemName: systemName,
+    });
 
     return NextResponse.json({
       code: 200,

@@ -3,11 +3,14 @@
 /**
  * 系统配置检查API
  * GET: 检查配置文件是否存在及状态
+ * 规则：
+ * - 配置文件(.config/system.enc)存在 = 已初始化
+ * - 从配置文件读取：initialized、initializedAt、adminUsername、adminRealName
+ * - 从数据库读取：systemName、storageType
  */
 
 import { NextResponse } from "next/server";
 import { configExists, readConfig } from "@/lib/config";
-import prisma from "@/lib/prisma";
 
 export async function GET() {
   try {
@@ -38,10 +41,15 @@ export async function GET() {
       });
     }
 
-    // 检查是否已初始化完成
-    let initialized = false;
-    let adminInfo = null;
-    let initializedAt = null;
+    // 从配置文件读取初始化信息
+    const initInfo = config.initInfo || {};
+    const initialized = initInfo.initialized || false;
+    const initializedAt = initInfo.initializedAt || null;
+    const adminUsername = initInfo.adminUsername || null;
+    const adminRealName = initInfo.adminRealName || null;
+    const configSystemName = initInfo.systemName || null;
+
+    // 从数据库读取其他信息
     let systemName = "未设置";
     let storageType = "未设置";
 
@@ -55,22 +63,6 @@ export async function GET() {
           },
         },
       });
-
-      // 检查 system_init_status 表
-      const initStatus = await configDb.systemInitStatus.findFirst({
-        where: { stepStatus: "completed", isDelete: false },
-        orderBy: { updatedAt: "desc" },
-      });
-
-      if (initStatus) {
-        initialized = true;
-        initializedAt = initStatus.updatedAt;
-        const configData = JSON.parse(initStatus.configData || "{}");
-        adminInfo = {
-          username: configData.adminUsername,
-          realName: configData.adminRealName,
-        };
-      }
 
       // 读取系统配置
       const systemConfigs = await configDb.systemConfig.findMany({
@@ -116,9 +108,13 @@ export async function GET() {
           hasCredentials: !!(config.database.username && config.database.password),
         },
         // 系统信息
-        systemName,
+        systemName: systemName !== "未设置" ? systemName : (configSystemName || "未设置"),
         storageType,
-        adminInfo,
+        // 管理员信息
+        adminInfo: initialized ? {
+          username: adminUsername,
+          realName: adminRealName,
+        } : null,
       },
     });
   } catch (error: any) {
