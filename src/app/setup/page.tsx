@@ -31,6 +31,16 @@ interface DatabaseForm {
   name: string;
 }
 
+interface StorageForm {
+  type: 'local' | 'oss';
+  path: string;
+  // OSS配置
+  endpoint?: string;
+  bucket?: string;
+  accessKey?: string;
+  secretKey?: string;
+}
+
 interface AdminForm {
   username: string;
   password: string;
@@ -57,6 +67,14 @@ export default function SetupPage() {
     password: '',
     name: 'tengxi_pms',
   });
+
+  const [storageForm, setStorageForm] = useState<StorageForm>({
+    type: 'local',
+    path: '/workspace/projects/storage',
+  });
+
+  const [testingDb, setTestingDb] = useState(false);
+  const [dbTestResult, setDbTestResult] = useState<{ success: boolean; message: string } | null>(null);
 
   const [adminForm, setAdminForm] = useState<AdminForm>({
     username: 'admin',
@@ -103,7 +121,7 @@ export default function SetupPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           database: dbForm,
-          storage: { type: 'local', path: '/workspace/projects/storage' },
+          storage: storageForm,
           systemName: "腾曦生产管理系统",
         }),
       });
@@ -120,6 +138,31 @@ export default function SetupPage() {
       setError("保存配置失败，请检查服务器连接");
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  // 测试数据库连接
+  const handleTestDbConnection = async () => {
+    setTestingDb(true);
+    setDbTestResult(null);
+
+    try {
+      const res = await fetch("/api/system/init/config/test", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(dbForm),
+      });
+      const data = await res.json();
+
+      if (data.code === 200) {
+        setDbTestResult({ success: true, message: "数据库连接成功！" });
+      } else {
+        setDbTestResult({ success: false, message: data.message || "数据库连接失败" });
+      }
+    } catch (err) {
+      setDbTestResult({ success: false, message: "无法连接到服务器" });
+    } finally {
+      setTestingDb(false);
     }
   };
 
@@ -364,6 +407,96 @@ export default function SetupPage() {
                 placeholder="tengxi_pms"
               />
             </div>
+
+            {/* 测试数据库连接 */}
+            <div>
+              <button
+                onClick={handleTestDbConnection}
+                disabled={testingDb}
+                className="w-full py-2 px-4 border border-slate-500 text-slate-300 rounded-lg hover:bg-slate-700 transition-colors text-sm"
+              >
+                {testingDb ? "测试中..." : "测试数据库连接"}
+              </button>
+              {dbTestResult && (
+                <div className={`mt-2 p-2 rounded-lg text-sm ${dbTestResult.success ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'}`}>
+                  {dbTestResult.message}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* 存储配置 */}
+          <div className="border-t border-slate-600 pt-4 mt-4">
+            <h3 className="text-lg font-medium text-white mb-3">存储配置</h3>
+            
+            <div className="mb-4">
+              <label className="block text-sm text-slate-300 mb-1">存储类型</label>
+              <select
+                value={storageForm.type}
+                onChange={(e) => setStorageForm({ ...storageForm, type: e.target.value as 'local' | 'oss' })}
+                className="w-full bg-slate-700 border border-slate-600 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-blue-500"
+              >
+                <option value="local">本地存储</option>
+                <option value="oss">对象存储 (OSS)</option>
+              </select>
+            </div>
+
+            {storageForm.type === 'local' ? (
+              <div>
+                <label className="block text-sm text-slate-300 mb-1">存储路径</label>
+                <input
+                  type="text"
+                  value={storageForm.path}
+                  onChange={(e) => setStorageForm({ ...storageForm, path: e.target.value })}
+                  className="w-full bg-slate-700 border border-slate-600 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-blue-500"
+                  placeholder="/workspace/projects/storage"
+                />
+                <p className="text-xs text-slate-400 mt-1">用于存储系统图片、附件等文件</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                <div>
+                  <label className="block text-sm text-slate-300 mb-1">Endpoint</label>
+                  <input
+                    type="text"
+                    value={storageForm.endpoint || ''}
+                    onChange={(e) => setStorageForm({ ...storageForm, endpoint: e.target.value })}
+                    className="w-full bg-slate-700 border border-slate-600 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-blue-500"
+                    placeholder="oss-cn-hangzhou.aliyuncs.com"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm text-slate-300 mb-1">Bucket</label>
+                  <input
+                    type="text"
+                    value={storageForm.bucket || ''}
+                    onChange={(e) => setStorageForm({ ...storageForm, bucket: e.target.value })}
+                    className="w-full bg-slate-700 border border-slate-600 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-blue-500"
+                    placeholder="my-bucket"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm text-slate-300 mb-1">Access Key</label>
+                  <input
+                    type="text"
+                    value={storageForm.accessKey || ''}
+                    onChange={(e) => setStorageForm({ ...storageForm, accessKey: e.target.value })}
+                    className="w-full bg-slate-700 border border-slate-600 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-blue-500"
+                    placeholder="LTAI..."
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm text-slate-300 mb-1">Secret Key</label>
+                  <input
+                    type="password"
+                    value={storageForm.secretKey || ''}
+                    onChange={(e) => setStorageForm({ ...storageForm, secretKey: e.target.value })}
+                    className="w-full bg-slate-700 border border-slate-600 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-blue-500"
+                    placeholder="输入Secret Key"
+                  />
+                </div>
+              </div>
+            )}
           </div>
 
           <button
