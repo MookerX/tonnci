@@ -55,6 +55,7 @@ export default function SetupPage() {
   const [configSaved, setConfigSaved] = useState(false);
   const [hasOldData, setHasOldData] = useState(false);
   const [reuseMode, setReuseMode] = useState<'new' | 'reuse'>('new');
+  const [initialized, setInitialized] = useState(false);
 
   // 表单数据
   const [dbForm, setDbForm] = useState<DatabaseForm>({
@@ -96,8 +97,9 @@ export default function SetupPage() {
         // 如果配置文件已存在
         if (data.data.exists) {
           if (data.data.initialized) {
-            // 系统已初始化完成，跳转到登录页
-            router.push("/");
+            // 系统已初始化完成，显示提示信息，不跳转
+            setInitialized(true);
+            setCurrentStep('complete');
             return;
           }
           // 配置存在但未初始化
@@ -243,6 +245,29 @@ export default function SetupPage() {
             completed={false}
           />
         </div>
+
+        {/* 系统已初始化提示 */}
+        {initialized && (
+          <div className="mb-6 p-4 bg-green-500/10 border border-green-500/30 rounded-lg">
+            <div className="flex items-center gap-3">
+              <svg className="w-6 h-6 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <div className="flex-1">
+                <p className="text-green-400 font-medium">系统已初始化完成</p>
+                <p className="text-green-300/80 text-sm mt-1">
+                  系统已经完成初始化配置，您可以直接返回登录页面使用系统。
+                </p>
+              </div>
+              <button
+                onClick={handleBackToLogin}
+                className="px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600 transition-colors text-sm"
+              >
+                返回登录
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* 错误提示 */}
         {error && (
