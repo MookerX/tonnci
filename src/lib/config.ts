@@ -86,8 +86,14 @@ export interface SystemConfig {
     path: string;
     // NAS配置
     nasHost?: string;
+    nasPort?: number;
     nasUsername?: string;
     nasPassword?: string;
+    // OSS配置
+    endpoint?: string;
+    bucket?: string;
+    accessKey?: string;
+    secretKey?: string;
   };
   // 系统配置
   system: {
