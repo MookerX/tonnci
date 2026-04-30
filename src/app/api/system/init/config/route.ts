@@ -57,6 +57,7 @@ export async function GET() {
           type: config.storage.type,
           path: config.storage.path,
         },
+        adminInfo: config.system.adminInfo || null,
       },
     });
   } catch (error: any) {

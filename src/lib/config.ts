@@ -94,6 +94,10 @@ export interface SystemConfig {
     name: string;
     initialized: boolean;
     initializedAt?: string;
+    adminInfo?: {
+      username: string;
+      realName?: string;
+    };
   };
 }
 
@@ -192,8 +196,9 @@ export function updateConfig(partial: Partial<SystemConfig>): boolean {
 
 /**
  * 标记系统已初始化
+ * @param adminInfo 管理员信息（可选）
  */
-export function markAsInitialized(): boolean {
+export function markAsInitialized(adminInfo?: { username: string; realName?: string }): boolean {
   const current = readConfig();
   const currentSystem = current?.system || { name: '腾曦生产管理系统', initialized: false };
   return updateConfig({
@@ -201,6 +206,10 @@ export function markAsInitialized(): boolean {
       ...currentSystem,
       initialized: true,
       initializedAt: new Date().toISOString(),
+      adminInfo: adminInfo ? {
+        username: adminInfo.username,
+        realName: adminInfo.realName,
+      } : currentSystem.adminInfo,
     },
   });
 }

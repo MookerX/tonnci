@@ -327,7 +327,10 @@ export async function POST(request: NextRequest) {
       });
 
       // 7. 标记系统已初始化
-      markAsInitialized();
+      markAsInitialized({
+        username: admin.username,
+        realName: admin.realName,
+      });
 
       return NextResponse.json({
         code: 200,

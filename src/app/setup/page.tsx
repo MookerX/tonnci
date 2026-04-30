@@ -8,6 +8,19 @@ interface ConfigStatus {
   initialized: boolean;
   systemName?: string;
   initializedAt?: string;
+  database?: {
+    host: string;
+    port: number;
+    name: string;
+  };
+  storage?: {
+    type: string;
+    path: string;
+  };
+  adminInfo?: {
+    username: string;
+    realName?: string;
+  };
 }
 
 interface DatabaseForm {
@@ -29,6 +42,8 @@ export default function SetupPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [initialized, setInitialized] = useState(false);
+  const [showReinitConfirm, setShowReinitConfirm] = useState(false);
+  const [originalConfig, setOriginalConfig] = useState<ConfigStatus | null>(null);
   const [currentStep, setCurrentStep] = useState<'config' | 'admin' | 'complete'>('config');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
@@ -63,7 +78,8 @@ export default function SetupPage() {
       if (data.code === 200 && data.data) {
         if (data.data.exists && data.data.initialized) {
           setInitialized(true);
-          setCurrentStep('complete');
+          setOriginalConfig(data.data);
+          setShowReinitConfirm(true);
         } else if (data.data.exists) {
           setCurrentStep('admin');
         }
@@ -175,6 +191,86 @@ export default function SetupPage() {
 
   // 已初始化完成
   if (initialized || currentStep === 'complete') {
+    // 显示重新初始化确认
+    if (showReinitConfirm && originalConfig) {
+      return (
+        <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 to-slate-800 p-4">
+          <div className="max-w-lg w-full bg-slate-800 rounded-lg shadow-xl p-6">
+            <div className="bg-green-500/10 border border-green-500/50 rounded-lg p-4 mb-6">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-10 h-10 bg-green-500/20 rounded-full flex items-center justify-center">
+                  <svg className="w-5 h-5 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                  </svg>
+                </div>
+                <div>
+                  <h2 className="text-xl font-bold text-green-500">系统已初始化</h2>
+                  <p className="text-slate-400 text-sm">当前系统配置信息如下</p>
+                </div>
+              </div>
+              
+              <div className="space-y-3 text-sm">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <span className="text-slate-400">系统名称：</span>
+                    <span className="text-white">{originalConfig.systemName || '腾曦生产管理系统'}</span>
+                  </div>
+                  <div>
+                    <span className="text-slate-400">初始化时间：</span>
+                    <span className="text-white">{originalConfig.initializedAt ? new Date(originalConfig.initializedAt).toLocaleString('zh-CN') : '-'}</span>
+                  </div>
+                </div>
+                
+                {originalConfig.database && (
+                  <div className="pt-2 border-t border-slate-700">
+                    <span className="text-slate-400">数据库：</span>
+                    <span className="text-white">
+                      {originalConfig.database.host}:{originalConfig.database.port}/{originalConfig.database.name}
+                    </span>
+                  </div>
+                )}
+                
+                {originalConfig.storage && (
+                  <div>
+                    <span className="text-slate-400">存储位置：</span>
+                    <span className="text-white">{originalConfig.storage.path}</span>
+                  </div>
+                )}
+                
+                {originalConfig.adminInfo && (
+                  <div>
+                    <span className="text-slate-400">管理员：</span>
+                    <span className="text-white">{originalConfig.adminInfo.realName || originalConfig.adminInfo.username}</span>
+                  </div>
+                )}
+              </div>
+            </div>
+            
+            <div className="text-center">
+              <p className="text-slate-400 mb-4">是否需要重新进行系统初始化？</p>
+              <div className="flex gap-4">
+                <button
+                  onClick={goToLogin}
+                  className="flex-1 bg-slate-700 hover:bg-slate-600 text-white py-3 px-4 rounded-lg font-medium transition-colors"
+                >
+                  返回登录
+                </button>
+                <button
+                  onClick={() => {
+                    setShowReinitConfirm(false);
+                    setCurrentStep('config');
+                  }}
+                  className="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-3 px-4 rounded-lg font-medium transition-colors"
+                >
+                  继续初始化
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      );
+    }
+    
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 to-slate-800">
         <div className="max-w-md w-full mx-4">
