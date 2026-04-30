@@ -385,7 +385,7 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // 14. 保存系统配置到数据库（不存敏感信息）
+    // 14. 保存系统配置到数据库
     const systemConfigs = [
       { paramKey: 'system_name', paramValue: systemName, paramType: 'string', remark: '系统名称' },
       { paramKey: 'system_version', paramValue: '1.0.0', paramType: 'string', remark: '系统版本' },
@@ -401,6 +401,24 @@ export async function POST(request: NextRequest) {
         update: {
           paramValue: cfg.paramValue,
           modifiedBy: SYSTEM_CREATOR_ID,
+        },
+      });
+    }
+
+    // 15. 保存存储配置到数据库（系统图片文件存储）
+    const initStorage = await initPrisma.storageConfig.findFirst({
+      where: { storageName: '系统图片文件存储' },
+    });
+
+    if (!initStorage) {
+      await initPrisma.storageConfig.create({
+        data: {
+          storageName: '系统图片文件存储',
+          storageType: 'local',
+          basePath: config.storage?.path || '/workspace/projects/storage',
+          fileTypes: 'jpg,jpeg,png,gif,bmp,webp,svg,ico,pdf,doc,docx,xls,xlsx,ppt,pptx',
+          isDefault: true,
+          status: 'active',
         },
       });
     }

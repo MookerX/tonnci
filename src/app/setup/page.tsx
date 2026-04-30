@@ -13,13 +13,15 @@ interface ConfigStatus {
     port: number;
     name: string;
   };
-  storage?: {
+  storageInfo?: {
+    name: string;
     type: string;
     path: string;
   };
   adminInfo?: {
     username: string;
     realName?: string;
+    createdAt?: string;
   };
 }
 
@@ -353,12 +355,22 @@ export default function SetupPage() {
                   </div>
                   <div className="flex justify-between">
                     <span className="text-slate-400">存储类型</span>
-                    <span className="text-white">{originalConfig.storage?.type || '未设置'}</span>
+                    <span className="text-white">{originalConfig.storageInfo?.name || '未设置'}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-slate-400">存储路径</span>
+                    <span className="text-white">{originalConfig.storageInfo?.path || '未设置'}</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-slate-400">管理员</span>
                     <span className="text-white">{originalConfig.adminInfo?.username || '未知'}</span>
                   </div>
+                  {originalConfig.adminInfo?.createdAt && (
+                    <div className="flex justify-between">
+                      <span className="text-slate-400">创建时间</span>
+                      <span className="text-white">{new Date(originalConfig.adminInfo.createdAt).toLocaleString('zh-CN')}</span>
+                    </div>
+                  )}
                 </div>
               </div>
             )}

@@ -5,8 +5,8 @@
  * GET: 检查配置文件是否存在及状态
  * 规则：
  * - 配置文件(.config/system.enc)存在 = 已初始化
- * - 配置文件只存储：initialized 标记
- * - 从数据库读取：systemName、adminInfo、storageType
+ * - 配置文件只存储：数据库连接信息、initialized 标记
+ * - 从数据库读取：systemName、adminInfo、storageInfo
  */
 
 import { NextResponse } from "next/server";
@@ -48,7 +48,7 @@ export async function GET() {
 
     // 从数据库读取其他信息
     let systemName = "未设置";
-    let storageType = "未设置";
+    let storageInfo = null;
     let adminInfo = null;
 
     try {
@@ -63,44 +63,47 @@ export async function GET() {
       });
 
       // 读取系统配置
-      const systemConfigs = await configDb.systemConfig.findMany({
-        where: { isDelete: false },
+      const systemConfig = await configDb.systemConfig.findFirst({
+        where: { paramKey: "system_name", isDelete: false },
       });
-
-      for (const cfg of systemConfigs) {
-        if (cfg.paramKey === "system_name") {
-          systemName = cfg.paramValue || "未设置";
-        }
+      if (systemConfig) {
+        systemName = systemConfig.paramValue || "未设置";
       }
 
-      // 读取存储配置（如果有）
+      // 读取存储配置（名称为"系统图片文件存储"）
       const storageConfig = await configDb.storageConfig.findFirst({
-        where: { isDelete: false },
-        orderBy: { createdAt: "desc" },
+        where: { 
+          storageName: "系统图片文件存储",
+          isDelete: false 
+        },
       });
       if (storageConfig) {
-        storageType = storageConfig.storageType === "local" ? "本地存储" 
-          : storageConfig.storageType === "nas" ? "NAS存储" 
-          : storageConfig.storageType === "oss" ? "对象存储" 
-          : "未设置";
+        storageInfo = {
+          storageType: storageConfig.storageType === "local" ? "本地存储" 
+            : storageConfig.storageType === "nas" ? "NAS存储" 
+            : storageConfig.storageType === "oss" ? "对象存储" 
+            : "未设置",
+          storagePath: storageConfig.basePath || "未设置",
+        };
       }
 
-      // 管理员信息（从配置文件读取：adminUsername/adminRealName）
-      const adminUsername = config.initInfo?.adminUsername;
-      const adminRealName = config.initInfo?.adminRealName;
-      if (adminUsername) {
-        adminInfo = {
-          username: adminUsername,
-          realName: adminRealName || "未知",
-        };
-      } else if (adminRole) {
+      // 读取超级管理员（创建时间最早的用户）
+      // 首先获取超级管理员角色的ID
+      const adminRole = await configDb.role.findFirst({
+        where: { roleName: "超级管理员", isDelete: false },
+      });
+      
+      if (adminRole) {
+        // 查找该角色下创建时间最早的用户
         const adminUser = await configDb.user.findFirst({
           where: { roleId: adminRole.id, isDelete: false },
+          orderBy: { createdAt: "asc" },
         });
+        
         if (adminUser) {
           adminInfo = {
             username: adminUser.username,
-            realName: adminUser.realName,
+            realName: adminUser.realName || "未知",
           };
         }
       }
@@ -127,8 +130,9 @@ export async function GET() {
         },
         // 系统信息（从数据库读取）
         systemName,
-        storageType,
-        // 管理员信息（从数据库读取）
+        // 存储信息（从数据库读取：系统图片文件存储）
+        storageInfo,
+        // 管理员信息（从数据库读取：创建时间最早的超级管理员）
         adminInfo,
       },
     });
