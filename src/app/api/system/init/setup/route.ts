@@ -180,18 +180,51 @@ export async function POST(request: NextRequest) {
 
     // 5. 检查是否已初始化
     const existingStatus = await initPrisma.systemInitStatus.findFirst();
-    if (existingStatus && existingStatus.stepStatus === 'completed') {
-      return NextResponse.json({
-        code: 400,
-        message: "系统已初始化，如需重新初始化请先清除配置",
-      });
-    }
+    const isAlreadyInitialized = existingStatus && existingStatus.stepStatus === 'completed';
 
-    // 6. 根据模式清理数据
+    // 6. 根据模式处理数据
     const reuseData = mode === 'reuse';
 
-    if (!reuseData) {
-      // 清空所有数据（按依赖顺序）
+    if (isAlreadyInitialized) {
+      // 系统已初始化
+      if (reuseData) {
+        // 重用数据模式：检验数据完整性
+        const tables = ['role', 'dept', 'user', 'menu'];
+        const missingTables: string[] = [];
+
+        for (const table of tables) {
+          try {
+            // @ts-ignore - 动态检查表
+            const count = await (initPrisma as any)[table].count();
+            if (count === 0) {
+              missingTables.push(table);
+            }
+          } catch {
+            missingTables.push(table);
+          }
+        }
+
+        if (missingTables.length > 0) {
+          return NextResponse.json({
+            code: 400,
+            message: `重用数据模式检测到数据不完整，缺少表或数据: ${missingTables.join(', ')}，请选择清空数据模式`,
+          });
+        }
+
+        // 数据完整，继续重用模式
+      } else {
+        // 清空数据模式：清除所有业务数据
+        await initPrisma.userRole.deleteMany({});
+        await initPrisma.rolePermission.deleteMany({});
+        await initPrisma.roleDeptScope.deleteMany({});
+        await initPrisma.user.deleteMany({});
+        await initPrisma.role.deleteMany({});
+        await initPrisma.dept.deleteMany({});
+        await initPrisma.menu.deleteMany({});
+        await initPrisma.systemInitStatus.deleteMany({});
+      }
+    } else if (!reuseData) {
+      // 未初始化且选择清空数据模式：清空所有数据
       await initPrisma.userRole.deleteMany({});
       await initPrisma.rolePermission.deleteMany({});
       await initPrisma.roleDeptScope.deleteMany({});
@@ -201,6 +234,7 @@ export async function POST(request: NextRequest) {
       await initPrisma.menu.deleteMany({});
       await initPrisma.systemInitStatus.deleteMany({});
     }
+    // 重用数据模式且未初始化：不需要清理，直接创建数据
 
     // 7. 创建超级管理员角色
     let superAdminRole = await initPrisma.role.findFirst({
