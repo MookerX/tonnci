@@ -258,6 +258,7 @@ export default function SetupPage() {
                 <button
                   onClick={() => {
                     setShowReinitConfirm(false);
+                    setInitialized(false);
                     setCurrentStep('config');
                   }}
                   className="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-3 px-4 rounded-lg font-medium transition-colors"
