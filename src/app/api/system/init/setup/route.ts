@@ -58,7 +58,35 @@ export async function POST(request: NextRequest) {
     const realName = data.admin?.realName || data.adminRealName;
     const database = data.database || {};
 
-    // 4. 执行初始化
+    // 4. 检查数据库连接
+    try {
+      await prisma.$connect();
+    } catch (dbError: any) {
+      const errorMsg = dbError?.message || String(dbError);
+      const isConnectionError = errorMsg.includes('Can\'t reach database server')
+        || errorMsg.includes('P1001')
+        || errorMsg.includes('connect ECONNREFUSED')
+        || errorMsg.includes('Connection refused');
+
+      if (isConnectionError) {
+        return NextResponse.json({
+          code: 503,
+          message: "数据库连接失败，请确保MySQL服务已启动",
+          data: {
+            hint: "请先启动MySQL服务，或检查数据库配置"
+          }
+        });
+      }
+
+      // 其他数据库错误
+      console.error('数据库错误:', dbError);
+      return NextResponse.json({
+        code: 500,
+        message: "数据库操作失败: " + errorMsg
+      });
+    }
+
+    // 5. 执行初始化
     await prisma.$transaction(async (tx) => {
       // 判断是否重用数据
       const reuseData = mode === "reuse";
@@ -262,14 +290,32 @@ export async function POST(request: NextRequest) {
     });
   } catch (error: any) {
     console.error("系统初始化失败", error);
-    
+
+    // 检查是否是数据库连接错误
+    const errorMsg = error?.message || String(error);
+    const isConnectionError = errorMsg.includes('Can\'t reach database server')
+      || errorMsg.includes('P1001')
+      || errorMsg.includes('connect ECONNREFUSED')
+      || errorMsg.includes('Connection refused')
+      || errorMsg.includes('127.0.0.1:3306');
+
+    if (isConnectionError) {
+      return NextResponse.json({
+        code: 503,
+        message: "数据库连接失败，请确保MySQL服务已启动",
+        data: {
+          hint: "请先启动MySQL服务，或检查数据库配置"
+        }
+      });
+    }
+
     if (error.code === 'P2002') {
       return NextResponse.json({
         code: 400,
         message: "用户名已存在，请使用其他用户名",
       });
     }
-    
+
     return NextResponse.json({
       code: 500,
       message: error.message || "系统初始化失败",
