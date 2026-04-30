@@ -84,11 +84,13 @@ export interface SystemConfig {
   storage: {
     type: 'local' | 'nas' | 'oss';
     path: string;
-    // NAS配置
+    // NAS配置 (SMB协议)
+    share?: string;       // SMB共享路径，如 \\192.168.1.1\share 或 /share
     nasHost?: string;
     nasPort?: number;
     nasUsername?: string;
     nasPassword?: string;
+    domain?: string;       // SMB域（可选）
     // OSS配置
     endpoint?: string;
     bucket?: string;

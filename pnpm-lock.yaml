@@ -246,6 +246,9 @@ importers:
       '@types/react-dom':
         specifier: ^19
         version: 19.2.3(@types/react@19.2.10)
+      '@types/smb2':
+        specifier: ^0.2.4
+        version: 0.2.4
       '@types/uuid':
         specifier: ^11.0.0
         version: 11.0.0
@@ -2808,6 +2811,9 @@ packages:
 
   '@types/react@19.2.10':
     resolution: {integrity: sha512-WPigyYuGhgZ/cTPRXB2EwUw+XvsRA3GqHlsP4qteqrnnjDrApbS7MxcGr/hke5iUoeB7E/gQtrs9I37zAJ0Vjw==}
+
+  '@types/smb2@0.2.4':
+    resolution: {integrity: sha512-cxC2aO0OkX61903hUsf4qhM2YFE3FEYAFtRxwD1ZZTX6a0e1Hv7TZrnQ3WGU7u5kOeH809l6iDal4hDTNuBzkw==}
 
   '@types/statuses@2.0.6':
     resolution: {integrity: sha512-xMAgYwceFhRA2zY+XbEA7mxYbA093wdiW8Vu6gZPGWy9cmOyU9XesH1tNcEWsKFd5Vzrqx5T3D38PWx1FIIXkA==}
@@ -9342,6 +9348,8 @@ snapshots:
   '@types/react@19.2.10':
     dependencies:
       csstype: 3.2.3
+
+  '@types/smb2@0.2.4': {}
 
   '@types/statuses@2.0.6': {}
 

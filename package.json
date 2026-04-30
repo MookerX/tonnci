@@ -92,6 +92,7 @@
     "@types/pg": "^8.16.0",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "@types/smb2": "^0.2.4",
     "@types/uuid": "^11.0.0",
     "eslint": "^9",
     "eslint-config-next": "16.1.1",
