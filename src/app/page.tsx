@@ -35,8 +35,8 @@ export default function LoginPage() {
         const data = await res.json();
 
         if (data.code === 200) {
-          // 如果配置文件不存在或系统未初始化，跳转到初始化页面
-          if (!data.data?.exists || !data.data?.initialized) {
+          // 如果配置文件不存在，跳转到初始化页面
+          if (!data.data?.exists) {
             router.replace("/setup");
             return;
           }
