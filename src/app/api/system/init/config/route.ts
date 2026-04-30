@@ -88,25 +88,18 @@ export async function GET() {
       }
 
       // 读取超级管理员（创建时间最早的用户）
-      // 首先获取超级管理员角色的ID
-      const adminRole = await configDb.role.findFirst({
-        where: { roleName: "超级管理员", isDelete: false },
+      const adminUser = await configDb.user.findFirst({
+        where: { isDelete: false },
+        orderBy: { createdAt: "asc" },
       });
-      
-      if (adminRole) {
-        // 查找该角色下创建时间最早的用户
-        const adminUser = await configDb.user.findFirst({
-          where: { roleId: adminRole.id, isDelete: false },
-          orderBy: { createdAt: "asc" },
-        });
-        
-        if (adminUser) {
-          adminInfo = {
-            username: adminUser.username,
-            realName: adminUser.realName || "未知",
-          };
-        }
+      if (adminUser) {
+        adminInfo = {
+          username: adminUser.username,
+          realName: adminUser.realName || adminUser.username,
+          createdAt: adminUser.createdAt,
+        };
       }
+      console.log("Admin user query result:", adminUser);
 
       await configDb.$disconnect();
     } catch (dbError) {
