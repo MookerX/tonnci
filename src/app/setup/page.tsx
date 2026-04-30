@@ -90,6 +90,8 @@ export default function SetupPage() {
     realName: '',
   });
 
+  const [systemName, setSystemName] = useState('腾曦生产管理系统');
+
   // 检查配置状态
   useEffect(() => {
     checkConfigStatus();
@@ -180,7 +182,7 @@ export default function SetupPage() {
         body: JSON.stringify({
           database: dbForm,
           storage: storageForm,
-          systemName: "腾曦生产管理系统",
+          systemName: systemName,
         }),
       });
       const data = await res.json();
@@ -394,7 +396,7 @@ export default function SetupPage() {
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 to-slate-800 p-4">
         <div className="max-w-lg w-full bg-slate-800 rounded-lg shadow-xl p-6">
           <h1 className="text-2xl font-bold text-white mb-2">系统初始化</h1>
-          <p className="text-slate-400 mb-6">步骤1：配置数据库连接</p>
+          <p className="text-slate-400 mb-6">步骤1：系统信息与数据库配置</p>
 
           {error && (
             <div className="bg-red-500/10 border border-red-500/50 rounded-lg p-3 mb-4 text-red-400 text-sm">
@@ -403,6 +405,21 @@ export default function SetupPage() {
           )}
 
           <div className="space-y-4">
+            <div>
+              <label className="block text-sm text-slate-300 mb-1">系统名称</label>
+              <input
+                type="text"
+                value={systemName}
+                onChange={(e) => setSystemName(e.target.value)}
+                className="w-full bg-slate-700 border border-slate-600 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-blue-500"
+                placeholder="腾曦生产管理系统"
+              />
+            </div>
+
+            <div className="border-t border-slate-700 pt-4 mt-4">
+              <h3 className="text-sm text-slate-400 mb-3">数据库配置</h3>
+            </div>
+
             <div>
               <label className="block text-sm text-slate-300 mb-1">数据库主机</label>
               <input
@@ -493,7 +510,7 @@ export default function SetupPage() {
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 to-slate-800 p-4">
         <div className="max-w-lg w-full bg-slate-800 rounded-lg shadow-xl p-6">
           <h1 className="text-2xl font-bold text-white mb-2">系统初始化</h1>
-          <p className="text-slate-400 mb-6">步骤2：配置存储</p>
+          <p className="text-slate-400 mb-6">步骤2：存储配置</p>
 
           {error && (
             <div className="bg-red-500/10 border border-red-500/50 rounded-lg p-3 mb-4 text-red-400 text-sm">
