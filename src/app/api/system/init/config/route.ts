@@ -1,8 +1,8 @@
 // @ts-nocheck
 /* eslint-disable @typescript-eslint/ban-ts-comment */
 /**
- * 系统初始化状态检查API
- * 使用新的配置文件系统
+ * 系统配置检查API
+ * GET: 检查配置文件是否存在及状态
  */
 
 import { NextResponse } from "next/server";
@@ -10,52 +10,60 @@ import { configExists, readConfig } from "@/lib/config";
 
 export async function GET() {
   try {
-    // 检查配置文件是否存在
-    if (!configExists()) {
+    const exists = configExists();
+
+    if (!exists) {
       return NextResponse.json({
         code: 200,
-        message: "系统未配置",
+        message: "配置文件不存在",
         data: {
           exists: false,
-          isInitialized: false,
+          initialized: false,
         },
       });
     }
 
-    // 读取配置
+    // 读取配置（不包含敏感信息）
     const config = readConfig();
 
     if (!config) {
       return NextResponse.json({
-        code: 500,
+        code: 200,
         message: "配置文件已损坏",
         data: {
           exists: false,
-          isInitialized: false,
+          initialized: false,
         },
       });
     }
 
     return NextResponse.json({
       code: 200,
-      message: "获取状态成功",
+      message: "配置文件存在",
       data: {
         exists: true,
-        isInitialized: config.system.initialized,
+        initialized: config.system.initialized,
         initializedAt: config.system.initializedAt,
         systemName: config.system.name,
+        // 不返回敏感信息
         database: {
           host: config.database.host,
           port: config.database.port,
           name: config.database.name,
+          // 不返回用户名密码
+          hasCredentials: !!(config.database.username && config.database.password),
+        },
+        storage: {
+          type: config.storage.type,
+          path: config.storage.path,
         },
       },
     });
   } catch (error: any) {
-    console.error("检查初始化状态失败", error);
+    console.error("Config check error:", error);
     return NextResponse.json({
       code: 500,
-      message: error.message || "检查初始化状态失败",
+      message: "检查配置失败",
     });
   }
 }

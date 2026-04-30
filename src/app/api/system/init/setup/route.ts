@@ -1,43 +1,97 @@
 // @ts-nocheck
 /* eslint-disable @typescript-eslint/ban-ts-comment */
 /**
- * 系统初始化设置接口
- * 支持首次初始化和重新初始化
- * 重用数据模式：保留现有角色、部门、用户，只更新管理员信息
- * 不重用/首次初始化：清空所有数据后重新创建
+ * 系统初始化设置API
+ * 支持分步骤初始化：
+ * 1. 保存配置文件（数据库、存储） -> /api/system/init/config/save
+ * 2. 创建超级管理员 -> 本接口
+ * 3. 完成初始化 -> 本接口
  */
 
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
+import { configExists, readConfig, markAsInitialized, getDatabaseUrl } from "@/lib/config";
+import { PrismaClient } from '@prisma/client';
 import { hashPassword } from "@/lib/auth/jwt";
 
 // 创建者ID：0 表示系统创建
 const SYSTEM_CREATOR_ID = 0;
 
-// 参数校验
-function validateParams(data: any): { valid: boolean; message?: string } {
-  const username = data.admin?.username || data.adminUsername;
-  const password = data.admin?.password || data.adminPassword;
-  const realName = data.admin?.realName || data.adminRealName;
+/**
+ * 检查配置状态
+ */
+export async function GET() {
+  try {
+    if (!configExists()) {
+      return NextResponse.json({
+        code: 200,
+        message: "配置文件不存在",
+        data: {
+          configured: false,
+          initialized: false,
+        },
+      });
+    }
 
-  if (!username || username.length < 2) {
-    return { valid: false, message: "管理员用户名至少2个字符" };
+    const config = readConfig();
+    if (!config) {
+      return NextResponse.json({
+        code: 500,
+        message: "配置文件已损坏",
+      });
+    }
+
+    return NextResponse.json({
+      code: 200,
+      message: "配置已就绪",
+      data: {
+        configured: true,
+        initialized: config.system.initialized,
+        systemName: config.system.name,
+      },
+    });
+  } catch (error: any) {
+    console.error("Init check error:", error);
+    return NextResponse.json({
+      code: 500,
+      message: "检查失败: " + error.message,
+    });
   }
-
-  if (!password || password.length < 6) {
-    return { valid: false, message: "密码至少6个字符" };
-  }
-
-  if (!realName) {
-    return { valid: false, message: "请输入管理员姓名" };
-  }
-
-  return { valid: true };
 }
 
+/**
+ * 执行系统初始化
+ * POST body: {
+ *   mode: 'new' | 'reuse',  // 新建或重用数据
+ *   admin: {
+ *     username: string,
+ *     password: string,
+ *     realName: string,
+ *     phone?: string,
+ *     email?: string
+ *   }
+ * }
+ */
 export async function POST(request: NextRequest) {
   try {
-    // 1. 解析请求参数
+    // 1. 检查配置文件是否存在
+    if (!configExists()) {
+      return NextResponse.json({
+        code: 400,
+        message: "请先配置数据库和存储",
+        data: { step: 'config' },
+      });
+    }
+
+    // 2. 读取配置
+    const config = readConfig();
+    if (!config) {
+      return NextResponse.json({
+        code: 500,
+        message: "配置文件已损坏",
+      });
+    }
+
+    // 3. 解析请求参数
     let data: any;
     try {
       data = await request.json();
@@ -45,269 +99,247 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ code: 400, message: "无效的请求参数" });
     }
 
-    // 2. 参数校验
-    const validation = validateParams(data);
-    if (!validation.valid) {
-      return NextResponse.json({ code: 400, message: validation.message });
+    // 4. 参数校验
+    const { mode = 'new', admin } = data;
+
+    if (!admin?.username || admin.username.length < 2) {
+      return NextResponse.json({ code: 400, message: "管理员用户名至少2个字符" });
     }
 
-    // 3. 获取参数
-    const mode = data.mode || "new"; // 'reuse' | 'clear' | 'new'
-    const username = data.admin?.username || data.adminUsername;
-    const password = data.admin?.password || data.adminPassword;
-    const realName = data.admin?.realName || data.adminRealName;
-    const database = data.database || {};
+    if (!admin?.password || admin.password.length < 6) {
+      return NextResponse.json({ code: 400, message: "密码至少6个字符" });
+    }
 
-    // 4. 检查数据库连接
-    try {
-      await prisma.$connect();
-    } catch (dbError: any) {
-      const errorMsg = dbError?.message || String(dbError);
-      const isConnectionError = errorMsg.includes('Can\'t reach database server')
-        || errorMsg.includes('P1001')
-        || errorMsg.includes('connect ECONNREFUSED')
-        || errorMsg.includes('Connection refused');
+    if (!admin?.realName) {
+      return NextResponse.json({ code: 400, message: "请输入管理员姓名" });
+    }
 
-      if (isConnectionError) {
-        return NextResponse.json({
-          code: 503,
-          message: "数据库连接失败，请确保MySQL服务已启动",
-          data: {
-            hint: "请先启动MySQL服务，或检查数据库配置"
-          }
-        });
-      }
-
-      // 其他数据库错误
-      console.error('数据库错误:', dbError);
+    // 5. 创建数据库连接（使用配置文件中的数据库）
+    const databaseUrl = getDatabaseUrl();
+    if (!databaseUrl) {
       return NextResponse.json({
         code: 500,
-        message: "数据库操作失败: " + errorMsg
+        message: "数据库配置无效",
       });
     }
 
-    // 5. 执行初始化
-    await prisma.$transaction(async (tx) => {
-      // 判断是否重用数据
-      const reuseData = mode === "reuse";
-      
-      if (!reuseData) {
-        // ===== 不重用数据：清空所有数据 =====
-        // 先删除关联表
-        await tx.userRole.deleteMany({});
-        await tx.rolePermission.deleteMany({});
-        await tx.roleDeptScope.deleteMany({});
-        // 清空主表
-        await tx.user.deleteMany({});
-        await tx.role.deleteMany({});
-        await tx.dept.deleteMany({});
-        await tx.menu.deleteMany({});
-      }
+    // 创建临时的 PrismaClient 使用配置文件中的数据库
+    const initPrisma = new PrismaClient({
+      datasources: {
+        db: {
+          url: databaseUrl,
+        },
+      },
+      log: ['error'],
+    });
 
-      // ===== 角色：超级管理员 =====
-      let superAdminRole = await tx.role.findFirst({
-        where: { roleCode: "super_admin", isDelete: false }
-      });
-      
-      if (!superAdminRole) {
-        // 不存在则创建
-        superAdminRole = await tx.role.create({
-          data: {
-            roleCode: "super_admin",
-            roleName: "超级管理员",
-            dataScope: "all",
-            status: "active",
-            sortOrder: 1,
-            createdBy: SYSTEM_CREATOR_ID,
-            remark: "系统内置超级管理员角色，拥有全部权限",
-          },
-        });
-      }
+    try {
+      // 测试数据库连接
+      await initPrisma.$connect();
 
-      // ===== 部门：IT部 =====
-      let itDept = await tx.dept.findFirst({
-        where: { deptCode: "IT", isDelete: false }
-      });
-      
-      if (!itDept) {
-        // 不存在则创建
-        itDept = await tx.dept.create({
-          data: {
-            deptCode: "IT",
-            deptName: "IT部",
-            sortOrder: 0,
-            status: "active",
-            createdBy: SYSTEM_CREATOR_ID,
-            remark: "系统默认IT部门",
-          },
-        });
-      }
+      // 6. 在事务中执行初始化
+      await initPrisma.$transaction(async (tx) => {
+        const reuseData = mode === 'reuse';
 
-      // ===== 用户：超级管理员 =====
-      const hashedPassword = await hashPassword(password);
-      
-      let adminUser = await tx.user.findFirst({
-        where: { username: username, isDelete: false }
-      });
-      
-      if (adminUser) {
-        // 用户已存在，更新信息
-        adminUser = await tx.user.update({
-          where: { id: adminUser.id },
-          data: {
-            password: hashedPassword,
-            realName,
-            deptId: itDept.id,
-            status: "active",
-            roleIds: JSON.stringify([superAdminRole.id]),
-          },
-        });
-        
-        // 更新用户角色关联
-        await tx.userRole.deleteMany({ where: { userId: adminUser.id } });
-        await tx.userRole.create({
-          data: {
-            userId: adminUser.id,
-            roleId: superAdminRole.id,
-          },
-        });
-      } else {
-        // 用户不存在则创建
-        adminUser = await tx.user.create({
-          data: {
-            uuid: crypto.randomUUID(),
-            username,
-            password: hashedPassword,
-            realName,
-            deptId: itDept.id,
-            status: "active",
-            roleIds: JSON.stringify([superAdminRole.id]),
-            createdBy: SYSTEM_CREATOR_ID,
-          },
-        });
-        
-        // 创建用户角色关联
-        await tx.userRole.create({
-          data: {
-            userId: adminUser.id,
-            roleId: superAdminRole.id,
-          },
-        });
-      }
+        if (!reuseData) {
+          // ===== 不重用数据：清空所有数据 =====
+          await tx.userRole.deleteMany({});
+          await tx.rolePermission.deleteMany({});
+          await tx.roleDeptScope.deleteMany({});
+          await tx.user.deleteMany({});
+          await tx.role.deleteMany({});
+          await tx.dept.deleteMany({});
+          await tx.menu.deleteMany({});
+        }
 
-      // ===== 存储：系统图片存储 =====
-      let imageStorage = await tx.storageConfig.findFirst({
-        where: { storageName: "系统图片存储", isDelete: false }
-      });
-      
-      if (!imageStorage) {
-        await tx.storageConfig.create({
-          data: {
-            storageName: "系统图片存储",
-            storageType: "local",
-            basePath: "/workspace/projects/storage/images",
-            fileTypes: ".png,.gif,.jpg,.jpeg,.webp,.avif,.svg",
-            maxFileSize: 10485760,
-            isDefault: true,
-            status: "active",
-            createdBy: SYSTEM_CREATOR_ID,
-            remark: "系统默认图片存储，绑定常用图片格式",
-          },
-        });
-      }
-
-      // ===== 菜单：系统管理 =====
-      // 首次初始化才创建菜单
-      if (!reuseData) {
-        const systemDir = await tx.menu.create({
-          data: {
-            menuName: "系统管理",
-            menuType: "directory",
-            path: "/dashboard/system",
-            icon: "Setting",
-            sortOrder: 100,
-            status: "active",
-            createdBy: SYSTEM_CREATOR_ID,
-          },
+        // ===== 角色：超级管理员 =====
+        let superAdminRole = await tx.role.findFirst({
+          where: { roleCode: "super_admin", isDelete: false },
         });
 
-        const subMenus = [
-          { menuName: "用户管理", menuType: "menu", path: "/dashboard/system/user", sortOrder: 1 },
-          { menuName: "角色管理", menuType: "menu", path: "/dashboard/system/role", sortOrder: 2 },
-          { menuName: "部门管理", menuType: "menu", path: "/dashboard/system/dept", sortOrder: 3 },
-          { menuName: "菜单管理", menuType: "menu", path: "/dashboard/system/menu", sortOrder: 4 },
-        ];
-
-        for (const menu of subMenus) {
-          await tx.menu.create({
+        if (!superAdminRole) {
+          superAdminRole = await tx.role.create({
             data: {
-              ...menu,
-              parentId: systemDir.id,
+              roleCode: "super_admin",
+              roleName: "超级管理员",
+              dataScope: "all",
+              status: "active",
+              sortOrder: 1,
+              createdBy: SYSTEM_CREATOR_ID,
+              remark: "系统内置超级管理员角色，拥有全部权限",
+            },
+          });
+        }
+
+        // ===== 部门：IT部 =====
+        let itDept = await tx.dept.findFirst({
+          where: { deptCode: "IT", isDelete: false },
+        });
+
+        if (!itDept) {
+          itDept = await tx.dept.create({
+            data: {
+              deptCode: "IT",
+              deptName: "IT部",
+              sortOrder: 0,
+              status: "active",
+              createdBy: SYSTEM_CREATOR_ID,
+              remark: "系统默认IT部门",
+            },
+          });
+        }
+
+        // ===== 用户：超级管理员 =====
+        const hashedPassword = await hashPassword(admin.password);
+
+        let adminUser = await tx.user.findFirst({
+          where: { username: admin.username, isDelete: false },
+        });
+
+        if (adminUser) {
+          adminUser = await tx.user.update({
+            where: { id: adminUser.id },
+            data: {
+              password: hashedPassword,
+              realName: admin.realName,
+              phone: admin.phone || null,
+              email: admin.email || null,
+              deptId: itDept.id,
+              status: "active",
+              roleIds: JSON.stringify([superAdminRole.id]),
+              modifiedBy: SYSTEM_CREATOR_ID,
+            },
+          });
+        } else {
+          adminUser = await tx.user.create({
+            data: {
+              username: admin.username,
+              password: hashedPassword,
+              realName: admin.realName,
+              phone: admin.phone || null,
+              email: admin.email || null,
+              deptId: itDept.id,
+              userType: "internal",
+              roleIds: JSON.stringify([superAdminRole.id]),
               status: "active",
               createdBy: SYSTEM_CREATOR_ID,
             },
           });
         }
-      }
 
-      // ===== 记录初始化状态 =====
-      await tx.systemInitStatus.upsert({
-        where: { id: 1 },
-        create: {
-          initStep: "completed",
-          stepStatus: "completed",
-          completedAt: new Date(),
-          configData: JSON.stringify({
-            database: {
-              host: database.host,
-              port: database.port,
-              username: database.username,
-              password: database.password,
-              database: database.database,
+        // ===== 角色-用户关联 =====
+        const existingRoleUser = await tx.userRole.findFirst({
+          where: { userId: adminUser.id, roleId: superAdminRole.id },
+        });
+
+        if (!existingRoleUser) {
+          await tx.userRole.create({
+            data: {
+              userId: adminUser.id,
+              roleId: superAdminRole.id,
             },
-          }),
-        },
-        update: {
-          stepStatus: "completed",
-          completedAt: new Date(),
-          configData: JSON.stringify({
-            database: {
-              host: database.host,
-              port: database.port,
-              username: database.username,
-              password: database.password,
-              database: database.database,
+          });
+        }
+
+        // ===== 创建默认菜单（仅在新建时） =====
+        if (!reuseData) {
+          // 创建系统管理目录
+          const systemDir = await tx.menu.create({
+            data: {
+              menuName: "系统管理",
+              menuType: "directory",
+              icon: "Settings",
+              path: "/dashboard/system",
+              sortOrder: 100,
+              status: "active",
+              createdBy: SYSTEM_CREATOR_ID,
             },
-          }),
+          });
+
+          // 创建子菜单
+          const subMenus = [
+            { menuName: "用户管理", menuType: "menu", path: "/dashboard/system/user", sortOrder: 1 },
+            { menuName: "角色管理", menuType: "menu", path: "/dashboard/system/role", sortOrder: 2 },
+            { menuName: "部门管理", menuType: "menu", path: "/dashboard/system/dept", sortOrder: 3 },
+            { menuName: "菜单管理", menuType: "menu", path: "/dashboard/system/menu", sortOrder: 4 },
+          ];
+
+          for (const menu of subMenus) {
+            await tx.menu.create({
+              data: {
+                ...menu,
+                parentId: systemDir.id,
+                status: "active",
+                createdBy: SYSTEM_CREATOR_ID,
+              },
+            });
+          }
+
+          // ===== 角色权限：超级管理员拥有所有菜单权限 =====
+          const allMenus = await tx.menu.findMany({
+            where: { isDelete: false },
+          });
+
+          for (const menu of allMenus) {
+            await tx.rolePermission.create({
+              data: {
+                roleId: superAdminRole.id,
+                menuId: menu.id,
+                permission: "*",
+              },
+            });
+          }
+
+          // ===== 部门权限 =====
+          await tx.roleDeptScope.create({
+            data: {
+              roleId: superAdminRole.id,
+              deptId: itDept.id,
+            },
+          });
+        }
+
+        // ===== 记录初始化状态 =====
+        await tx.systemInitStatus.upsert({
+          where: { id: 1 },
+          create: {
+            initStep: "completed",
+            stepStatus: "completed",
+            completedAt: new Date(),
+            configData: JSON.stringify({
+              database: {
+                host: config.database.host,
+                port: config.database.port,
+                username: config.database.username,
+                database: config.database.name,
+              },
+              adminUsername: admin.username,
+              mode,
+            }),
+          },
+          update: {
+            stepStatus: "completed",
+            completedAt: new Date(),
+          },
+        });
+      });
+
+      // 7. 标记系统已初始化
+      markAsInitialized();
+
+      return NextResponse.json({
+        code: 200,
+        message: "系统初始化完成",
+        data: {
+          mode,
+          adminUsername: admin.username,
         },
       });
-    });
-
-    return NextResponse.json({
-      code: 200,
-      message: "系统初始化完成",
-      data: { mode },
-    });
+    } finally {
+      await initPrisma.$disconnect();
+    }
   } catch (error: any) {
     console.error("系统初始化失败", error);
-
-    // 检查是否是数据库连接错误
-    const errorMsg = error?.message || String(error);
-    const isConnectionError = errorMsg.includes('Can\'t reach database server')
-      || errorMsg.includes('P1001')
-      || errorMsg.includes('connect ECONNREFUSED')
-      || errorMsg.includes('Connection refused')
-      || errorMsg.includes('127.0.0.1:3306');
-
-    if (isConnectionError) {
-      return NextResponse.json({
-        code: 503,
-        message: "数据库连接失败，请确保MySQL服务已启动",
-        data: {
-          hint: "请先启动MySQL服务，或检查数据库配置"
-        }
-      });
-    }
 
     if (error.code === 'P2002') {
       return NextResponse.json({

@@ -30,12 +30,13 @@ export default function LoginPage() {
           return;
         }
 
-        // 检查系统初始化状态
-        const data = await fetchApi("/api/system/init/status");
+        // 检查系统配置状态
+        const res = await fetch("/api/system/init/config");
+        const data = await res.json();
 
         if (data.code === 200) {
-          if (!data.data?.isInitialized) {
-            // 系统未初始化，跳转到初始化页面
+          // 如果配置文件不存在或系统未初始化，跳转到初始化页面
+          if (!data.data?.exists || !data.data?.initialized) {
             router.replace("/setup");
             return;
           }
