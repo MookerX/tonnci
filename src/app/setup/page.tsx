@@ -353,7 +353,7 @@ export default function SetupPage() {
                   </div>
                   <div className="flex justify-between">
                     <span className="text-slate-400">存储类型</span>
-                    <span className="text-white">{originalConfig.storageType || '未设置'}</span>
+                    <span className="text-white">{originalConfig.storage?.type || '未设置'}</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-slate-400">管理员</span>

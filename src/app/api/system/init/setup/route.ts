@@ -405,13 +405,10 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // 15. 把初始化信息写入配置文件（配置文件存在=已初始化）
+    // 15. 把初始化状态写入配置文件（配置文件存在=已初始化）
     updateInitInfo({
       initialized: true,
       initializedAt: new Date().toISOString(),
-      adminUsername: admin.username,
-      adminRealName: admin.realName || '',
-      systemName: systemName,
     });
 
     return NextResponse.json({
