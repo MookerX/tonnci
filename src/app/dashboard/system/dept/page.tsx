@@ -12,7 +12,9 @@ interface Dept {
   deptName: string;
   deptCode?: string;
   leaderName?: string;
+  leaderNames?: string[];
   managerId?: number;
+  managerIds?: number[];
   sortOrder: number;
   status: string;
   remark?: string;
@@ -39,7 +41,7 @@ export default function SystemDeptPage() {
     parentId: undefined as number | undefined,
     deptName: "",
     deptCode: "",
-    managerId: undefined as number | undefined,
+    managerIds: [] as number[],
     sortOrder: 0,
     status: "active",
   });
@@ -105,7 +107,7 @@ export default function SystemDeptPage() {
         parentId: dept.parentId,
         deptName: dept.deptName,
         deptCode: dept.deptCode || "",
-        managerId: dept.managerId,
+        managerIds: dept.managerIds || [],
         sortOrder: dept.sortOrder,
         status: dept.status,
       });
@@ -115,7 +117,7 @@ export default function SystemDeptPage() {
         parentId: parentId,
         deptName: "",
         deptCode: "",
-        managerId: undefined,
+        managerIds: [],
         sortOrder: 0,
         status: "active",
       });
@@ -129,10 +131,16 @@ export default function SystemDeptPage() {
       return;
     }
     // 查找选中的用户信息
-    const selectedUser = userList.find(u => u.id === form.managerId);
+    const selectedUsers = userList.filter(u => form.managerIds.includes(u.id));
+    const leaderNames = selectedUsers.map(u => u.realName || u.username);
     const submitData = {
-      ...form,
-      leaderName: selectedUser?.realName || selectedUser?.username || undefined,
+      parentId: form.parentId,
+      deptName: form.deptName,
+      deptCode: form.deptCode,
+      managerIds: form.managerIds,
+      sortOrder: form.sortOrder,
+      status: form.status,
+      leaderNames,
     };
     try {
       let data;
@@ -221,7 +229,7 @@ export default function SystemDeptPage() {
             {/* 部门信息 */}
             <span className="font-medium">{dept.deptName}</span>
             {dept.deptCode && <span className="text-xs text-gray-400 font-mono">({dept.deptCode})</span>}
-            {dept.leaderName && <span className="text-xs text-gray-500">负责人: {dept.leaderName}</span>}
+            {dept.leaderNames?.join('、') || dept.leaderName}
             {/* 统计信息 */}
             <span className="text-xs text-gray-400 ml-2">
               {dept.userCount > 0 && <span className="mr-2">用户: {dept.userCount}</span>}
@@ -328,7 +336,7 @@ export default function SystemDeptPage() {
                     {dept.deptName}
                   </td>
                   <td className="px-4 py-2.5 font-mono text-xs">{dept.deptCode || "-"}</td>
-                  <td className="px-4 py-2.5">{dept.leaderName || "-"}</td>
+                  <td className="px-4 py-2.5">{dept.leaderNames?.join('、') || dept.leaderName || "-"}</td>
                   <td className="px-4 py-2.5">{dept.userCount}</td>
                   <td className="px-4 py-2.5">
                     <PermissionGuard permission="system:dept:create"><button onClick={() => handleOpenForm(undefined, dept.id)} className="text-blue-600 hover:underline text-sm mr-2">添加子部门</button></PermissionGuard>
@@ -372,19 +380,37 @@ export default function SystemDeptPage() {
                 <input className="w-full border rounded px-3 py-2 text-sm font-mono" value={form.deptCode} onChange={e => setForm({...form, deptCode: e.target.value})} />
               </div>
               <div>
-                <label className="block text-xs text-gray-500 mb-1">部门负责人</label>
-                <select
-                  className="w-full border rounded px-3 py-2 text-sm"
-                  value={form.managerId || ""}
-                  onChange={e => setForm({...form, managerId: e.target.value ? parseInt(e.target.value) : undefined})}
-                >
-                  <option value="">请选择负责人</option>
-                  {userList.map(user => (
-                    <option key={user.id} value={user.id}>
-                      {user.realName || user.username}
-                    </option>
-                  ))}
-                </select>
+                <label className="block text-xs text-gray-500 mb-1">部门负责人（可多选）</label>
+                <div className="border rounded px-3 py-2 text-sm max-h-48 overflow-y-auto">
+                  {userList.length === 0 ? (
+                    <span className="text-gray-400">暂无用户</span>
+                  ) : (
+                    <div className="space-y-1">
+                      {userList.map(user => (
+                        <label key={user.id} className="flex items-center gap-2 cursor-pointer hover:bg-gray-50 py-1">
+                          <input
+                            type="checkbox"
+                            checked={form.managerIds.includes(user.id)}
+                            onChange={(e) => {
+                              const newIds = e.target.checked
+                                ? [...form.managerIds, user.id]
+                                : form.managerIds.filter(id => id !== user.id);
+                              setForm({...form, managerIds: newIds});
+                            }}
+                            className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                          />
+                          <span>{user.realName || user.username}</span>
+                          <span className="text-gray-400 text-xs">(@{user.username})</span>
+                        </label>
+                      ))}
+                    </div>
+                  )}
+                </div>
+                {form.managerIds.length > 0 && (
+                  <div className="mt-1 text-xs text-gray-500">
+                    已选择：{userList.filter(u => form.managerIds.includes(u.id)).map(u => u.realName || u.username).join('、')}
+                  </div>
+                )}
               </div>
               <div>
                 <label className="block text-xs text-gray-500 mb-1">排序</label>
