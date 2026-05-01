@@ -75,7 +75,9 @@ export default function SystemDeptPage() {
     try {
       const data = await fetchApi("/api/system/user", { headers });
       if (data.code === 200) {
-        setUserList(data.data || []);
+        // 处理 API 返回的数据格式
+        const userData = data.data?.list || data.data || [];
+        setUserList(Array.isArray(userData) ? userData : []);
       }
     } catch (e) {
       console.error("获取用户列表失败", e);
