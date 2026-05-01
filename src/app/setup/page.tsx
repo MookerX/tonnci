@@ -131,6 +131,16 @@ export default function SetupPage() {
               ossAccessKey: '',
               ossSecretKey: '',
             });
+            // 填充数据库配置
+            if (data.data.database) {
+              setDbForm({
+                host: data.data.database.host || '',
+                port: data.data.database.port || 3306,
+                username: data.data.database.username || '',
+                password: data.data.database.password || '',
+                name: data.data.database.name || '',
+              });
+            }
           }
         } else if (data.data.exists) {
           // 配置文件存在但未初始化，说明是已保存配置
