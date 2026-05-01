@@ -205,7 +205,7 @@ export default function LoginPage() {
 
         {/* 底部信息 */}
         <div className="text-center mt-6 text-slate-500 text-sm">
-          <p>腾曦科技 © 2024</p>
+          <p>腾曦智造 © 2025</p>
         </div>
       </div>
     </div>
