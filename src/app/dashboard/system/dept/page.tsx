@@ -12,12 +12,19 @@ interface Dept {
   deptName: string;
   deptCode?: string;
   leaderName?: string;
+  managerId?: number;
   sortOrder: number;
   status: string;
   remark?: string;
   userCount: number;
   childCount: number;
   children?: Dept[];
+}
+
+interface User {
+  id: number;
+  username: string;
+  realName?: string;
 }
 
 export default function SystemDeptPage() {
@@ -27,11 +34,12 @@ export default function SystemDeptPage() {
   const [expandedIds, setExpandedIds] = useState<Set<number>>(new Set());
   const [showForm, setShowForm] = useState(false);
   const [editingDept, setEditingDept] = useState<Dept | null>(null);
+  const [userList, setUserList] = useState<User[]>([]);
   const [form, setForm] = useState({
     parentId: undefined as number | undefined,
     deptName: "",
     deptCode: "",
-    leaderName: "",
+    managerId: undefined as number | undefined,
     sortOrder: 0,
     status: "active",
   });
@@ -62,6 +70,22 @@ export default function SystemDeptPage() {
 
   useEffect(() => { fetchDepts(); }, []);
 
+  // 获取用户列表
+  const fetchUsers = async () => {
+    try {
+      const data = await fetchApi("/api/system/user", { headers });
+      if (data.code === 200) {
+        setUserList(data.data || []);
+      }
+    } catch (e) {
+      console.error("获取用户列表失败", e);
+    }
+  };
+
+  useEffect(() => {
+    fetchUsers();
+  }, []);
+
   const toggleExpand = (id: number) => {
     const newExpanded = new Set(expandedIds);
     if (newExpanded.has(id)) {
@@ -79,7 +103,7 @@ export default function SystemDeptPage() {
         parentId: dept.parentId,
         deptName: dept.deptName,
         deptCode: dept.deptCode || "",
-        leaderName: dept.leaderName || "",
+        managerId: dept.managerId,
         sortOrder: dept.sortOrder,
         status: dept.status,
       });
@@ -89,7 +113,7 @@ export default function SystemDeptPage() {
         parentId: parentId,
         deptName: "",
         deptCode: "",
-        leaderName: "",
+        managerId: undefined,
         sortOrder: 0,
         status: "active",
       });
@@ -102,19 +126,25 @@ export default function SystemDeptPage() {
       warning("请输入部门名称");
       return;
     }
+    // 查找选中的用户信息
+    const selectedUser = userList.find(u => u.id === form.managerId);
+    const submitData = {
+      ...form,
+      leaderName: selectedUser?.realName || selectedUser?.username || undefined,
+    };
     try {
       let data;
       if (editingDept) {
         data = await fetchApi(`/api/system/dept/${editingDept.id}`, {
           method: "PUT",
           headers,
-          body: JSON.stringify(form),
+          body: JSON.stringify(submitData),
         });
       } else {
         data = await fetchApi("/api/system/dept", {
           method: "POST",
           headers,
-          body: JSON.stringify(form),
+          body: JSON.stringify(submitData),
         });
       }
       if (data.code === 200) {
@@ -340,8 +370,19 @@ export default function SystemDeptPage() {
                 <input className="w-full border rounded px-3 py-2 text-sm font-mono" value={form.deptCode} onChange={e => setForm({...form, deptCode: e.target.value})} />
               </div>
               <div>
-                <label className="block text-xs text-gray-500 mb-1">负责人</label>
-                <input className="w-full border rounded px-3 py-2 text-sm" value={form.leaderName} onChange={e => setForm({...form, leaderName: e.target.value})} />
+                <label className="block text-xs text-gray-500 mb-1">部门负责人</label>
+                <select
+                  className="w-full border rounded px-3 py-2 text-sm"
+                  value={form.managerId || ""}
+                  onChange={e => setForm({...form, managerId: e.target.value ? parseInt(e.target.value) : undefined})}
+                >
+                  <option value="">请选择负责人</option>
+                  {userList.map(user => (
+                    <option key={user.id} value={user.id}>
+                      {user.realName || user.username}
+                    </option>
+                  ))}
+                </select>
               </div>
               <div>
                 <label className="block text-xs text-gray-500 mb-1">排序</label>
