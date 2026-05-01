@@ -329,6 +329,50 @@ export async function POST(request: NextRequest) {
 
     // 11. 创建默认菜单（仅在新建时）
     if (!reuseData) {
+      // 创建工作台
+      const dashboardMenu = await initPrisma.menu.create({
+        data: {
+          menuName: "工作台",
+          menuType: "menu",
+          icon: "Home",
+          path: "/dashboard",
+          sortOrder: 0,
+          status: "active",
+          createdBy: SYSTEM_CREATOR_ID,
+        },
+      });
+
+      // 创建组织管理目录
+      const orgDir = await initPrisma.menu.create({
+        data: {
+          menuName: "组织管理",
+          menuType: "directory",
+          icon: "LucideUserCog",
+          sortOrder: 10,
+          status: "active",
+          createdBy: SYSTEM_CREATOR_ID,
+        },
+      });
+
+      // 创建组织管理子菜单
+      const orgMenus = [
+        { menuName: "用户管理", icon: "User2", path: "/dashboard/system/user", sortOrder: 11 },
+        { menuName: "角色管理", icon: "Group", path: "/dashboard/system/role", sortOrder: 15 },
+        { menuName: "部门管理", icon: "LucideUsers2", path: "/dashboard/system/dept", sortOrder: 18 },
+      ];
+
+      for (const menu of orgMenus) {
+        await initPrisma.menu.create({
+          data: {
+            ...menu,
+            menuType: "menu",
+            parentId: orgDir.id,
+            status: "active",
+            createdBy: SYSTEM_CREATOR_ID,
+          },
+        });
+      }
+
       // 创建系统管理目录
       const systemDir = await initPrisma.menu.create({
         data: {
@@ -342,18 +386,20 @@ export async function POST(request: NextRequest) {
         },
       });
 
-      // 创建子菜单
-      const subMenus = [
-        { menuName: "用户管理", menuType: "menu", path: "/dashboard/system/user", sortOrder: 1 },
-        { menuName: "角色管理", menuType: "menu", path: "/dashboard/system/role", sortOrder: 2 },
-        { menuName: "部门管理", menuType: "menu", path: "/dashboard/system/dept", sortOrder: 3 },
-        { menuName: "菜单管理", menuType: "menu", path: "/dashboard/system/menu", sortOrder: 4 },
+      // 创建系统管理子菜单
+      const systemMenus = [
+        { menuName: "日志管理", icon: "Logs", path: "/dashboard/system/log", sortOrder: 101 },
+        { menuName: "菜单管理", icon: "LucideMenu", path: "/dashboard/system/menu", sortOrder: 105 },
+        { menuName: "数据库", icon: "Database", path: "/dashboard/system/database", sortOrder: 108 },
+        { menuName: "存储配置", icon: "Disc3Icon", path: "/dashboard/system/storage", sortOrder: 110 },
+        { menuName: "参数配置", icon: "LucideSeparatorHorizontal", path: "/dashboard/system/config", sortOrder: 111 },
       ];
 
-      for (const menu of subMenus) {
+      for (const menu of systemMenus) {
         await initPrisma.menu.create({
           data: {
             ...menu,
+            menuType: "menu",
             parentId: systemDir.id,
             status: "active",
             createdBy: SYSTEM_CREATOR_ID,

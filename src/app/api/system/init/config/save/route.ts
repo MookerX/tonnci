@@ -32,7 +32,7 @@ export async function POST(request: NextRequest) {
         port: parseInt(data.database.port) || 3306,
         username: data.database.username || 'root',
         password: data.database.password || '',
-        name: data.database.name || 'tengxi_pms',
+        name: data.database.name || 'toonci_pms_system',
       },
       initInfo: existingInitInfo || {
         initialized: false,
