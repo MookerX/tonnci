@@ -154,7 +154,7 @@ export async function POST(request: NextRequest) {
   }
 
   // 3. 参数校验
-  const { mode = 'new', admin, systemName = '腾曦生产管理系统' } = data;
+  const { mode = 'new', admin, systemName = '腾曦管理系统' } = data;
 
   if (!admin?.username || admin.username.length < 2) {
     return NextResponse.json({ code: 400, message: "管理员用户名至少2个字符" });
@@ -164,7 +164,40 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ code: 400, message: "管理员密码至少6个字符" });
   }
 
-  // 4. 创建独立的Prisma实例
+  // 4. 先连接MySQL服务器，创建数据库（如果不存在）
+  try {
+    // 解析数据库URL，分离出主机、端口、用户名、密码、数据库名
+    const dbUrlMatch = databaseUrl.match(/mysql:\/\/([^:]+):([^@]+)@([^:]+):(\d+)\/([^?]+)/);
+    if (!dbUrlMatch) {
+      return NextResponse.json({ code: 500, message: "数据库连接URL格式错误" });
+    }
+    const [, dbUser, dbPass, dbHost, dbPort, dbName] = dbUrlMatch;
+
+    // 构建不带数据库名的URL，用于连接MySQL服务器
+    const serverUrl = `mysql://${dbUser}:${encodeURIComponent(dbPass)}@${dbHost}:${dbPort}`;
+
+    // 连接MySQL服务器并创建数据库
+    const { Prisma } = await import('@prisma/client');
+    const serverPrisma = new Prisma({
+      datasources: { db: { url: serverUrl } },
+      log: ['error'],
+    });
+
+    await serverPrisma.$connect();
+    // 使用原生SQL创建数据库（如果不存在）
+    await serverPrisma.$executeRaw`CREATE DATABASE IF NOT EXISTS \`${Prisma.sql([dbName])}\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci`;
+    await serverPrisma.$disconnect();
+
+    console.log(`[初始化] 数据库 ${dbName} 已创建或已存在`);
+  } catch (dbError: any) {
+    console.error('[初始化] 创建数据库失败:', dbError);
+    return NextResponse.json({
+      code: 500,
+      message: `数据库连接失败: ${dbError.message || dbError}`,
+    });
+  }
+
+  // 5. 创建独立的Prisma实例（连接目标数据库）
   const initPrisma = new PrismaClient({
     datasources: {
       db: {
@@ -178,11 +211,40 @@ export async function POST(request: NextRequest) {
     // 测试数据库连接
     await initPrisma.$connect();
 
-    // 5. 检查是否已初始化
+    // 6. 检查表是否存在，如果不存在则执行 db push 创建表
+    try {
+      await initPrisma.$executeRaw`SELECT 1 FROM system_init_status LIMIT 1`;
+    } catch {
+      // 表不存在，需要执行 Prisma db push
+      console.log('[初始化] 数据库表不存在，正在创建...');
+      await initPrisma.$disconnect();
+
+      // 使用 child_process 执行 prisma db push
+      const { execSync } = await import('child_process');
+      try {
+        const result = execSync('cd /workspace/projects && pnpm prisma db push --skip-generate', {
+          encoding: 'utf8',
+          timeout: 120000,
+          stdio: ['pipe', 'pipe', 'pipe'],
+        });
+        console.log('[初始化] Prisma db push 输出:', result);
+      } catch (execError: any) {
+        console.error('[初始化] Prisma db push 失败:', execError.stdout, execError.stderr);
+        return NextResponse.json({
+          code: 500,
+          message: `创建数据库表失败: ${execError.stderr || execError.message}`,
+        });
+      }
+
+      // 重新连接数据库
+      await initPrisma.$connect();
+    }
+
+    // 7. 检查是否已初始化
     const existingStatus = await initPrisma.systemInitStatus.findFirst();
     const isAlreadyInitialized = existingStatus && existingStatus.stepStatus === 'completed';
 
-    // 6. 根据模式处理数据
+    // 8. 根据模式处理数据
     const reuseData = mode === 'reuse';
 
     if (isAlreadyInitialized) {
@@ -236,7 +298,7 @@ export async function POST(request: NextRequest) {
     }
     // 重用数据模式且未初始化：不需要清理，直接创建数据
 
-    // 7. 创建超级管理员角色
+    // 9. 创建超级管理员角色
     let superAdminRole = await initPrisma.role.findFirst({
       where: { roleCode: "super_admin", isDelete: false },
     });
@@ -255,7 +317,7 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // 8. 创建IT部门
+    // 9. 创建IT部门
     let itDept = await initPrisma.dept.findFirst({
       where: { deptCode: "IT", isDelete: false },
     });
@@ -273,7 +335,7 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // 9. 创建超级管理员用户
+    // 10. 创建超级管理员用户
     const hashedPassword = await hashPassword(admin.password);
 
     let adminUser = await initPrisma.user.findFirst({
@@ -313,7 +375,7 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // 10. 创建角色-用户关联
+    // 11. 创建角色-用户关联
     const existingRoleUser = await initPrisma.userRole.findFirst({
       where: { userId: adminUser.id, roleId: superAdminRole.id },
     });
@@ -327,7 +389,7 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // 11. 创建默认菜单（仅在新建时）
+    // 12. 创建默认菜单（仅在新建时）
     if (!reuseData) {
       // 创建工作台
       const dashboardMenu = await initPrisma.menu.create({
@@ -407,7 +469,7 @@ export async function POST(request: NextRequest) {
         });
       }
 
-      // 12. 超级管理员拥有所有菜单权限
+      // 13. 超级管理员拥有所有菜单权限
       const allMenus = await initPrisma.menu.findMany({
         where: { isDelete: false },
       });
@@ -422,7 +484,7 @@ export async function POST(request: NextRequest) {
         });
       }
 
-      // 13. 部门权限
+      // 14. 部门权限
       await initPrisma.roleDeptScope.create({
         data: {
           roleId: superAdminRole.id,
@@ -431,7 +493,7 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // 14. 保存系统配置到数据库
+    // 15. 保存系统配置到数据库
     const systemConfigs = [
       { paramKey: 'system_name', paramValue: systemName, paramType: 'string', remark: '系统名称' },
     ];
@@ -450,7 +512,7 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // 15. 保存存储配置到数据库（系统图片文件存储）
+    // 16. 保存存储配置到数据库（系统图片文件存储）
     const initStorage = await initPrisma.storageConfig.findFirst({
       where: { storageName: '系统图片文件存储' },
     });
@@ -468,7 +530,7 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // 15. 把初始化状态写入配置文件（配置文件存在=已初始化）
+    // 17. 把初始化状态写入配置文件（配置文件存在=已初始化）
     updateInitInfo({
       initialized: true,
       initializedAt: new Date().toISOString(),
