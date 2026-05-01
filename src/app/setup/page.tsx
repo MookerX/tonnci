@@ -76,8 +76,8 @@ export default function SetupPage() {
   });
 
   const [storageForm, setStorageForm] = useState<StorageForm>({
-    type: 'local',
-    path: '/workspace/projects/storage',
+    type: '',
+    path: '',
   });
 
   const [testingDb, setTestingDb] = useState(false);
@@ -92,7 +92,7 @@ export default function SetupPage() {
     realName: '',
   });
 
-  const [systemName, setSystemName] = useState('腾曦生产管理系统');
+  const [systemName, setSystemName] = useState('');
 
   // 检查配置状态
   useEffect(() => {
@@ -107,6 +107,31 @@ export default function SetupPage() {
         if (data.data.initialized) {
           setInitialized(true);
           setOriginalConfig(data.data);
+          // 从API数据设置表单初始值
+          if (data.data.systemName) setSystemName(data.data.systemName);
+          if (data.data.storageInfo) {
+            // 将中文存储类型映射到英文
+            const typeMap: Record<string, string> = {
+              '本地存储': 'local',
+              'NAS存储': 'nas',
+              '对象存储(OSS)': 'oss',
+            };
+            const storageType = typeMap[data.data.storageInfo.storageType] || 'local';
+            setStorageForm({
+              type: storageType,
+              path: data.data.storageInfo.storagePath || '',
+              nasHost: '',
+              nasPort: 445,
+              nasUsername: '',
+              nasPassword: '',
+              nasShareName: '',
+              nasPath: '',
+              ossEndpoint: '',
+              ossBucket: '',
+              ossAccessKey: '',
+              ossSecretKey: '',
+            });
+          }
         } else if (data.data.exists) {
           // 配置文件存在但未初始化，说明是已保存配置
           setCurrentStep('storage');
@@ -228,7 +253,7 @@ export default function SetupPage() {
         body: JSON.stringify({
           database: dbForm,
           storage: storageForm,
-          systemName: "腾曦生产管理系统",
+          systemName: systemName,
         }),
       });
       const data = await res.json();
@@ -355,11 +380,11 @@ export default function SetupPage() {
                   </div>
                   <div className="flex justify-between">
                     <span className="text-slate-400">存储类型</span>
-                    <span className="text-white">{originalConfig.storageInfo?.name || '未设置'}</span>
+                    <span className="text-white">{originalConfig.storageInfo?.storageType || '未设置'}</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-slate-400">存储路径</span>
-                    <span className="text-white">{originalConfig.storageInfo?.path || '未设置'}</span>
+                    <span className="text-white">{originalConfig.storageInfo?.storagePath || '未设置'}</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-slate-400">管理员</span>
