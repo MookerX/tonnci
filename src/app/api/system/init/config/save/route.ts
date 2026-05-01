@@ -109,6 +109,21 @@ export async function POST(request: NextRequest) {
 async function testDatabaseConnection(config: SystemConfig): Promise<{ success: boolean; error?: string }> {
   let connection;
   try {
+    // 先连接MySQL服务器，创建数据库（如果不存在）
+    const serverConnection = await mysql.createConnection({
+      host: config.database.host,
+      port: config.database.port,
+      user: config.database.username,
+      password: config.database.password,
+      connectTimeout: 5000,
+    });
+
+    await serverConnection.query(
+      `CREATE DATABASE IF NOT EXISTS \`${config.database.name}\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci`
+    );
+    await serverConnection.end();
+
+    // 再连接目标数据库
     connection = await mysql.createConnection({
       host: config.database.host,
       port: config.database.port,
@@ -202,7 +217,7 @@ async function checkOldData(config: SystemConfig): Promise<{ hasData: boolean; t
       tablesInfo,
     };
   } catch {
-    return { hasData: false };
+    return { hasData: false, tablesInfo: {} };
   } finally {
     if (connection) {
       await connection.end();

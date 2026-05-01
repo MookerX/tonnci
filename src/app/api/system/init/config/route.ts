@@ -11,6 +11,7 @@
 
 import { NextResponse } from "next/server";
 import { configExists, readConfig } from "@/lib/config";
+import * as mysql from 'mysql2/promise';
 
 export async function GET() {
   try {
@@ -52,6 +53,18 @@ export async function GET() {
     let adminInfo = null;
 
     try {
+      // 先连接MySQL服务器，创建数据库（如果不存在）
+      const serverConn = await mysql.createConnection({
+        host: config.database.host,
+        port: config.database.port,
+        user: config.database.username,
+        password: config.database.password,
+      });
+      await serverConn.query(
+        `CREATE DATABASE IF NOT EXISTS \`${config.database.name}\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci`
+      );
+      await serverConn.end();
+
       // 创建新的 Prisma 客户端连接到配置中的数据库
       const { PrismaClient } = await import("@prisma/client");
       const configDb = new PrismaClient({
