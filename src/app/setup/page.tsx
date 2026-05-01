@@ -294,6 +294,7 @@ export default function SetupPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           mode: reuseMode,
+          systemName,
           admin: {
             username: adminForm.username,
             password: adminForm.password,
