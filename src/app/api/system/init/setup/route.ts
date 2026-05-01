@@ -388,7 +388,6 @@ export async function POST(request: NextRequest) {
     // 14. 保存系统配置到数据库
     const systemConfigs = [
       { paramKey: 'system_name', paramValue: systemName, paramType: 'string', remark: '系统名称' },
-      { paramKey: 'system_version', paramValue: '1.0.0', paramType: 'string', remark: '系统版本' },
     ];
 
     for (const cfg of systemConfigs) {
