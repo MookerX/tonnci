@@ -18,7 +18,8 @@ const createDeptSchema = z.object({
   parentId: z.number().int().positive().optional().nullable(),
   deptName: z.string().min(1, '部门名称不能为空').max(100),
   deptCode: z.string().max(50).optional().nullable(),
-  leaderName: z.string().max(50).optional().nullable(),
+  managerIds: z.array(z.number()).optional(),
+  leaderNames: z.array(z.string()).optional(),
   sortOrder: z.number().int().optional().default(0),
   status: z.enum(['active', 'disabled']).optional().default('active'),
   remark: z.string().optional().nullable(),
@@ -28,7 +29,8 @@ const updateDeptSchema = z.object({
   parentId: z.number().int().positive().optional().nullable(),
   deptName: z.string().min(1, '部门名称不能为空').max(100).optional(),
   deptCode: z.string().max(50).optional().nullable(),
-  leaderName: z.string().max(50).optional().nullable(),
+  managerIds: z.array(z.number()).optional(),
+  leaderNames: z.array(z.string()).optional(),
   sortOrder: z.number().int().optional(),
   status: z.enum(['active', 'disabled']).optional(),
   remark: z.string().optional().nullable(),
@@ -65,6 +67,12 @@ export async function GET(request: NextRequest) {
       orderBy: [{ sortOrder: 'asc' }, { id: 'asc' }],
     });
 
+    // 将 leaderName 转为 leaderNames 数组
+    const deptsWithLeaderNames = depts.map(d => ({
+      ...d,
+      leaderNames: d.leaderName ? d.leaderName.split('、').filter(Boolean) : [],
+    }));
+
     // 获取每个部门的用户数量
     const users = await prisma.user.findMany({
       where: { isDelete: false, deptId: { not: null } },
@@ -78,7 +86,7 @@ export async function GET(request: NextRequest) {
       }
     });
 
-    const deptsWithCount = depts.map(d => ({
+    const deptsWithCount = deptsWithLeaderNames.map(d => ({
       ...d,
       userCount: userCountMap.get(d.id) || 0,
     }));
@@ -173,12 +181,17 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // 处理多负责人：将 leaderNames 数组用顿号连接成字符串
+    const leaderNameStr = data.leaderNames?.length 
+      ? data.leaderNames.join('、') 
+      : (data as any).leaderName || null;
+
     const dept = await prisma.dept.create({
       data: {
         parentId: data.parentId || null,
         deptName: data.deptName,
         deptCode: data.deptCode || null,
-        leaderName: data.leaderName || null,
+        leaderName: leaderNameStr,
         sortOrder: data.sortOrder,
         status: data.status,
         remark: data.remark || null,

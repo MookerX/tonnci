@@ -103,11 +103,15 @@ export default function SystemDeptPage() {
   const handleOpenForm = (dept?: Dept, parentId?: number) => {
     if (dept) {
       setEditingDept(dept);
+      // 将 leaderNames 转回 managerIds（通过用户名匹配）
+      const selectedManagerIds = userList
+        .filter(u => dept.leaderNames?.includes(u.realName || u.username))
+        .map(u => u.id);
       setForm({
         parentId: dept.parentId,
         deptName: dept.deptName,
         deptCode: dept.deptCode || "",
-        managerIds: dept.managerIds || [],
+        managerIds: selectedManagerIds,
         sortOrder: dept.sortOrder,
         status: dept.status,
       });

@@ -17,7 +17,8 @@ const updateDeptSchema = z.object({
   parentId: z.number().int().positive().optional().nullable(),
   deptName: z.string().min(1, '部门名称不能为空').max(100).optional(),
   deptCode: z.string().max(50).optional().nullable(),
-  leaderName: z.string().max(50).optional().nullable(),
+  managerIds: z.array(z.number()).optional(),
+  leaderNames: z.array(z.string()).optional(),
   sortOrder: z.number().int().optional(),
   status: z.enum(['active', 'disabled']).optional(),
   remark: z.string().optional().nullable(),
@@ -70,6 +71,7 @@ export async function GET(
 
     return successResponse({
       ...dept,
+      leaderNames: dept.leaderName ? dept.leaderName.split('、').filter(Boolean) : [],
       childCount,
       userCount,
       parent: parentDept,
@@ -164,6 +166,11 @@ export async function PUT(
       }
     }
 
+    // 处理多负责人：将 leaderNames 数组用顿号连接成字符串
+    const leaderNameStr = data.leaderNames?.length 
+      ? data.leaderNames.join('、') 
+      : (data as any).leaderName;
+
     const updateData: any = {
       modifiedBy: authResult.userId,
     };
@@ -171,7 +178,7 @@ export async function PUT(
     if (data.parentId !== undefined) updateData.parentId = data.parentId;
     if (data.deptName !== undefined) updateData.deptName = data.deptName;
     if (data.deptCode !== undefined) updateData.deptCode = data.deptCode;
-    if (data.leaderName !== undefined) updateData.leaderName = data.leaderName;
+    if (leaderNameStr !== undefined) updateData.leaderName = leaderNameStr;
     if (data.sortOrder !== undefined) updateData.sortOrder = data.sortOrder;
     if (data.status !== undefined) updateData.status = data.status;
     if (data.remark !== undefined) updateData.remark = data.remark;
