@@ -173,20 +173,18 @@ export async function POST(request: NextRequest) {
     }
     const [, dbUser, dbPass, dbHost, dbPort, dbName] = dbUrlMatch;
 
-    // 构建不带数据库名的URL，用于连接MySQL服务器
-    const serverUrl = `mysql://${dbUser}:${encodeURIComponent(dbPass)}@${dbHost}:${dbPort}`;
-
-    // 连接MySQL服务器并创建数据库
-    const { Prisma } = await import('@prisma/client');
-    const serverPrisma = new Prisma({
-      datasources: { db: { url: serverUrl } },
-      log: ['error'],
+    // 使用 mysql2 包直接连接并创建数据库
+    const mysql = await import('mysql2/promise');
+    const connection = await mysql.createConnection({
+      host: dbHost,
+      port: parseInt(dbPort),
+      user: dbUser,
+      password: dbPass,
     });
 
-    await serverPrisma.$connect();
-    // 使用原生SQL创建数据库（如果不存在）
-    await serverPrisma.$executeRaw`CREATE DATABASE IF NOT EXISTS \`${Prisma.sql([dbName])}\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci`;
-    await serverPrisma.$disconnect();
+    // 创建数据库（如果不存在）
+    await connection.query(`CREATE DATABASE IF NOT EXISTS \`${dbName}\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci`);
+    await connection.end();
 
     console.log(`[初始化] 数据库 ${dbName} 已创建或已存在`);
   } catch (dbError: any) {
