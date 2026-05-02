@@ -75,14 +75,13 @@ export async function POST(request: NextRequest) {
         },
       });
 
-      await operationLog({
+      await operationLog.logSuccess({
         module: '系统管理',
         businessType: '新增字典',
         operatorId: auth.userId,
         operatorName: auth.username,
         operationDesc: `新增字典: ${data.dictType} - ${data.dictLabel}`,
         ipAddress: getClientIp(request),
-        status: 'success',
       });
     } else if (type === 'param') {
       // 先查询是否已存在
@@ -103,14 +102,13 @@ export async function POST(request: NextRequest) {
           },
         });
 
-        await operationLog({
+        await operationLog.logSuccess({
           module: '系统管理',
           businessType: '更新配置',
           operatorId: auth.userId,
           operatorName: auth.username,
           operationDesc: `更新配置: ${data.configKey}`,
           ipAddress: getClientIp(request),
-          status: 'success',
         });
       } else {
         // 不存在，创建
@@ -124,14 +122,13 @@ export async function POST(request: NextRequest) {
           },
         });
 
-        await operationLog({
+        await operationLog.logSuccess({
           module: '系统管理',
           businessType: '新增配置',
           operatorId: auth.userId,
           operatorName: auth.username,
           operationDesc: `新增配置: ${data.configKey}`,
           ipAddress: getClientIp(request),
-          status: 'success',
         });
       }
     }
