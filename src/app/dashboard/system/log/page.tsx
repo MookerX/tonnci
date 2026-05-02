@@ -73,46 +73,56 @@ export default function SystemLogPage() {
       }
     }
 
-    // 如果没有变化字段，显示原始数据
-    if (fields.length === 0) {
+    // 判断有哪些数据可用
+    const hasOld = oldData && Object.keys(oldData || {}).filter(k => !['password'].includes(k)).length > 0;
+    const hasNew = newData && Object.keys(newData || {}).filter(k => !['password'].includes(k)).length > 0;
+
+    // 如果有变化字段，显示对比
+    if (fields.length > 0) {
       return (
         <div className="p-4 bg-gray-50 text-sm">
-          <p className="text-gray-500 mb-2">原始数据：</p>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <h4 className="font-medium text-gray-600 mb-2">修改前</h4>
+              <div className="space-y-1 text-xs">
+                {fields.map(({ key, oldVal }) => (
+                  <div key={key}>
+                    <span className="text-gray-500">{key}: </span>
+                    <span className="text-red-600">{oldVal === null || oldVal === undefined ? '(空)' : typeof oldVal === 'object' ? JSON.stringify(oldVal) : String(oldVal)}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div>
+              <h4 className="font-medium text-gray-600 mb-2">修改后</h4>
+              <div className="space-y-1 text-xs">
+                {fields.map(({ key, newVal }) => (
+                  <div key={key}>
+                    <span className="text-gray-500">{key}: </span>
+                    <span className="text-green-600">{newVal === null || newVal === undefined ? '(空)' : typeof newVal === 'object' ? JSON.stringify(newVal) : String(newVal)}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    // 没有变化字段，但有数据时，显示完整数据
+    if (hasOld || hasNew) {
+      const displayData = newData || oldData || {};
+      return (
+        <div className="p-4 bg-gray-50 text-sm">
+          <p className="text-gray-500 mb-2">完整数据：</p>
           <pre className="text-xs bg-white p-2 rounded overflow-auto max-h-40">
-            {oldData ? JSON.stringify(oldData, null, 2) : (newData ? JSON.stringify(newData, null, 2) : '无数据')}
+            {JSON.stringify(displayData, (k, v) => k === 'password' ? '[已加密]' : v, 2)}
           </pre>
         </div>
       );
     }
 
-    return (
-      <div className="p-4 bg-gray-50 text-sm">
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <h4 className="font-medium text-gray-600 mb-2">修改前</h4>
-            <div className="space-y-1 text-xs">
-              {fields.map(({ key, oldVal }) => (
-                <div key={key}>
-                  <span className="text-gray-500">{key}: </span>
-                  <span className="text-red-600">{oldVal === null || oldVal === undefined ? '(空)' : typeof oldVal === 'object' ? JSON.stringify(oldVal) : String(oldVal)}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-          <div>
-            <h4 className="font-medium text-gray-600 mb-2">修改后</h4>
-            <div className="space-y-1 text-xs">
-              {fields.map(({ key, newVal }) => (
-                <div key={key}>
-                  <span className="text-gray-500">{key}: </span>
-                  <span className="text-green-600">{newVal === null || newVal === undefined ? '(空)' : typeof newVal === 'object' ? JSON.stringify(newVal) : String(newVal)}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      </div>
-    );
+    return <p className="p-4 text-gray-500 text-sm">暂无详细信息</p>;
   };
 
   return (
