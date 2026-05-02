@@ -34,20 +34,33 @@ export async function GET(request: NextRequest) {
     ]);
 
     // 转换字段名以匹配前端期望
-    const transformedList = list.map(log => ({
-      id: log.id,
-      module: log.moduleName,
-      action: log.businessType,
-      operator: log.operatorName,
-      operatorId: log.operatorId,
-      description: log.operationDesc,
-      ip: log.ipAddress,
-      status: log.status,
-      errorMessage: log.errorMessage,
-      createdAt: log.createdAt,
-      oldData: log.oldData ? JSON.parse(log.oldData) : null,
-      newData: log.newData ? JSON.parse(log.newData) : null,
-    }));
+    const transformedList = list.map(log => {
+      let oldData = null;
+      let newData = null;
+      
+      // 安全解析 JSON
+      if (log.oldData) {
+        try { oldData = JSON.parse(log.oldData); } catch { oldData = log.oldData; }
+      }
+      if (log.newData) {
+        try { newData = JSON.parse(log.newData); } catch { newData = log.newData; }
+      }
+      
+      return {
+        id: log.id,
+        module: log.moduleName,
+        action: log.businessType,
+        operator: log.operatorName,
+        operatorId: log.operatorId,
+        description: log.operationDesc,
+        ip: log.ipAddress,
+        status: log.status,
+        errorMessage: log.errorMessage,
+        createdAt: log.createdAt,
+        oldData,
+        newData,
+      };
+    });
 
     return NextResponse.json({
       code: 200,

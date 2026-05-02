@@ -29,30 +29,61 @@ export default function SystemLogPage() {
   const typeMap: Record<string, string> = { create: "新增", update: "修改", delete: "删除", login: "登录", logout: "登出", import: "导入", export: "导出" };
 
   // 判断是否有详细数据
-  const hasDetail = (log: any) => log.oldData || log.newData;
+  const hasDetail = (log: any) => {
+    const { oldData, newData } = log;
+    if (!oldData && !newData) return false;
+    // 如果是对象，检查是否有属性
+    if (typeof oldData === 'object' && Object.keys(oldData || {}).length > 0) return true;
+    if (typeof newData === 'object' && Object.keys(newData || {}).length > 0) return true;
+    return false;
+  };
+
+  // 安全获取对象的所有键
+  const getAllKeys = (oldData: any, newData: any): string[] => {
+    const keys = new Set<string>();
+    if (oldData && typeof oldData === 'object') Object.keys(oldData).forEach(k => keys.add(k));
+    if (newData && typeof newData === 'object') Object.keys(newData).forEach(k => keys.add(k));
+    return Array.from(keys);
+  };
+
+  // 安全获取字段值
+  const getValue = (obj: any, key: string): any => {
+    if (!obj || typeof obj !== 'object') return undefined;
+    return obj[key];
+  };
 
   // 渲染详情对比
   const renderDetail = (log: any) => {
     const { oldData, newData } = log;
-    if (!oldData && !newData) return null;
+    if (!oldData && !newData) return <p className="p-4 text-gray-500 text-sm">暂无详细信息</p>;
 
     // 获取所有变化的字段
     const fields: { key: string; oldVal: any; newVal: any }[] = [];
-    const allKeys = new Set([...Object.keys(oldData || {}), ...Object.keys(newData || {})]);
+    const allKeys = getAllKeys(oldData, newData);
     
     for (const key of allKeys) {
       // 跳过不需要显示的字段
-      if (['id', 'createdAt', 'updatedAt', 'createdBy', 'modifiedBy', 'isDelete', 'password', 'roleIds', 'menuIds'].includes(key)) {
+      if (['id', 'createdAt', 'updatedAt', 'createdBy', 'modifiedBy', 'isDelete', 'password', 'roleIds', 'menuIds', '__proto__'].includes(key)) {
         continue;
       }
-      const oldVal = oldData?.[key];
-      const newVal = newData?.[key];
+      const oldVal = getValue(oldData, key);
+      const newVal = getValue(newData, key);
       if (JSON.stringify(oldVal) !== JSON.stringify(newVal)) {
         fields.push({ key, oldVal, newVal });
       }
     }
 
-    if (fields.length === 0) return null;
+    // 如果没有变化字段，显示原始数据
+    if (fields.length === 0) {
+      return (
+        <div className="p-4 bg-gray-50 text-sm">
+          <p className="text-gray-500 mb-2">原始数据：</p>
+          <pre className="text-xs bg-white p-2 rounded overflow-auto max-h-40">
+            {oldData ? JSON.stringify(oldData, null, 2) : (newData ? JSON.stringify(newData, null, 2) : '无数据')}
+          </pre>
+        </div>
+      );
+    }
 
     return (
       <div className="p-4 bg-gray-50 text-sm">
@@ -63,7 +94,7 @@ export default function SystemLogPage() {
               {fields.map(({ key, oldVal }) => (
                 <div key={key}>
                   <span className="text-gray-500">{key}: </span>
-                  <span className="text-red-600">{oldVal === null || oldVal === undefined ? '(空)' : String(oldVal)}</span>
+                  <span className="text-red-600">{oldVal === null || oldVal === undefined ? '(空)' : typeof oldVal === 'object' ? JSON.stringify(oldVal) : String(oldVal)}</span>
                 </div>
               ))}
             </div>
@@ -74,7 +105,7 @@ export default function SystemLogPage() {
               {fields.map(({ key, newVal }) => (
                 <div key={key}>
                   <span className="text-gray-500">{key}: </span>
-                  <span className="text-green-600">{newVal === null || newVal === undefined ? '(空)' : String(newVal)}</span>
+                  <span className="text-green-600">{newVal === null || newVal === undefined ? '(空)' : typeof newVal === 'object' ? JSON.stringify(newVal) : String(newVal)}</span>
                 </div>
               ))}
             </div>
