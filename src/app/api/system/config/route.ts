@@ -89,7 +89,7 @@ export async function POST(request: NextRequest) {
         data: {
           paramKey: data.configKey,
           paramValue: data.configValue,
-          configType: data.configType || 'string',
+          paramType: data.paramType || 'string',
           remark: data.remark,
           createdBy: auth.userId,
         },
