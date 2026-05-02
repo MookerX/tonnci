@@ -48,31 +48,44 @@ export default function SystemDatabasePage() {
   useEffect(() => { fetchData(); }, []);
 
   const handleTestConnection = async (cfg?: any) => {
-    // 如果有 cfg 参数，说明是从列表点击的测试，需要先填充表单再测试
+    let testInfo: any = null;
+    
+    // 如果是从列表点击测试，先获取完整信息
     if (cfg) {
-      // 填充表单并打开表单
-      setOriginalPassword(cfg.password === "******" ? "" : cfg.password);
-      setForm({
-        moduleName: cfg.moduleName || "",
-        moduleCode: cfg.moduleCode || "",
-        host: cfg.host || "localhost",
-        port: cfg.port || 3306,
-        database: cfg.database || "",
-        username: cfg.username || "",
-        password: cfg.password === "******" ? "" : cfg.password,
-        remark: cfg.remark || "",
-      });
-      setEditingId(cfg.id);
-      setShowForm(true);
-      return; // 打开表单后让用户在表单中点击测试
+      setTestingDb(true);
+      try {
+        const data = await fetchApi(`/api/system/database/${cfg.id}`, {
+          headers
+        });
+        if (data.code === 200) {
+          testInfo = data.data;
+        } else {
+          error(data.message || "获取配置信息失败");
+          setTestingDb(false);
+          return;
+        }
+      } catch (e) {
+        error("获取配置信息失败");
+        setTestingDb(false);
+        return;
+      }
+    } else {
+      // 表单测试
+      const password = form.password || originalPassword;
+      if (!form.host || !form.database) {
+        warning("请填写完整的主机地址和数据库信息");
+        return;
+      }
+      testInfo = {
+        host: form.host,
+        port: form.port,
+        username: form.username,
+        password: password,
+        database: form.database
+      };
     }
     
-    // 表单测试：优先用表单密码，其次用原始密码
-    const password = form.password || originalPassword;
-    if (!form.host || !form.database) {
-      warning("请填写完整的主机地址和数据库信息");
-      return;
-    }
+    // 执行测试
     setTestingDb(true);
     try {
       const data = await fetchApi("/api/system/database", {
@@ -80,19 +93,14 @@ export default function SystemDatabasePage() {
         headers,
         body: JSON.stringify({ 
           action: "test", 
-          data: { 
-            host: form.host, 
-            port: form.port, 
-            username: form.username, 
-            password: password, 
-            database: form.database 
-          } 
+          data: testInfo
         })
       });
       if (data.code === 200) {
         if (data.data.databaseExists === false) {
           // 数据库不存在，显示创建确认
-          setCreateDbConfirm(form);
+          const createDbInfo = cfg ? testInfo : form;
+          setCreateDbConfirm(createDbInfo);
         } else {
           success("连接成功！数据库已存在。");
         }
