@@ -23,7 +23,8 @@ export default function SystemDatabasePage() {
     database: "",
     username: "",
     password: "",
-    remark: ""
+    remark: "",
+    isEnabled: false,
   });
 
   const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
@@ -133,7 +134,7 @@ export default function SystemDatabasePage() {
       if (data.code === 200) {
         setShowForm(false);
         setEditingId(null);
-        setForm({ moduleName: "", moduleCode: "", host: "localhost", port: 3306, database: "", username: "", password: "", remark: "" });
+        setForm({ moduleName: "", moduleCode: "", host: "localhost", port: 3306, database: "", username: "", password: "", remark: "", isEnabled: false });
         fetchData();
       } else {
         error(data.message);
@@ -150,7 +151,8 @@ export default function SystemDatabasePage() {
       database: cfg.database || "",
       username: cfg.username || "",
       password: "",
-      remark: cfg.remark || ""
+      remark: cfg.remark || "",
+      isEnabled: cfg.isEnabled || false,
     });
     setEditingId(cfg.id);
     setShowForm(true);
@@ -246,6 +248,17 @@ export default function SystemDatabasePage() {
             <div><label className="block text-xs text-gray-500 mb-1">{editingId ? "新密码（不修改请留空）" : "密码"}</label><input type="password" className="w-full border rounded px-3 py-2 text-sm" value={form.password} onChange={e => setForm({...form, password: e.target.value})} placeholder={editingId ? "不修改请留空" : ""} /></div>
             <div><label className="block text-xs text-gray-500 mb-1">数据库名</label><input className="w-full border rounded px-3 py-2 text-sm" value={form.database} onChange={e => setForm({...form, database: e.target.value})} /></div>
             <div className="col-span-2"><label className="block text-xs text-gray-500 mb-1">备注</label><input className="w-full border rounded px-3 py-2 text-sm" value={form.remark} onChange={e => setForm({...form, remark: e.target.value})} /></div>
+            <div className="col-span-2 flex items-center gap-4">
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input 
+                  type="checkbox" 
+                  checked={form.isEnabled} 
+                  onChange={e => setForm({...form, isEnabled: e.target.checked})}
+                  className="w-4 h-4 text-blue-600 rounded"
+                />
+                <span className="text-sm">启用该数据库</span>
+              </label>
+            </div>
           </div>
           <div className="flex gap-2 mt-3">
             <button onClick={() => handleTestConnection()} disabled={testingDb} className="px-4 py-2 bg-green-600 text-white rounded text-sm hover:bg-green-700 disabled:opacity-50">
