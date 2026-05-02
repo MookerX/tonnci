@@ -167,7 +167,8 @@ export async function PUT(
     }
 
     // 处理多负责人：将 leaderNames 数组用顿号连接成字符串
-    const leaderNameStr = data.leaderNames?.length 
+    // leaderNames 为空数组时显式设置为空字符串，允许清空负责人
+    const leaderNameStr = Array.isArray(data.leaderNames) 
       ? data.leaderNames.join('、') 
       : (data as any).leaderName;
 

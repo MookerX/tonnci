@@ -182,9 +182,9 @@ export async function POST(request: NextRequest) {
     }
 
     // 处理多负责人：将 leaderNames 数组用顿号连接成字符串
-    const leaderNameStr = data.leaderNames?.length 
+    const leaderNameStr = Array.isArray(data.leaderNames) 
       ? data.leaderNames.join('、') 
-      : (data as any).leaderName || null;
+      : null;
 
     const dept = await prisma.dept.create({
       data: {
