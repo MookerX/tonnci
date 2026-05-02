@@ -7,4 +7,4 @@ src/app/dashboard/system/user/page.tsx
 src/app/dashboard/system/role/page.tsx
 src/app/dashboard/system/menu/page.tsx
 src/app/dashboard/system/dept/page.tsx
-src/app//dashboard/system/log/page.tsx
+src/app/dashboard/system/log/page.tsx
