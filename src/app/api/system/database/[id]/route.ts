@@ -20,7 +20,6 @@ const updateDatabaseConfigSchema = z.object({
   database: z.string().min(1, '数据库名不能为空').max(100).optional(),
   username: z.string().min(1, '用户名不能为空').max(100).optional(),
   password: z.string().max(500).optional(),
-  isEnabled: z.boolean().optional(),
   remark: z.string().optional(),
 });
 
@@ -114,7 +113,6 @@ export async function PUT(
     if (data.port !== undefined) updateData.port = data.port;
     if (data.database !== undefined) updateData.database = data.database;
     if (data.username !== undefined) updateData.username = data.username;
-    if (data.isEnabled !== undefined) updateData.isEnabled = data.isEnabled;
     if (data.remark !== undefined) updateData.remark = data.remark || null;
 
     // 如果提供了新密码则更新

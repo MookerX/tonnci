@@ -21,7 +21,6 @@ const databaseConfigSchema = z.object({
   database: z.string().min(1, '数据库名不能为空').max(100),
   username: z.string().min(1, '用户名不能为空').max(100),
   password: z.string().min(0).max(500),
-  isEnabled: z.boolean().optional().default(false),
   remark: z.string().optional(),
 });
 
@@ -119,7 +118,6 @@ async function createDatabaseConfig(data: any, request: NextRequest) {
       database: configData.database,
       username: configData.username,
       password: configData.password || '',
-      isEnabled: configData.isEnabled ?? false,
       remark: configData.remark || null,
     },
   });
