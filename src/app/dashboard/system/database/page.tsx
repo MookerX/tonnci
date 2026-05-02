@@ -15,6 +15,7 @@ export default function SystemDatabasePage() {
   const [editingId, setEditingId] = useState<number | null>(null);
   const [testingDb, setTestingDb] = useState(false);
   const [createDbConfirm, setCreateDbConfirm] = useState<any>(null);
+  const [originalPassword, setOriginalPassword] = useState("");
   const [form, setForm] = useState({
     moduleName: "",
     moduleCode: "",
@@ -47,7 +48,13 @@ export default function SystemDatabasePage() {
   useEffect(() => { fetchData(); }, []);
 
   const handleTestConnection = async (cfg?: any) => {
-    const testData = cfg || form;
+    // 如果是编辑后的表单，使用原始密码；否则使用cfg的密码
+    const isFormTest = !cfg;
+    const testData = isFormTest ? form : cfg;
+    // 区分已编辑过的配置和列表中的配置
+    const password = isFormTest 
+      ? (form.password || originalPassword)  // 表单测试：优先用表单密码，其次用原始密码
+      : (cfg.password === "******" ? originalPassword : cfg.password);  // 列表测试：原始密码
     if (!testData.host || !testData.database) {
       warning("请填写完整的主机地址、用户名和数据库信息");
       return;
@@ -63,7 +70,7 @@ export default function SystemDatabasePage() {
             host: testData.host, 
             port: testData.port, 
             username: testData.username, 
-            password: testData.password, 
+            password: password, 
             database: testData.database 
           } 
         })
@@ -134,6 +141,7 @@ export default function SystemDatabasePage() {
         setShowForm(false);
         setEditingId(null);
         setForm({ moduleName: "", moduleCode: "", host: "localhost", port: 3306, database: "", username: "", password: "", remark: "" });
+        setOriginalPassword("");
         fetchData();
       } else {
         error(data.message);
@@ -142,6 +150,8 @@ export default function SystemDatabasePage() {
   };
 
   const handleEdit = (cfg: any) => {
+    // 保存原始密码用于测试连接
+    setOriginalPassword(cfg.password === "******" ? "" : cfg.password);
     setForm({
       moduleName: cfg.moduleName || "",
       moduleCode: cfg.moduleCode || "",
