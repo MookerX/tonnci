@@ -64,10 +64,19 @@ function IconPickerModal({
   currentIcon?: string;
 }) {
   const [search, setSearch] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
+  const pageSize = 200;
   const icons = getLucideIconList();
   const filtered = icons.filter((name) =>
     name.toLowerCase().includes(search.toLowerCase())
   );
+  const totalPages = Math.ceil(filtered.length / pageSize);
+  const paginatedIcons = filtered.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+
+  // 搜索时重置页码
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [search]);
 
   if (!open) return null;
 
@@ -93,7 +102,7 @@ function IconPickerModal({
         </div>
         <div className="overflow-y-auto flex-1 p-3">
           <div className="grid grid-cols-8 gap-1">
-            {filtered.slice(0, 200).map((name) => {
+            {paginatedIcons.map((name) => {
               const Icon = (LucideIcons as any)[name] as any;
               if (!Icon) return null;
               const isActive = currentIcon === name;
@@ -113,10 +122,29 @@ function IconPickerModal({
               );
             })}
           </div>
-          {filtered.length > 200 && (
-            <p className="text-xs text-muted-foreground text-center mt-2">
-              显示前 200 个匹配结果，请缩小搜索范围
-            </p>
+          {/* 分页 */}
+          {totalPages > 1 && (
+            <div className="flex items-center justify-between px-3 py-2 border-t text-sm">
+              <span className="text-muted-foreground">
+                共 {filtered.length} 个图标，第 {currentPage}/{totalPages} 页
+              </span>
+              <div className="flex gap-1">
+                <button
+                  onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                  disabled={currentPage === 1}
+                  className="px-2 py-1 border rounded disabled:opacity-50 disabled:cursor-not-allowed hover:bg-muted"
+                >
+                  上一页
+                </button>
+                <button
+                  onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                  disabled={currentPage === totalPages}
+                  className="px-2 py-1 border rounded disabled:opacity-50 disabled:cursor-not-allowed hover:bg-muted"
+                >
+                  下一页
+                </button>
+              </div>
+            </div>
           )}
           {filtered.length === 0 && (
             <p className="text-sm text-muted-foreground text-center py-8">
