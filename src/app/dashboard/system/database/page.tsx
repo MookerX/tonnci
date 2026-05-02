@@ -24,7 +24,6 @@ export default function SystemDatabasePage() {
     username: "",
     password: "",
     remark: "",
-    isEnabled: false,
   });
 
   const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
@@ -134,7 +133,7 @@ export default function SystemDatabasePage() {
       if (data.code === 200) {
         setShowForm(false);
         setEditingId(null);
-        setForm({ moduleName: "", moduleCode: "", host: "localhost", port: 3306, database: "", username: "", password: "", remark: "", isEnabled: false });
+        setForm({ moduleName: "", moduleCode: "", host: "localhost", port: 3306, database: "", username: "", password: "", remark: "" });
         fetchData();
       } else {
         error(data.message);
@@ -152,7 +151,6 @@ export default function SystemDatabasePage() {
       username: cfg.username || "",
       password: "",
       remark: cfg.remark || "",
-      isEnabled: cfg.isEnabled || false,
     });
     setEditingId(cfg.id);
     setShowForm(true);
@@ -248,17 +246,6 @@ export default function SystemDatabasePage() {
             <div><label className="block text-xs text-gray-500 mb-1">{editingId ? "新密码（不修改请留空）" : "密码"}</label><input type="password" className="w-full border rounded px-3 py-2 text-sm" value={form.password} onChange={e => setForm({...form, password: e.target.value})} placeholder={editingId ? "不修改请留空" : ""} /></div>
             <div><label className="block text-xs text-gray-500 mb-1">数据库名</label><input className="w-full border rounded px-3 py-2 text-sm" value={form.database} onChange={e => setForm({...form, database: e.target.value})} /></div>
             <div className="col-span-2"><label className="block text-xs text-gray-500 mb-1">备注</label><input className="w-full border rounded px-3 py-2 text-sm" value={form.remark} onChange={e => setForm({...form, remark: e.target.value})} /></div>
-            <div className="col-span-2 flex items-center gap-4">
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input 
-                  type="checkbox" 
-                  checked={form.isEnabled} 
-                  onChange={e => setForm({...form, isEnabled: e.target.checked})}
-                  className="w-4 h-4 text-blue-600 rounded"
-                />
-                <span className="text-sm">启用该数据库</span>
-              </label>
-            </div>
           </div>
           <div className="flex gap-2 mt-3">
             <button onClick={() => handleTestConnection()} disabled={testingDb} className="px-4 py-2 bg-green-600 text-white rounded text-sm hover:bg-green-700 disabled:opacity-50">
@@ -281,15 +268,14 @@ export default function SystemDatabasePage() {
               <th className="px-4 py-2.5 text-left font-medium text-gray-600">端口</th>
               <th className="px-4 py-2.5 text-left font-medium text-gray-600">用户名</th>
               <th className="px-4 py-2.5 text-left font-medium text-gray-600">数据库</th>
-              <th className="px-4 py-2.5 text-left font-medium text-gray-600">状态</th>
               <th className="px-4 py-2.5 text-left font-medium text-gray-600">操作</th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={8} className="px-4 py-8 text-center text-gray-400">加载中...</td></tr>
+              <tr><td colSpan={7} className="px-4 py-8 text-center text-gray-400">加载中...</td></tr>
             ) : configs.length === 0 ? (
-              <tr><td colSpan={8} className="px-4 py-8 text-center text-gray-400">暂无分布式数据库配置</td></tr>
+              <tr><td colSpan={7} className="px-4 py-8 text-center text-gray-400">暂无分布式数据库配置</td></tr>
             ) : (
               configs.map(c => (
                 <tr key={c.id} className="border-b hover:bg-gray-50">
@@ -299,11 +285,6 @@ export default function SystemDatabasePage() {
                   <td className="px-4 py-2.5">{c.port || "-"}</td>
                   <td className="px-4 py-2.5">{c.username || "-"}</td>
                   <td className="px-4 py-2.5">{c.database || "-"}</td>
-                  <td className="px-4 py-2.5">
-                    <span className={`px-2 py-0.5 text-xs rounded ${c.isEnabled ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
-                      {c.isEnabled ? '启用' : '禁用'}
-                    </span>
-                  </td>
                   <td className="px-4 py-2.5">
                     <PermissionGuard permission="system:database:update"><button onClick={() => handleTestConnection(c)} className="text-blue-600 hover:underline text-sm mr-2">测试</button></PermissionGuard>
                     <PermissionGuard permission="system:database:update"><button onClick={() => handleEdit(c)} className="text-gray-600 hover:underline text-sm mr-2">编辑</button></PermissionGuard>

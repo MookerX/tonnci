@@ -63,68 +63,77 @@ export async function POST(request: NextRequest) {
     const { action, data } = body;
 
     // 测试数据库连接
-    if (action === 'test') {
+    if (action === 'test' && data) {
       return await testDatabaseConnection(data);
     }
 
     // 创建数据库
-    if (action === 'createDatabase') {
+    if (action === 'createDatabase' && data) {
       return await createDatabaseIfNotExists(data);
     }
 
-    // 创建配置（原有逻辑）
-    const authResult = await requireAuth(request);
-    if (authResult instanceof NextResponse) {
-      return authResult;
+    // 创建配置（直接发送配置数据，不带 action）
+    if (!action) {
+      return await createDatabaseConfig(data, request);
     }
 
-    const validationResult = databaseConfigSchema.safeParse(data);
-    if (!validationResult.success) {
-      return badRequestResponse(validationResult.error.issues?.[0]?.message || '参数验证失败');
-    }
-
-    const configData = validationResult.data;
-    const clientIp = getClientIp(request);
-
-    // 检查模块代码是否已存在
-    const existing = await prisma.databaseConfig.findUnique({
-      where: { moduleCode: configData.moduleCode }
-    });
-
-    if (existing) {
-      return errorResponse(400, '模块代码已存在');
-    }
-
-    // 创建数据库配置
-    const config = await prisma.databaseConfig.create({
-      data: {
-        moduleName: configData.moduleName,
-        moduleCode: configData.moduleCode,
-        host: configData.host,
-        port: configData.port,
-        database: configData.database,
-        username: configData.username,
-        password: configData.password,
-        isEnabled: configData.isEnabled,
-        remark: configData.remark || null,
-      },
-    });
-
-    // 记录日志
-    await operationLog.logCreate(
-      '数据库配置',
-      authResult.userId,
-      authResult.username,
-      { moduleCode: config.moduleCode },
-      clientIp
-    );
-
-    return successResponse({ ...config, password: '******' }, '数据库配置创建成功');
+    return badRequestResponse('无效的操作类型');
 
   } catch (error: any) {
     console.error('创建数据库配置失败:', error);
     return serverErrorResponse(error.message);
   }
+}
+
+// 独立的创建配置函数
+async function createDatabaseConfig(data: any, request: NextRequest) {
+  const authResult = await requireAuth(request);
+  if (authResult instanceof NextResponse) {
+    return authResult;
+  }
+
+  const validationResult = databaseConfigSchema.safeParse(data);
+  if (!validationResult.success) {
+    return badRequestResponse(validationResult.error.issues?.[0]?.message || '参数验证失败');
+  }
+
+  const configData = validationResult.data;
+  const clientIp = getClientIp(request);
+
+  // 检查模块代码是否已存在
+  const existing = await prisma.databaseConfig.findUnique({
+    where: { moduleCode: configData.moduleCode }
+  });
+
+  if (existing) {
+    return errorResponse(400, '模块代码已存在');
+  }
+
+  // 创建数据库配置
+  const config = await prisma.databaseConfig.create({
+    data: {
+      moduleName: configData.moduleName,
+      moduleCode: configData.moduleCode,
+      host: configData.host,
+      port: configData.port,
+      database: configData.database,
+      username: configData.username,
+      password: configData.password || '',
+      isEnabled: configData.isEnabled ?? false,
+      remark: configData.remark || null,
+    },
+  });
+
+  // 记录日志
+  await operationLog.logCreate(
+    '数据库配置',
+    authResult.userId,
+    authResult.username,
+    { moduleCode: config.moduleCode },
+    clientIp
+  );
+
+  return successResponse({ ...config, password: '******' }, '数据库配置创建成功');
 }
 
 /**
