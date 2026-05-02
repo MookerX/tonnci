@@ -46,11 +46,8 @@ export async function GET(
       return notFoundResponse('数据库配置不存在');
     }
 
-    // 隐藏密码
-    return successResponse({
-      ...config,
-      password: config.password ? '******' : '',
-    });
+    // 返回完整数据（包括真实密码，测试连接需要）
+    return successResponse(config);
 
   } catch (error: any) {
     console.error('获取数据库配置详情失败:', error);
