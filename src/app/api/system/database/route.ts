@@ -49,16 +49,10 @@ export async function GET(request: NextRequest) {
 }
 
 /**
- * POST /api/system/database - 创建数据库配置
+ * POST /api/system/database - 创建数据库配置 / 测试连接 / 创建数据库
  */
 export async function POST(request: NextRequest) {
   try {
-    // 验证管理员权限
-    const authResult = await requireAuth(request);
-    if (authResult instanceof NextResponse) {
-      return authResult;
-    }
-
     let body;
     try {
       body = await request.json();
@@ -66,17 +60,35 @@ export async function POST(request: NextRequest) {
       return badRequestResponse('请求参数格式错误');
     }
 
-    const validationResult = databaseConfigSchema.safeParse(body);
+    const { action, data } = body;
+
+    // 测试数据库连接
+    if (action === 'test') {
+      return await testDatabaseConnection(data);
+    }
+
+    // 创建数据库
+    if (action === 'createDatabase') {
+      return await createDatabaseIfNotExists(data);
+    }
+
+    // 创建配置（原有逻辑）
+    const authResult = await requireAuth(request);
+    if (authResult instanceof NextResponse) {
+      return authResult;
+    }
+
+    const validationResult = databaseConfigSchema.safeParse(data);
     if (!validationResult.success) {
       return badRequestResponse(validationResult.error.issues?.[0]?.message || '参数验证失败');
     }
 
-    const data = validationResult.data;
+    const configData = validationResult.data;
     const clientIp = getClientIp(request);
 
     // 检查模块代码是否已存在
     const existing = await prisma.databaseConfig.findUnique({
-      where: { moduleCode: data.moduleCode }
+      where: { moduleCode: configData.moduleCode }
     });
 
     if (existing) {
@@ -86,15 +98,15 @@ export async function POST(request: NextRequest) {
     // 创建数据库配置
     const config = await prisma.databaseConfig.create({
       data: {
-        moduleName: data.moduleName,
-        moduleCode: data.moduleCode,
-        host: data.host,
-        port: data.port,
-        database: data.database,
-        username: data.username,
-        password: data.password,
-        isEnabled: data.isEnabled,
-        remark: data.remark || null,
+        moduleName: configData.moduleName,
+        moduleCode: configData.moduleCode,
+        host: configData.host,
+        port: configData.port,
+        database: configData.database,
+        username: configData.username,
+        password: configData.password,
+        isEnabled: configData.isEnabled,
+        remark: configData.remark || null,
       },
     });
 
@@ -111,6 +123,94 @@ export async function POST(request: NextRequest) {
 
   } catch (error: any) {
     console.error('创建数据库配置失败:', error);
+    return serverErrorResponse(error.message);
+  }
+}
+
+/**
+ * 测试数据库连接
+ */
+async function testDatabaseConnection(data: any) {
+  try {
+    const mysql = require('mysql2/promise');
+    const { host, port, username, password, database } = data;
+
+    // 先尝试连接指定数据库
+    let connection;
+    try {
+      connection = await mysql.createConnection({
+        host,
+        port: port || 3306,
+        user: username,
+        password: password || '',
+        database,
+        connectTimeout: 5000,
+      });
+      await connection.end();
+      return successResponse({ connected: true, message: '连接成功' });
+    } catch (dbError: any) {
+      // 如果是 Unknown database 错误，尝试不指定数据库连接
+      if (dbError.code === 'ER_BAD_DB_ERROR' || dbError.message?.includes('Unknown database')) {
+        try {
+          connection = await mysql.createConnection({
+            host,
+            port: port || 3306,
+            user: username,
+            password: password || '',
+            connectTimeout: 5000,
+          });
+          await connection.end();
+          return successResponse({ 
+            connected: true, 
+            canConnect: true,
+            databaseExists: false,
+            message: '可以连接到服务器，但数据库不存在，是否创建？' 
+          });
+        } catch (serverError: any) {
+          return errorResponse(400, `服务器连接失败: ${serverError.message}`);
+        }
+      }
+      return errorResponse(400, `连接失败: ${dbError.message}`);
+    }
+  } catch (error: any) {
+    console.error('测试数据库连接失败:', error);
+    return serverErrorResponse(error.message);
+  }
+}
+
+/**
+ * 创建数据库（如果不存在）
+ */
+async function createDatabaseIfNotExists(data: any) {
+  try {
+    const mysql = require('mysql2/promise');
+    const { host, port, username, password, database } = data;
+
+    // 先连接服务器（不指定数据库）
+    let connection;
+    try {
+      connection = await mysql.createConnection({
+        host,
+        port: port || 3306,
+        user: username,
+        password: password || '',
+        connectTimeout: 5000,
+      });
+    } catch (connError: any) {
+      return errorResponse(400, `无法连接到服务器: ${connError.message}`);
+    }
+
+    // 创建数据库
+    try {
+      await connection.query(`CREATE DATABASE IF NOT EXISTS \`${database}\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci`);
+      await connection.end();
+      return successResponse({ created: true, message: `数据库 ${database} 创建成功` });
+    } catch (createError: any) {
+      await connection.end();
+      return errorResponse(400, `创建数据库失败: ${createError.message}`);
+    }
+  } catch (error: any) {
+    console.error('创建数据库失败:', error);
     return serverErrorResponse(error.message);
   }
 }

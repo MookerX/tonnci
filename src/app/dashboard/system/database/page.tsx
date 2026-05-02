@@ -13,6 +13,8 @@ export default function SystemDatabasePage() {
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
+  const [testingDb, setTestingDb] = useState(false);
+  const [createDbConfirm, setCreateDbConfirm] = useState<any>(null);
   const [form, setForm] = useState({
     moduleName: "",
     moduleCode: "",
@@ -44,15 +46,72 @@ export default function SystemDatabasePage() {
 
   useEffect(() => { fetchData(); }, []);
 
-  const handleTestConnection = async (cfg: any) => {
+  const handleTestConnection = async (cfg?: any) => {
+    const testData = cfg || form;
+    if (!testData.host || !testData.database) {
+      warning("请填写完整的主机地址、用户名和数据库信息");
+      return;
+    }
+    setTestingDb(true);
     try {
       const data = await fetchApi("/api/system/database", {
         method: "POST",
         headers,
-        body: JSON.stringify({ action: "test", data: { host: cfg.host, port: cfg.port, username: cfg.username, password: cfg.password, database: cfg.database } })
+        body: JSON.stringify({ 
+          action: "test", 
+          data: { 
+            host: testData.host, 
+            port: testData.port, 
+            username: testData.username, 
+            password: testData.password, 
+            database: testData.database 
+          } 
+        })
       });
-      warning(data.code === 200 ? "连接成功" : `连接失败: ${data.message}`);
-    } catch (e) { warning("连接失败"); }
+      if (data.code === 200) {
+        if (data.data.databaseExists === false) {
+          // 数据库不存在，显示创建确认
+          setCreateDbConfirm(testData);
+        } else {
+          success("连接成功！数据库已存在。");
+        }
+      } else {
+        error(`连接失败: ${data.message}`);
+      }
+    } catch (e) { 
+      error("连接失败"); 
+    }
+    setTestingDb(false);
+  };
+
+  const handleCreateDatabase = async () => {
+    if (!createDbConfirm) return;
+    setTestingDb(true);
+    try {
+      const data = await fetchApi("/api/system/database", {
+        method: "POST",
+        headers,
+        body: JSON.stringify({ 
+          action: "createDatabase", 
+          data: {
+            host: createDbConfirm.host,
+            port: createDbConfirm.port,
+            username: createDbConfirm.username,
+            password: createDbConfirm.password,
+            database: createDbConfirm.database
+          }
+        })
+      });
+      if (data.code === 200) {
+        success(data.data.message);
+      } else {
+        error(data.message);
+      }
+    } catch (e) {
+      error("创建数据库失败");
+    }
+    setTestingDb(false);
+    setCreateDbConfirm(null);
   };
 
   const handleSubmit = async () => {
@@ -145,6 +204,35 @@ export default function SystemDatabasePage() {
         </div>
       </div>
 
+      {/* 创建数据库确认对话框 */}
+      {createDbConfirm && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-xl p-6 max-w-md w-full mx-4">
+            <h3 className="text-lg font-semibold mb-3 text-amber-600">数据库不存在</h3>
+            <p className="text-gray-600 mb-2">
+              服务器 <span className="font-mono">{createDbConfirm.host}:{createDbConfirm.port}</span> 上未找到数据库：
+            </p>
+            <p className="font-mono bg-gray-100 p-2 rounded mb-4">{createDbConfirm.database}</p>
+            <p className="text-gray-600 mb-4">是否立即创建该数据库？</p>
+            <div className="flex gap-3">
+              <button 
+                onClick={handleCreateDatabase} 
+                disabled={testingDb}
+                className="flex-1 px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-50"
+              >
+                {testingDb ? "创建中..." : "创建数据库"}
+              </button>
+              <button 
+                onClick={() => setCreateDbConfirm(null)} 
+                className="flex-1 px-4 py-2 border rounded hover:bg-gray-50"
+              >
+                取消
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* 添加/编辑表单 */}
       {showForm && (
         <div className="bg-white rounded-lg border p-4 mb-4">
@@ -160,6 +248,9 @@ export default function SystemDatabasePage() {
             <div className="col-span-2"><label className="block text-xs text-gray-500 mb-1">备注</label><input className="w-full border rounded px-3 py-2 text-sm" value={form.remark} onChange={e => setForm({...form, remark: e.target.value})} /></div>
           </div>
           <div className="flex gap-2 mt-3">
+            <button onClick={() => handleTestConnection()} disabled={testingDb} className="px-4 py-2 bg-green-600 text-white rounded text-sm hover:bg-green-700 disabled:opacity-50">
+              {testingDb ? "测试中..." : "测试连接"}
+            </button>
             <button onClick={handleSubmit} className="px-4 py-2 bg-blue-600 text-white rounded text-sm hover:bg-blue-700">保存</button>
             <button onClick={() => { setShowForm(false); setEditingId(null); }} className="px-4 py-2 border rounded text-sm hover:bg-gray-50">取消</button>
           </div>
