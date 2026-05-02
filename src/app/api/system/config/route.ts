@@ -85,25 +85,55 @@ export async function POST(request: NextRequest) {
         status: 'success',
       });
     } else if (type === 'param') {
-      result = await prisma.systemConfig.create({
-        data: {
-          paramKey: data.configKey,
-          paramValue: data.configValue,
-          paramType: data.paramType || 'string',
-          remark: data.remark,
-          createdBy: auth.userId,
-        },
+      // 先查询是否已存在
+      const existing = await prisma.systemConfig.findFirst({
+        where: { paramKey: data.configKey, isDelete: false },
       });
 
-      await operationLog({
-        module: '系统管理',
-        businessType: '新增配置',
-        operatorId: auth.userId,
-        operatorName: auth.username,
-        operationDesc: `新增配置: ${data.configKey}`,
-        ipAddress: getClientIp(request),
-        status: 'success',
-      });
+      if (existing) {
+        // 已存在，更新
+        result = await prisma.systemConfig.update({
+          where: { id: existing.id },
+          data: {
+            paramValue: data.configValue,
+            paramType: data.paramType || existing.paramType,
+            remark: data.remark || existing.remark,
+            modifiedBy: auth.userId,
+            updatedAt: new Date(),
+          },
+        });
+
+        await operationLog({
+          module: '系统管理',
+          businessType: '更新配置',
+          operatorId: auth.userId,
+          operatorName: auth.username,
+          operationDesc: `更新配置: ${data.configKey}`,
+          ipAddress: getClientIp(request),
+          status: 'success',
+        });
+      } else {
+        // 不存在，创建
+        result = await prisma.systemConfig.create({
+          data: {
+            paramKey: data.configKey,
+            paramValue: data.configValue,
+            paramType: data.paramType || 'string',
+            remark: data.remark,
+            createdBy: auth.userId,
+          },
+        });
+
+        await operationLog({
+          module: '系统管理',
+          businessType: '新增配置',
+          operatorId: auth.userId,
+          operatorName: auth.username,
+          operationDesc: `新增配置: ${data.configKey}`,
+          ipAddress: getClientIp(request),
+          status: 'success',
+        });
+      }
     }
 
     return successResponse(result);
