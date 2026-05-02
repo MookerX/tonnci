@@ -17,6 +17,7 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [checkDone, setCheckDone] = useState(false);
+  const [systemName, setSystemName] = useState("生产管理系统");
 
   // 初始化检查 - 只执行一次
   useEffect(() => {
@@ -39,6 +40,21 @@ export default function LoginPage() {
           if (!data.data?.exists) {
             router.replace("/setup");
             return;
+          }
+
+          // 获取系统名称
+          try {
+            const configRes = await fetch("/api/system/config?type=param");
+            const configData = await configRes.json();
+            if (configData.code === 200 && configData.data) {
+              const nameConfig = configData.data.find((c: any) => c.paramKey === 'system_name');
+              if (nameConfig) {
+                setSystemName(nameConfig.paramValue);
+                document.title = nameConfig.paramValue;
+              }
+            }
+          } catch (e) {
+            console.error("获取系统名称失败", e);
           }
         }
       } catch (e) {
@@ -112,7 +128,7 @@ export default function LoginPage() {
           <div className="inline-flex items-center justify-center w-20 h-20 rounded-2xl mb-6 shadow-lg overflow-hidden">
             <img src="/logo.png" alt="腾曦Logo" className="w-full h-full object-contain" />
           </div>
-          <h1 className="text-3xl font-bold text-white mb-2">腾曦生产管理系统</h1>
+          <h1 className="text-3xl font-bold text-white mb-2">{systemName}</h1>
           <p className="text-slate-400">Tengxi Production Management System</p>
         </div>
 
