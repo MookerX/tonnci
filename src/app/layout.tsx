@@ -5,10 +5,10 @@ import './globals.css';
 
 export const metadata: Metadata = {
   title: {
-    default: '腾曦生产管理系统',
-    template: '%s | 腾曦生产管理系统',
+    default: '生产管理系统',
+    template: '%s | 生产管理系统',
   },
-  description: '腾曦生产管理系统 - 企业级生产管理平台',
+  description: '企业级生产管理平台',
   keywords: ['生产管理', 'ERP', '制造业', '管理系统'],
   icons: {
     icon: '/logo.png',

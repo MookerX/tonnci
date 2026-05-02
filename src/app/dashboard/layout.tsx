@@ -146,6 +146,7 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
           const nameConfig = data.data.find((c: any) => c.paramKey === 'system_name');
           if (nameConfig) {
             setSystemName(nameConfig.paramValue);
+            document.title = nameConfig.paramValue;
           }
         }
       })
