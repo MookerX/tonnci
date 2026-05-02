@@ -132,6 +132,25 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
   const [pwdForm, setPwdForm] = useState({ oldPassword: "", newPassword: "", confirmPassword: "" });
   const [changingPwd, setChangingPwd] = useState(false);
   const [dbMenuTree, setDbMenuTree] = useState<any[]>([]);
+  const [systemName, setSystemName] = useState("腾曦管理系统");
+
+  // 从数据库加载系统名称
+  useEffect(() => {
+    const token = localStorage.getItem("token");
+    fetch("/api/system/config?type=param", {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then(r => r.json())
+      .then(data => {
+        if (data.code === 200 && data.data) {
+          const nameConfig = data.data.find((c: any) => c.paramKey === 'system_name');
+          if (nameConfig) {
+            setSystemName(nameConfig.paramValue);
+          }
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   // 转换DB菜单为侧边栏格式
   const buildSidebarItems = useCallback((menus: any[]): any[] => {
@@ -378,7 +397,7 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
           </div>
           {!collapsed && (
             <span className="ml-3 text-white font-bold text-sm whitespace-nowrap">
-              腾曦管理系统
+              {systemName}
             </span>
           )}
         </div>
