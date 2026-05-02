@@ -73,7 +73,7 @@ export async function POST(request: NextRequest) {
 
     // 创建配置（直接发送配置数据，不带 action）
     if (!action) {
-      return await createDatabaseConfig(data, request);
+      return await createDatabaseConfig(body, request);
     }
 
     return badRequestResponse('无效的操作类型');
