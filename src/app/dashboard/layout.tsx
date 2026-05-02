@@ -11,7 +11,6 @@ import { usePathname, useRouter } from "next/navigation";
 import { useToast } from "@/components/ToastProvider";
 import { fetchApi } from "@/lib/utils/fetch";
 import { AuthProvider, useAuth, RouteGuard } from "@/components/AuthProvider";
-import TitleInitializer from "@/components/ui/title-initializer";
 
 // =============================================================================
 // 递归侧边栏菜单项组件
@@ -370,15 +369,12 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
   // 加载中
   if (loading || !initialized) {
     return (
-      <>
-        <TitleInitializer />
-        <div className="h-screen flex items-center justify-center bg-gray-100">
-          <div className="text-center">
-            <div className="w-10 h-10 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-3" />
-            <p className="text-gray-500 text-sm">加载中...</p>
-          </div>
+      <div className="h-screen flex items-center justify-center bg-gray-100">
+        <div className="text-center">
+          <div className="w-10 h-10 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-3" />
+          <p className="text-gray-500 text-sm">加载中...</p>
         </div>
-      </>
+      </div>
     );
   }
 
@@ -388,9 +384,7 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <>
-      <TitleInitializer />
-      <div className="h-screen flex bg-gray-100">
+    <div className="h-screen flex bg-gray-100">
       {/* 侧边栏 */}
       <aside
         className={`${
@@ -642,7 +636,7 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
           </div>
         )}
       </div>
-    </>
+    </div>
   );
 }
 
