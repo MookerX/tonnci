@@ -17,7 +17,7 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [checkDone, setCheckDone] = useState(false);
-  const [systemName, setSystemName] = useState("生产管理系统");
+  const [systemName, setSystemName] = useState("加载中...");
 
   // 初始化检查 - 只执行一次
   useEffect(() => {
@@ -55,6 +55,9 @@ export default function LoginPage() {
             }
           } catch (e) {
             console.error("获取系统名称失败", e);
+            // 获取失败时使用默认值
+            setSystemName("生产管理系统");
+            document.title = "生产管理系统";
           }
         }
       } catch (e) {
