@@ -355,15 +355,14 @@ model Customer {
   customerCode   String    @unique @map("customer_code") @db.VarChar(50)
   customerName   String    @map("customer_name") @db.VarChar(200)
   customerType   String    @default("enterprise") @map("customer_type") @db.VarChar(20)
-  contactPerson  String?   @map("contact_person") @db.VarChar(50)
-  contactPhone   String?   @map("contact_phone") @db.VarChar(20)
-  contactEmail   String?   @map("contact_email") @db.VarChar(100)
-  taxNo          String?   @map("tax_no") @db.VarChar(50)
-  bankName       String?   @map("bank_name") @db.VarChar(100)
-  bankAccount    String?   @map("bank_account") @db.VarChar(50)
-  address        String?   @db.Text
-  creditLevel    String?   @map("credit_level") @db.VarChar(10)
-  userId         Int?      @map("user_id")
+  // 开票信息
+  invoiceName    String?   @map("invoice_name") @db.VarChar(200)   // 单位名称
+  taxNo          String?   @map("tax_no") @db.VarChar(50)        // 纳税人识别号
+  regAddress     String?   @map("reg_address") @db.VarChar(200)  // 注册地址
+  regPhone       String?   @map("reg_phone") @db.VarChar(20)    // 注册电话
+  bankName       String?   @map("bank_name") @db.VarChar(100)    // 开户银行
+  bankAccount    String?   @map("bank_account") @db.VarChar(50) // 银行账号
+  address        String?   @db.Text                                    // 地址
   status         String    @default("active") @db.VarChar(20)
   remark         String?   @db.Text
   isDelete       Boolean   @default(false)
@@ -372,7 +371,32 @@ model Customer {
   createdBy      Int?      @map("created_by")
   modifiedBy     Int?      @map("modified_by")
 
+  // 关联联系人
+  contacts       CustomerContact[]
+
   @@map("customer")
+}
+
+// 客户联系人表
+model CustomerContact {
+  id           Int       @id @default(autoincrement())
+  customerId   Int       @map("customer_id")
+  contactName  String    @map("contact_name") @db.VarChar(50)    // 联系人姓名
+  postType     String    @map("post_type") @db.VarChar(20)       // 岗位：boss/finance/tech/quality/business/delivery/production
+  phone        String?   @db.VarChar(20)                         // 联系电话
+  email        String?   @db.VarChar(100)                        // 邮箱
+  isPrimary    Boolean   @default(false) @map("is_primary")       // 是否主要联系人
+  remark       String?   @db.Text
+  isDelete     Boolean   @default(false)
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+  createdBy    Int?      @map("created_by")
+  modifiedBy   Int?      @map("modified_by")
+
+  // 关联到客户
+  customer     Customer  @relation(fields: [customerId], references: [id])
+
+  @@map("customer_contact")
 }
 
 // 客户权限配置表

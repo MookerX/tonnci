@@ -1,103 +1,94 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Search, Plus, Edit2, Trash2, Building2, User, Phone, MapPin, FileText } from 'lucide-react';
 
 interface Customer {
-  id: number;
+  id?: number;
   customerCode: string;
   customerName: string;
   customerType: 'enterprise' | 'personal';
-  // 开票信息
-  invoiceTitle?: string;      // 发票抬头
-  taxNumber?: string;         // 纳税人识别号
-  bankName?: string;          // 开户银行
-  bankAccount?: string;       // 银行账号
-  registerAddress?: string;   // 注册地址
-  registerPhone?: string;     // 注册电话
-  // 联系信息
-  contactPerson?: string;      // 联系人
-  contactPhone?: string;       // 联系电话
-  contactMobile?: string;      // 手机
-  contactEmail?: string;       // 邮箱
-  address?: string;            // 地址
-  // 其他
+  invoiceInfo?: {
+    companyName?: string;
+    taxId?: string;
+    address?: string;
+    phone?: string;
+    bankName?: string;
+    bankAccount?: string;
+  };
+  contacts?: CustomerContact[];
+  contactPerson?: string;
+  contactPhone?: string;
+  address?: string;
   remark?: string;
   createdAt?: string;
   updatedAt?: string;
-  creator?: { realName: string };
-  updater?: { realName: string };
 }
 
-interface FormData {
-  customerName: string;
-  customerType: 'enterprise' | 'personal';
-  invoiceTitle: string;
-  taxNumber: string;
-  bankName: string;
-  bankAccount: string;
-  registerAddress: string;
-  registerPhone: string;
-  contactPerson: string;
-  contactPhone: string;
-  contactMobile: string;
-  contactEmail: string;
-  address: string;
-  remark: string;
+interface CustomerContact {
+  id?: number;
+  contactName: string;
+  postType: string;
+  postTypeName?: string;
+  phone?: string;
+  email?: string;
+  isPrimary?: boolean;
+  remark?: string;
 }
+
+const postTypes = [
+  { value: 'boss', label: '老板' },
+  { value: 'finance', label: '财务' },
+  { value: 'tech', label: '技术' },
+  { value: 'quality', label: '质量' },
+  { value: 'business', label: '商务' },
+  { value: 'delivery', label: '交付' },
+  { value: 'production', label: '生产' },
+];
 
 export default function CustomerPage() {
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [loading, setLoading] = useState(true);
-  const [searchKeyword, setSearchKeyword] = useState('');
-  const [currentPage, setCurrentPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
   const [showModal, setShowModal] = useState(false);
+  const [showContactModal, setShowContactModal] = useState(false);
   const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
-  const [activeTab, setActiveTab] = useState<'basic' | 'invoice' | 'contact'>('basic');
-  const pageSize = 20;
-
-  const [formData, setFormData] = useState<FormData>({
+  const [editingContacts, setEditingContacts] = useState<CustomerContact[]>([]);
+  const [searchKeyword, setSearchKeyword] = useState('');
+  const [currentCustomer, setCurrentCustomer] = useState<Customer | null>(null);
+  const [form, setForm] = useState({
     customerName: '',
-    customerType: 'enterprise',
-    invoiceTitle: '',
-    taxNumber: '',
-    bankName: '',
-    bankAccount: '',
-    registerAddress: '',
-    registerPhone: '',
+    customerType: 'enterprise' as 'enterprise' | 'personal',
     contactPerson: '',
     contactPhone: '',
-    contactMobile: '',
-    contactEmail: '',
     address: '',
+    remark: '',
+    invoiceInfo: {
+      companyName: '',
+      taxId: '',
+      address: '',
+      phone: '',
+      bankName: '',
+      bankAccount: '',
+    },
+  });
+  const [contactForm, setContactForm] = useState({
+    contactName: '',
+    postType: 'business',
+    phone: '',
+    email: '',
+    isPrimary: false,
     remark: '',
   });
 
   useEffect(() => {
     fetchCustomers();
-  }, [currentPage]);
+  }, []);
 
   const fetchCustomers = async () => {
-    setLoading(true);
     try {
-      const token = localStorage.getItem('token');
-      const params = new URLSearchParams({
-        page: currentPage.toString(),
-        pageSize: pageSize.toString(),
-      });
-      if (searchKeyword) {
-        params.append('keyword', searchKeyword);
-      }
-
-      const res = await fetch(`/api/customer?${params}`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      const res = await fetch('/api/customer');
       const data = await res.json();
-      
       if (data.code === 200) {
-        setCustomers(data.data.list || []);
-        setTotalPages(data.data.totalPages || 1);
+        setCustomers(data.data || []);
       }
     } catch (error) {
       console.error('获取客户列表失败:', error);
@@ -106,66 +97,92 @@ export default function CustomerPage() {
     }
   };
 
-  const handleSearch = () => {
-    setCurrentPage(1);
-    fetchCustomers();
+  const fetchContacts = async (customerId: number) => {
+    try {
+      const res = await fetch(`/api/customer/${customerId}/contact`);
+      const data = await res.json();
+      if (data.code === 200) {
+        setEditingContacts(data.data || []);
+      }
+    } catch (error) {
+      console.error('获取联系人失败:', error);
+    }
   };
 
-  const handleAdd = () => {
-    setEditingCustomer(null);
-    setFormData({
-      customerName: '',
-      customerType: 'enterprise',
-      invoiceTitle: '',
-      taxNumber: '',
-      bankName: '',
-      bankAccount: '',
-      registerAddress: '',
-      registerPhone: '',
-      contactPerson: '',
-      contactPhone: '',
-      contactMobile: '',
-      contactEmail: '',
-      address: '',
-      remark: '',
-    });
-    setActiveTab('basic');
+  const handleOpenModal = (customer?: Customer) => {
+    if (customer) {
+      setEditingCustomer(customer);
+      setForm({
+        customerName: customer.customerName || '',
+        customerType: customer.customerType || 'enterprise',
+        contactPerson: customer.contactPerson || '',
+        contactPhone: customer.contactPhone || '',
+        address: customer.address || '',
+        remark: customer.remark || '',
+        invoiceInfo: {
+          companyName: customer.invoiceInfo?.companyName || '',
+          taxId: customer.invoiceInfo?.taxId || '',
+          address: customer.invoiceInfo?.address || '',
+          phone: customer.invoiceInfo?.phone || '',
+          bankName: customer.invoiceInfo?.bankName || '',
+          bankAccount: customer.invoiceInfo?.bankAccount || '',
+        },
+      });
+    } else {
+      setEditingCustomer(null);
+      setForm({
+        customerName: '',
+        customerType: 'enterprise',
+        contactPerson: '',
+        contactPhone: '',
+        address: '',
+        remark: '',
+        invoiceInfo: {
+          companyName: '',
+          taxId: '',
+          address: '',
+          phone: '',
+          bankName: '',
+          bankAccount: '',
+        },
+      });
+    }
     setShowModal(true);
   };
 
-  const handleEdit = (customer: Customer) => {
-    setEditingCustomer(customer);
-    setFormData({
-      customerName: customer.customerName || '',
-      customerType: customer.customerType || 'enterprise',
-      invoiceTitle: customer.invoiceTitle || '',
-      taxNumber: customer.taxNumber || '',
-      bankName: customer.bankName || '',
-      bankAccount: customer.bankAccount || '',
-      registerAddress: customer.registerAddress || '',
-      registerPhone: customer.registerPhone || '',
-      contactPerson: customer.contactPerson || '',
-      contactPhone: customer.contactPhone || '',
-      contactMobile: (customer as any).contactMobile || '',
-      contactEmail: (customer as any).contactEmail || '',
-      address: customer.address || '',
-      remark: customer.remark || '',
-    });
-    setActiveTab('basic');
-    setShowModal(true);
+  const handleSave = async () => {
+    try {
+      const url = editingCustomer?.id ? `/api/customer/${editingCustomer.id}` : '/api/customer';
+      const method = editingCustomer?.id ? 'PUT' : 'POST';
+
+      const res = await fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(form),
+      });
+
+      const data = await res.json();
+      if (data.code === 200) {
+        alert(editingCustomer?.id ? '修改成功' : '添加成功');
+        setShowModal(false);
+        fetchCustomers();
+      } else {
+        alert(data.message || '操作失败');
+      }
+    } catch (error) {
+      console.error('保存失败:', error);
+      alert('保存失败');
+    }
   };
 
   const handleDelete = async (id: number) => {
     if (!confirm('确定要删除该客户吗？')) return;
-    
+
     try {
-      const token = localStorage.getItem('token');
       const res = await fetch(`/api/customer/${id}`, {
         method: 'DELETE',
-        headers: { Authorization: `Bearer ${token}` }
       });
       const data = await res.json();
-      
       if (data.code === 200) {
         alert('删除成功');
         fetchCustomers();
@@ -173,444 +190,464 @@ export default function CustomerPage() {
         alert(data.message || '删除失败');
       }
     } catch (error) {
+      console.error('删除失败:', error);
       alert('删除失败');
     }
   };
 
-  const handleSubmit = async () => {
-    if (!formData.customerName.trim()) {
-      alert('请输入客户名称');
-      return;
+  const handleOpenContacts = (customer: Customer) => {
+    setCurrentCustomer(customer);
+    if (customer.id) {
+      fetchContacts(customer.id);
+    }
+    setShowContactModal(true);
+  };
+
+  const handleAddContact = () => {
+    setEditingContacts([
+      ...editingContacts,
+      {
+        contactName: '',
+        postType: 'business',
+        phone: '',
+        email: '',
+        isPrimary: editingContacts.length === 0,
+        remark: '',
+      },
+    ]);
+  };
+
+  const handleRemoveContact = (index: number) => {
+    setEditingContacts(editingContacts.filter((_, i) => i !== index));
+  };
+
+  const handleContactChange = (index: number, field: string, value: any) => {
+    const newContacts = [...editingContacts];
+    newContacts[index] = { ...newContacts[index], [field]: value };
+
+    // 如果设置为主要联系人，取消其他主要
+    if (field === 'isPrimary' && value) {
+      newContacts.forEach((c, i) => {
+        if (i !== index) c.isPrimary = false;
+      });
     }
 
+    setEditingContacts(newContacts);
+  };
+
+  const handleSaveContacts = async () => {
+    if (!currentCustomer?.id) return;
+
     try {
-      const token = localStorage.getItem('token');
-      const url = editingCustomer 
-        ? `/api/customer/${editingCustomer.id}` 
-        : '/api/customer';
-      const method = editingCustomer ? 'PUT' : 'POST';
-
-      const res = await fetch(url, {
-        method,
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`
-        },
-        body: JSON.stringify(formData)
+      const res = await fetch(`/api/customer/${currentCustomer.id}/contact`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ contacts: editingContacts }),
       });
-      const data = await res.json();
 
+      const data = await res.json();
       if (data.code === 200) {
-        alert(editingCustomer ? '修改成功' : '添加成功');
-        setShowModal(false);
+        alert('保存成功');
+        setShowContactModal(false);
         fetchCustomers();
       } else {
-        alert(data.message || '操作失败');
+        alert(data.message || '保存失败');
       }
     } catch (error) {
-      alert('操作失败');
+      console.error('保存联系人失败:', error);
+      alert('保存失败');
     }
   };
 
+  const filteredCustomers = customers.filter(c => {
+    if (!searchKeyword) return true;
+    const kw = searchKeyword.toLowerCase();
+    return (
+      c.customerName?.toLowerCase().includes(kw) ||
+      c.customerCode?.toLowerCase().includes(kw) ||
+      c.contactPerson?.toLowerCase().includes(kw)
+    );
+  });
+
   return (
     <div className="p-6">
-      <div className="mb-4">
+      <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-bold text-gray-800">客户管理</h1>
+        <button
+          onClick={() => handleOpenModal()}
+          className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+        >
+          新增客户
+        </button>
       </div>
 
-      {/* 搜索栏 */}
-      <div className="bg-white rounded-lg shadow p-4 mb-4">
-        <div className="flex gap-4">
-          <div className="flex-1">
-            <input
-              type="text"
-              placeholder="搜索客户名称、编码、联系人..."
-              value={searchKeyword}
-              onChange={(e) => setSearchKeyword(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            />
-          </div>
-          <button
-            onClick={handleSearch}
-            className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2"
-          >
-            <Search className="w-4 h-4" />
-            搜索
-          </button>
-          <button
-            onClick={handleAdd}
-            className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 flex items-center gap-2"
-          >
-            <Plus className="w-4 h-4" />
-            新增客户
-          </button>
-        </div>
+      {/* 搜索框 */}
+      <div className="mb-4">
+        <input
+          type="text"
+          placeholder="搜索客户名称、编码、联系人..."
+          value={searchKeyword}
+          onChange={(e) => setSearchKeyword(e.target.value)}
+          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+        />
       </div>
 
       {/* 客户列表 */}
       <div className="bg-white rounded-lg shadow overflow-hidden">
-        <table className="min-w-full divide-y divide-gray-200">
+        <table className="w-full">
           <thead className="bg-gray-50">
             <tr>
-              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">客户编码</th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">客户名称</th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">类型</th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">联系人</th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">联系电话</th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">地址</th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">创建时间</th>
-              <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">操作</th>
+              <th className="px-4 py-3 text-left text-sm font-medium text-gray-600">客户编码</th>
+              <th className="px-4 py-3 text-left text-sm font-medium text-gray-600">客户名称</th>
+              <th className="px-4 py-3 text-left text-sm font-medium text-gray-600">类型</th>
+              <th className="px-4 py-3 text-left text-sm font-medium text-gray-600">联系人</th>
+              <th className="px-4 py-3 text-left text-sm font-medium text-gray-600">联系电话</th>
+              <th className="px-4 py-3 text-left text-sm font-medium text-gray-600">创建时间</th>
+              <th className="px-4 py-3 text-center text-sm font-medium text-gray-600">操作</th>
             </tr>
           </thead>
-          <tbody className="bg-white divide-y divide-gray-200">
-            {loading ? (
-              <tr>
-                <td colSpan={8} className="px-4 py-8 text-center text-gray-500">加载中...</td>
-              </tr>
-            ) : customers.length === 0 ? (
-              <tr>
-                <td colSpan={8} className="px-4 py-8 text-center text-gray-500">暂无数据</td>
-              </tr>
-            ) : (
-              customers.map((customer) => (
-                <tr key={customer.id} className="hover:bg-gray-50">
-                  <td className="px-4 py-3 text-sm text-gray-900">{customer.customerCode}</td>
-                  <td className="px-4 py-3 text-sm text-gray-900">{customer.customerName}</td>
-                  <td className="px-4 py-3 text-sm">
-                    <span className={`px-2 py-1 text-xs rounded-full ${
-                      customer.customerType === 'enterprise' 
-                        ? 'bg-blue-100 text-blue-700' 
-                        : 'bg-green-100 text-green-700'
-                    }`}>
-                      {customer.customerType === 'enterprise' ? '企业' : '个人'}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3 text-sm text-gray-500">{customer.contactPerson || '-'}</td>
-                  <td className="px-4 py-3 text-sm text-gray-500">{customer.contactPhone || '-'}</td>
-                  <td className="px-4 py-3 text-sm text-gray-500 max-w-xs truncate">{customer.address || '-'}</td>
-                  <td className="px-4 py-3 text-sm text-gray-500">
-                    {customer.createdAt ? new Date(customer.createdAt).toLocaleDateString() : '-'}
-                  </td>
-                  <td className="px-4 py-3 text-center">
+          <tbody className="divide-y divide-gray-200">
+            {filteredCustomers.map((customer) => (
+              <tr key={customer.id} className="hover:bg-gray-50">
+                <td className="px-4 py-3 text-sm text-gray-800">{customer.customerCode}</td>
+                <td className="px-4 py-3 text-sm text-gray-800 font-medium">{customer.customerName}</td>
+                <td className="px-4 py-3 text-sm">
+                  <span className={`px-2 py-1 rounded text-xs ${
+                    customer.customerType === 'enterprise'
+                      ? 'bg-blue-100 text-blue-700'
+                      : 'bg-green-100 text-green-700'
+                  }`}>
+                    {customer.customerType === 'enterprise' ? '企业' : '个人'}
+                  </span>
+                </td>
+                <td className="px-4 py-3 text-sm text-gray-600">{customer.contactPerson || '-'}</td>
+                <td className="px-4 py-3 text-sm text-gray-600">{customer.contactPhone || '-'}</td>
+                <td className="px-4 py-3 text-sm text-gray-500">
+                  {customer.createdAt ? new Date(customer.createdAt).toLocaleDateString() : '-'}
+                </td>
+                <td className="px-4 py-3 text-center">
+                  <div className="flex justify-center gap-2">
                     <button
-                      onClick={() => handleEdit(customer)}
-                      className="text-blue-600 hover:text-blue-800 mr-3"
+                      onClick={() => handleOpenContacts(customer)}
+                      className="px-2 py-1 text-xs bg-green-50 text-green-600 rounded hover:bg-green-100"
                     >
-                      <Edit2 className="w-4 h-4" />
+                      联系人
                     </button>
                     <button
-                      onClick={() => handleDelete(customer.id)}
-                      className="text-red-600 hover:text-red-800"
+                      onClick={() => handleOpenModal(customer)}
+                      className="px-2 py-1 text-xs bg-blue-50 text-blue-600 rounded hover:bg-blue-100"
                     >
-                      <Trash2 className="w-4 h-4" />
+                      编辑
                     </button>
-                  </td>
-                </tr>
-              ))
+                    <button
+                      onClick={() => customer.id && handleDelete(customer.id)}
+                      className="px-2 py-1 text-xs bg-red-50 text-red-600 rounded hover:bg-red-100"
+                    >
+                      删除
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            ))}
+            {filteredCustomers.length === 0 && !loading && (
+              <tr>
+                <td colSpan={7} className="px-4 py-8 text-center text-gray-500">
+                  暂无数据
+                </td>
+              </tr>
             )}
           </tbody>
         </table>
-
-        {/* 分页 */}
-        {totalPages > 1 && (
-          <div className="px-4 py-3 flex items-center justify-between border-t border-gray-200">
-            <div className="text-sm text-gray-500">
-              第 {currentPage} / {totalPages} 页
-            </div>
-            <div className="flex gap-2">
-              <button
-                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                disabled={currentPage === 1}
-                className="px-3 py-1 border border-gray-300 rounded disabled:opacity-50"
-              >
-                上一页
-              </button>
-              <button
-                onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-                disabled={currentPage === totalPages}
-                className="px-3 py-1 border border-gray-300 rounded disabled:opacity-50"
-              >
-                下一页
-              </button>
-            </div>
-          </div>
-        )}
       </div>
 
-      {/* 弹窗 */}
+      {/* 客户编辑弹窗 */}
       {showModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg shadow-xl w-full max-w-3xl max-h-[90vh] overflow-hidden">
-            <div className="px-6 py-4 border-b flex items-center justify-between">
-              <h3 className="text-lg font-medium">
-                {editingCustomer ? '编辑客户' : '新增客户'}
-              </h3>
-              <button onClick={() => setShowModal(false)} className="text-gray-400 hover:text-gray-600">
+          <div className="bg-white rounded-lg w-full max-w-2xl max-h-[90vh] overflow-y-auto m-4">
+            <div className="px-6 py-4 border-b flex justify-between items-center sticky top-0 bg-white">
+              <h3 className="text-lg font-bold">{editingCustomer?.id ? '编辑客户' : '新增客户'}</h3>
+              <button onClick={() => setShowModal(false)} className="text-gray-500 hover:text-gray-700">
                 ✕
               </button>
             </div>
 
-            {/* Tab 切换 */}
-            <div className="px-6 py-3 border-b flex gap-6">
-              <button
-                onClick={() => setActiveTab('basic')}
-                className={`pb-2 text-sm font-medium ${
-                  activeTab === 'basic' 
-                    ? 'text-blue-600 border-b-2 border-blue-600' 
-                    : 'text-gray-500 hover:text-gray-700'
-                }`}
-              >
-                基本信息
-              </button>
-              <button
-                onClick={() => setActiveTab('invoice')}
-                className={`pb-2 text-sm font-medium flex items-center gap-1 ${
-                  activeTab === 'invoice' 
-                    ? 'text-blue-600 border-b-2 border-blue-600' 
-                    : 'text-gray-500 hover:text-gray-700'
-                }`}
-              >
-                <FileText className="w-4 h-4" />
-                开票信息
-              </button>
-              <button
-                onClick={() => setActiveTab('contact')}
-                className={`pb-2 text-sm font-medium flex items-center gap-1 ${
-                  activeTab === 'contact' 
-                    ? 'text-blue-600 border-b-2 border-blue-600' 
-                    : 'text-gray-500 hover:text-gray-700'
-                }`}
-              >
-                <Phone className="w-4 h-4" />
-                联系信息
-              </button>
-            </div>
-
-            <div className="p-6 overflow-y-auto max-h-[60vh]">
+            <div className="p-6 space-y-6">
               {/* 基本信息 */}
-              {activeTab === 'basic' && (
+              <div>
+                <h4 className="text-sm font-medium text-gray-700 mb-3">基本信息</h4>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      <span className="text-red-500">*</span> 客户名称
-                    </label>
+                    <label className="block text-sm text-gray-600 mb-1">客户名称 *</label>
                     <input
                       type="text"
-                      value={formData.customerName}
-                      onChange={(e) => setFormData({ ...formData, customerName: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                      placeholder="请输入客户名称"
+                      value={form.customerName}
+                      onChange={(e) => setForm({ ...form, customerName: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500"
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      客户类型
-                    </label>
+                    <label className="block text-sm text-gray-600 mb-1">客户类型 *</label>
                     <select
-                      value={formData.customerType}
-                      onChange={(e) => setFormData({ 
-                        ...formData, 
-                        customerType: e.target.value as 'enterprise' | 'personal',
-                        // 企业类型自动填充发票抬头
-                        invoiceTitle: e.target.value === 'enterprise' && !formData.invoiceTitle 
-                          ? formData.customerName 
-                          : formData.invoiceTitle
-                      })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                      value={form.customerType}
+                      onChange={(e) => setForm({ ...form, customerType: e.target.value as 'enterprise' | 'personal' })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500"
                     >
                       <option value="enterprise">企业</option>
                       <option value="personal">个人</option>
                     </select>
                   </div>
+                  <div>
+                    <label className="block text-sm text-gray-600 mb-1">联系人</label>
+                    <input
+                      type="text"
+                      value={form.contactPerson}
+                      onChange={(e) => setForm({ ...form, contactPerson: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm text-gray-600 mb-1">联系电话</label>
+                    <input
+                      type="text"
+                      value={form.contactPhone}
+                      onChange={(e) => setForm({ ...form, contactPhone: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
                   <div className="col-span-2">
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      备注
-                    </label>
+                    <label className="block text-sm text-gray-600 mb-1">地址</label>
+                    <input
+                      type="text"
+                      value={form.address}
+                      onChange={(e) => setForm({ ...form, address: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                  <div className="col-span-2">
+                    <label className="block text-sm text-gray-600 mb-1">备注</label>
                     <textarea
-                      value={formData.remark}
-                      onChange={(e) => setFormData({ ...formData, remark: e.target.value })}
-                      rows={3}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                      placeholder="请输入备注信息"
+                      value={form.remark}
+                      onChange={(e) => setForm({ ...form, remark: e.target.value })}
+                      rows={2}
+                      className="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500"
                     />
                   </div>
                 </div>
-              )}
+              </div>
 
               {/* 开票信息 */}
-              {activeTab === 'invoice' && (
-                <div className="space-y-4">
-                  <div className="bg-blue-50 p-3 rounded-lg text-sm text-blue-700 flex items-center gap-2">
-                    <FileText className="w-4 h-4" />
-                    完善开票信息，方便后续开具发票
+              <div>
+                <h4 className="text-sm font-medium text-gray-700 mb-3">开票信息</h4>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm text-gray-600 mb-1">单位名称</label>
+                    <input
+                      type="text"
+                      value={form.invoiceInfo.companyName}
+                      onChange={(e) => setForm({
+                        ...form,
+                        invoiceInfo: { ...form.invoiceInfo, companyName: e.target.value }
+                      })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500"
+                    />
                   </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        <Building2 className="w-4 h-4 inline mr-1" />
-                        发票抬头
-                      </label>
-                      <input
-                        type="text"
-                        value={formData.invoiceTitle}
-                        onChange={(e) => setFormData({ ...formData, invoiceTitle: e.target.value })}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                        placeholder="请输入发票抬头"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        纳税人识别号
-                      </label>
-                      <input
-                        type="text"
-                        value={formData.taxNumber}
-                        onChange={(e) => setFormData({ ...formData, taxNumber: e.target.value })}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                        placeholder="请输入纳税人识别号"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        开户银行
-                      </label>
-                      <input
-                        type="text"
-                        value={formData.bankName}
-                        onChange={(e) => setFormData({ ...formData, bankName: e.target.value })}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                        placeholder="请输入开户银行"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        银行账号
-                      </label>
-                      <input
-                        type="text"
-                        value={formData.bankAccount}
-                        onChange={(e) => setFormData({ ...formData, bankAccount: e.target.value })}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                        placeholder="请输入银行账号"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        注册地址
-                      </label>
-                      <input
-                        type="text"
-                        value={formData.registerAddress}
-                        onChange={(e) => setFormData({ ...formData, registerAddress: e.target.value })}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                        placeholder="请输入注册地址"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        注册电话
-                      </label>
-                      <input
-                        type="text"
-                        value={formData.registerPhone}
-                        onChange={(e) => setFormData({ ...formData, registerPhone: e.target.value })}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                        placeholder="请输入注册电话"
-                      />
-                    </div>
+                  <div>
+                    <label className="block text-sm text-gray-600 mb-1">纳税人识别号</label>
+                    <input
+                      type="text"
+                      value={form.invoiceInfo.taxId}
+                      onChange={(e) => setForm({
+                        ...form,
+                        invoiceInfo: { ...form.invoiceInfo, taxId: e.target.value }
+                      })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm text-gray-600 mb-1">注册地址</label>
+                    <input
+                      type="text"
+                      value={form.invoiceInfo.address}
+                      onChange={(e) => setForm({
+                        ...form,
+                        invoiceInfo: { ...form.invoiceInfo, address: e.target.value }
+                      })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm text-gray-600 mb-1">联系电话</label>
+                    <input
+                      type="text"
+                      value={form.invoiceInfo.phone}
+                      onChange={(e) => setForm({
+                        ...form,
+                        invoiceInfo: { ...form.invoiceInfo, phone: e.target.value }
+                      })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm text-gray-600 mb-1">开户银行</label>
+                    <input
+                      type="text"
+                      value={form.invoiceInfo.bankName}
+                      onChange={(e) => setForm({
+                        ...form,
+                        invoiceInfo: { ...form.invoiceInfo, bankName: e.target.value }
+                      })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm text-gray-600 mb-1">银行账号</label>
+                    <input
+                      type="text"
+                      value={form.invoiceInfo.bankAccount}
+                      onChange={(e) => setForm({
+                        ...form,
+                        invoiceInfo: { ...form.invoiceInfo, bankAccount: e.target.value }
+                      })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500"
+                    />
                   </div>
                 </div>
-              )}
-
-              {/* 联系信息 */}
-              {activeTab === 'contact' && (
-                <div className="space-y-4">
-                  <div className="bg-gray-50 p-3 rounded-lg text-sm text-gray-600 flex items-center gap-2">
-                    <User className="w-4 h-4" />
-                    完善联系信息，方便业务沟通
-                  </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        <User className="w-4 h-4 inline mr-1" />
-                        联系人
-                      </label>
-                      <input
-                        type="text"
-                        value={formData.contactPerson}
-                        onChange={(e) => setFormData({ ...formData, contactPerson: e.target.value })}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                        placeholder="请输入联系人姓名"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        <Phone className="w-4 h-4 inline mr-1" />
-                        联系电话
-                      </label>
-                      <input
-                        type="text"
-                        value={formData.contactPhone}
-                        onChange={(e) => setFormData({ ...formData, contactPhone: e.target.value })}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                        placeholder="请输入联系电话"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        手机号码
-                      </label>
-                      <input
-                        type="text"
-                        value={formData.contactMobile}
-                        onChange={(e) => setFormData({ ...formData, contactMobile: e.target.value })}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                        placeholder="请输入手机号码"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        电子邮箱
-                      </label>
-                      <input
-                        type="email"
-                        value={formData.contactEmail}
-                        onChange={(e) => setFormData({ ...formData, contactEmail: e.target.value })}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                        placeholder="请输入电子邮箱"
-                      />
-                    </div>
-                    <div className="col-span-2">
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        <MapPin className="w-4 h-4 inline mr-1" />
-                        地址
-                      </label>
-                      <input
-                        type="text"
-                        value={formData.address}
-                        onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                        placeholder="请输入详细地址"
-                      />
-                    </div>
-                  </div>
-                </div>
-              )}
+              </div>
             </div>
 
-            <div className="px-6 py-4 border-t flex justify-end gap-3">
+            <div className="px-6 py-4 border-t flex justify-end gap-3 bg-gray-50">
               <button
                 onClick={() => setShowModal(false)}
-                className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
+                className="px-4 py-2 text-gray-700 border border-gray-300 rounded hover:bg-gray-100"
               >
                 取消
               </button>
               <button
-                onClick={handleSubmit}
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                onClick={handleSave}
+                className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
               >
                 保存
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 联系人管理弹窗 */}
+      {showContactModal && currentCustomer && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg w-full max-w-4xl max-h-[90vh] overflow-y-auto m-4">
+            <div className="px-6 py-4 border-b flex justify-between items-center sticky top-0 bg-white">
+              <h3 className="text-lg font-bold">联系人管理 - {currentCustomer.customerName}</h3>
+              <button onClick={() => setShowContactModal(false)} className="text-gray-500 hover:text-gray-700">
+                ✕
+              </button>
+            </div>
+
+            <div className="p-6">
+              <button
+                onClick={handleAddContact}
+                className="mb-4 px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700"
+              >
+                + 添加联系人
+              </button>
+
+              <div className="space-y-4">
+                {editingContacts.map((contact, index) => (
+                  <div key={index} className="border border-gray-200 rounded-lg p-4 bg-gray-50">
+                    <div className="flex justify-between items-start mb-3">
+                      <span className="text-sm font-medium text-gray-700">联系人 {index + 1}</span>
+                      <button
+                        onClick={() => handleRemoveContact(index)}
+                        className="text-red-500 hover:text-red-700 text-sm"
+                      >
+                        删除
+                      </button>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-xs text-gray-600 mb-1">姓名 *</label>
+                        <input
+                          type="text"
+                          value={contact.contactName}
+                          onChange={(e) => handleContactChange(index, 'contactName', e.target.value)}
+                          className="w-full px-3 py-1.5 border border-gray-300 rounded text-sm focus:ring-2 focus:ring-blue-500"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs text-gray-600 mb-1">岗位 *</label>
+                        <select
+                          value={contact.postType}
+                          onChange={(e) => handleContactChange(index, 'postType', e.target.value)}
+                          className="w-full px-3 py-1.5 border border-gray-300 rounded text-sm focus:ring-2 focus:ring-blue-500"
+                        >
+                          {postTypes.map((pt) => (
+                            <option key={pt.value} value={pt.value}>{pt.label}</option>
+                          ))}
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-xs text-gray-600 mb-1">电话</label>
+                        <input
+                          type="text"
+                          value={contact.phone || ''}
+                          onChange={(e) => handleContactChange(index, 'phone', e.target.value)}
+                          className="w-full px-3 py-1.5 border border-gray-300 rounded text-sm focus:ring-2 focus:ring-blue-500"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs text-gray-600 mb-1">邮箱</label>
+                        <input
+                          type="email"
+                          value={contact.email || ''}
+                          onChange={(e) => handleContactChange(index, 'email', e.target.value)}
+                          className="w-full px-3 py-1.5 border border-gray-300 rounded text-sm focus:ring-2 focus:ring-blue-500"
+                        />
+                      </div>
+                      <div className="col-span-2">
+                        <label className="block text-xs text-gray-600 mb-1">备注</label>
+                        <input
+                          type="text"
+                          value={contact.remark || ''}
+                          onChange={(e) => handleContactChange(index, 'remark', e.target.value)}
+                          className="w-full px-3 py-1.5 border border-gray-300 rounded text-sm focus:ring-2 focus:ring-blue-500"
+                        />
+                      </div>
+                      <div className="col-span-2">
+                        <label className="flex items-center gap-2 text-sm">
+                          <input
+                            type="checkbox"
+                            checked={contact.isPrimary || false}
+                            onChange={(e) => handleContactChange(index, 'isPrimary', e.target.checked)}
+                            className="w-4 h-4 text-blue-600 rounded"
+                          />
+                          <span className="text-gray-700">设为主要联系人</span>
+                        </label>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+
+                {editingContacts.length === 0 && (
+                  <div className="text-center py-8 text-gray-500">
+                    暂无联系人，点击上方按钮添加
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="px-6 py-4 border-t flex justify-end gap-3 bg-gray-50">
+              <button
+                onClick={() => setShowContactModal(false)}
+                className="px-4 py-2 text-gray-700 border border-gray-300 rounded hover:bg-gray-100"
+              >
+                取消
+              </button>
+              <button
+                onClick={handleSaveContacts}
+                className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+              >
+                保存联系人
               </button>
             </div>
           </div>
