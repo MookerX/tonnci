@@ -1,68 +1,62 @@
-// @ts-nocheck
-/* eslint-disable @typescript-eslint/ban-ts-comment */
-// =============================================================================
-// 腾曦生产管理系统 - 客户管理API
-// 描述: 客户信息CRUD操作
-// =============================================================================
-
-import { NextRequest } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { successResponse, badRequestResponse, serverErrorResponse } from '@/lib/response';
-import { customerSchema } from '@/lib/validators';
-import { requireAuth } from '@/lib/auth/middleware';
-import { getClientIp } from '@/lib/utils';
-import { operationLog } from '@/lib/services/operation-log';
+import { getUserFromToken } from '@/lib/auth/jwt';
+import { successResponse, badRequestResponse, serverErrorResponse, unauthorizedResponse } from '@/lib/response';
+import { z } from 'zod';
 
-/** 生成客户编码
-/**/
-async function generateCustomerCode(): Promise<string> {
-  const count = await prisma.customer.count({ where: { isDelete: false } });
-  return `KH${String(count + 1).padStart(6, '0')}`;
-}
+// 客户类型映射
+const CUSTOMER_TYPE_MAP: Record<string, string> = {
+  '企业': 'enterprise',
+  '个人': 'individual',
+};
 
-/** GET /api/customer - 获取客户列表
-/**/
+const customerSchema = z.object({
+  customerName: z.string().min(1, '客户名称不能为空'),
+  customerType: z.string().optional(),
+  contactPerson: z.string().optional(),
+  contactPhone: z.string().optional(),
+  contactAddress: z.string().optional(),
+  taxInfo: z.string().optional(),
+  remark: z.string().optional(),
+});
+
+/** GET /api/customer - 获取客户列表 */
 export async function GET(request: NextRequest) {
   try {
-    const authResult = await requireAuth(request);
+    const authResult = await getUserFromToken(request);
     if (authResult instanceof Response) return authResult;
 
     const { searchParams } = new URL(request.url);
     const keyword = searchParams.get('keyword') || '';
-    const status = searchParams.get('status');
     const page = parseInt(searchParams.get('page') || '1');
     const pageSize = parseInt(searchParams.get('pageSize') || '20');
 
     const where: any = { isDelete: false };
-    
     if (keyword) {
       where.OR = [
-        { customerCode: { contains: keyword } },
         { customerName: { contains: keyword } },
+        { customerCode: { contains: keyword } },
         { contactPerson: { contains: keyword } },
         { contactPhone: { contains: keyword } },
       ];
     }
-    
-    if (status) {
-      where.status = status;
-    }
 
-    const [total, list] = await Promise.all([
+    const [total, customers] = await Promise.all([
       prisma.customer.count({ where }),
       prisma.customer.findMany({
         where,
-        orderBy: { createdAt: 'desc' },
         skip: (page - 1) * pageSize,
         take: pageSize,
+        orderBy: { createdAt: 'desc' },
       }),
     ]);
 
     return successResponse({
+      list: customers,
       total,
       page,
       pageSize,
-      list,
+      totalPages: Math.ceil(total / pageSize),
     });
   } catch (error: any) {
     console.error('获取客户列表失败:', error);
@@ -70,17 +64,18 @@ export async function GET(request: NextRequest) {
   }
 }
 
-/** POST /api/customer - 创建客户
-/**/
+/** POST /api/customer - 创建客户 */
 export async function POST(request: NextRequest) {
   try {
-    const authResult = await requireAuth(request);
+    const authResult = await getUserFromToken(request);
     if (authResult instanceof Response) return authResult;
-    const auth = authResult;
+    const user = authResult;
 
     const body = await request.json();
     const validation = customerSchema.safeParse(body);
-    if (!validation.success) return badRequestResponse('参数验证失败');
+    if (!validation.success) {
+      return badRequestResponse(validation.error.errors[0].message);
+    }
 
     const data = validation.data;
 
@@ -91,36 +86,30 @@ export async function POST(request: NextRequest) {
       data: {
         customerCode,
         customerName: data.customerName,
-        customerType: data.customerType || 'enterprise',
+        customerType: CUSTOMER_TYPE_MAP[data.customerType || '企业'] || 'enterprise',
         contactPerson: data.contactPerson,
         contactPhone: data.contactPhone,
-        contactEmail: data.contactEmail,
-        taxNo: data.taxNo,
-        bankName: data.bankName,
-        bankAccount: data.bankAccount,
-        address: data.address,
-        creditLevel: data.creditLevel,
-        status: data.status || 'active',
+        contactAddress: data.contactAddress,
+        taxInfo: data.taxInfo,
         remark: data.remark,
-        createdBy: auth.userId,
-        modifiedBy: auth.userId,
+        status: 'active',
+        createdBy: user.id,
       },
     });
 
-    // 记录操作日志
-    await operationLog.log({
-      moduleName: '客户管理',
-      businessType: '新增客户',
-      operatorId: auth.userId,
-      operatorName: auth.username,
-      operationDesc: `新增客户: ${customer.customerName} (${customer.customerCode})`,
-      ipAddress: getClientIp(request),
-      status: 'success',
-    });
-
-    return successResponse(customer);
+    return successResponse(customer, '客户创建成功');
   } catch (error: any) {
     console.error('创建客户失败:', error);
     return serverErrorResponse(error.message);
   }
+}
+
+// 生成客户编码
+async function generateCustomerCode(): Promise<string> {
+  const result = await prisma.$queryRaw<[{cnt: bigint}][]>`
+    SELECT COUNT(*) as cnt FROM customer WHERE is_delete = 0
+  `;
+  const count = Number(result[0]?.cnt || 0);
+
+  return `KH${String(count + 1).padStart(6, '0')}`;
 }

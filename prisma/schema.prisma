@@ -418,30 +418,77 @@ model Material {
   internalCode   String    @unique @map("internal_code") @db.VarChar(50)
   drawingCode    String?   @map("drawing_code") @db.VarChar(50)
   drawingNo      String?   @map("drawing_no") @db.VarChar(50)
-  materialType   String    @default("part") @map("material_type") @db.VarChar(20)
+  materialType   String    @default("part") @map("material_type") @db.VarChar(20) // 零件/组件/原材料/外购件/标准件/辅材
   unit           String?   @db.VarChar(20)
   spec           String?   @db.Text
   weight         Decimal?  @map("weight") @db.Decimal(10, 3)
   customerId     Int?      @map("customer_id")
   remark         String?   @db.Text
+  status         String    @default("active") @db.VarChar(20)
   isDelete       Boolean   @default(false)
   createdAt      DateTime  @default(now()) @map("created_at")
   updatedAt      DateTime  @updatedAt @map("updated_at")
   createdBy      Int?      @map("created_by")
   modifiedBy     Int?      @map("modified_by")
 
+  @@index([customerId], name: "idx_material_customer")
+  @@index([materialType], name: "idx_material_type")
+  @@index([internalCode], name: "idx_material_code")
   @@map("material")
 }
 
-// BOM表
+// 物料图纸表
+model MaterialDrawing {
+  id             Int       @id @default(autoincrement())
+  materialId     Int       @map("material_id")
+  drawingType    String    @map("drawing_type") @db.VarChar(30) // 设计图/下料用图/工艺附图
+  version        String    @default("V1") @db.VarChar(20)
+  fileName       String    @map("file_name") @db.VarChar(255)
+  filePath       String    @map("file_path") @db.VarChar(500)
+  fileSize       Int?      @map("file_size")
+  md5            String?   @map("md5") @db.VarChar(32)
+  isLatest       Boolean   @default(true) @map("is_latest")
+  status         String    @default("active") @db.VarChar(20)
+  isDelete       Boolean   @default(false)
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
+  createdBy      Int?      @map("created_by")
+
+  @@index([materialId], name: "idx_drawing_material")
+  @@index([md5], name: "idx_drawing_md5")
+  @@map("material_drawing")
+}
+
+// 物料-工艺关联表
+model MaterialProcess {
+  id             Int       @id @default(autoincrement())
+  materialId     Int       @map("material_id")
+  processId      Int       @map("process_id")
+  sequence       Int       @default(1)
+  isRequired     Boolean   @default(true) @map("is_required")
+  remark         String?   @db.Text
+  isDelete       Boolean   @default(false)
+  createdAt      DateTime  @default(now()) @map("created_at")
+  createdBy      Int?      @map("created_by")
+
+  @@unique([materialId, processId], name: "uk_material_process")
+  @@index([materialId], name: "idx_mp_material")
+  @@index([processId], name: "idx_mp_process")
+  @@map("material_process")
+}
+
+// BOM表（父子关系）
 model BomItem {
   id               Int       @id @default(autoincrement())
-  parentMaterialId Int       @map("parent_material_id")
+  parentMaterialId Int?      @map("parent_material_id")  // 顶层物料为空
+  rootMaterialId   Int       @map("root_material_id")     // 根节点物料ID
   childMaterialId  Int       @map("child_material_id")
   quantity         Decimal   @default(1) @db.Decimal(10, 3)
   lossRate         Decimal   @default(0) @map("loss_rate") @db.Decimal(5, 2)
-  levelCode        String?   @map("level_code") @db.VarChar(50)
+  levelCode        String?   @map("level_code") @db.VarChar(50) // 1.1.2 格式
+  levelIndex       String    @map("level_index") @db.VarChar(50) // 原始序号
   bomRemark        String?   @map("bom_remark") @db.Text
+  status           String    @default("active") @db.VarChar(20)
   isDelete         Boolean   @default(false)
   createdAt        DateTime  @default(now()) @map("created_at")
   updatedAt        DateTime  @updatedAt @map("updated_at")
@@ -450,6 +497,7 @@ model BomItem {
 
   @@index([parentMaterialId], name: "idx_parent")
   @@index([childMaterialId], name: "idx_child")
+  @@index([rootMaterialId], name: "idx_root")
   @@map("bom_item")
 }
 
