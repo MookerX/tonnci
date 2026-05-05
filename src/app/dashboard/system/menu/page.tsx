@@ -675,9 +675,27 @@ export default function SystemMenuPage() {
                             <PermissionGuard permission="system:menu:add">
                               <button
                                 onClick={async () => {
-                                  // 提取路由名称
-                                  const parts = route.path.split('/');
-                                  const name = parts[parts.length - 1] || parts[parts.length - 2] || route.path;
+                                  // 根据完整路径判断菜单名称
+                                  const path = route.path;
+                                  // 优先匹配完整路径
+                                  const fullPathMap: Record<string, string> = {
+                                    '/dashboard/order': '生产订单',
+                                    '/dashboard/purchase/order': '采购订单',
+                                    '/dashboard/delivery/plan': '发货计划',
+                                    '/dashboard/delivery/ship': '发货出库',
+                                    '/dashboard/delivery/sign': '签收管理',
+                                    '/dashboard/accounting/reconciliation': '对账单',
+                                    '/dashboard/accounting/invoice': '发票管理',
+                                    '/dashboard/accounting/payment': '回款管理',
+                                    '/dashboard/quality': '质量检验',
+                                    '/dashboard/tech/bom': 'BOM管理',
+                                    '/dashboard/tech/instruction': '工序卡',
+                                    '/dashboard/tech/nesting': '激光套料',
+                                    '/dashboard/tech-task': '技术任务',
+                                  };
+                                  // 提取路由名称用于匹配其他路径
+                                  const parts = path.split('/');
+                                  const lastName = parts[parts.length - 1] || parts[parts.length - 2] || path;
                                   // 转换为中文
                                   const nameMap: Record<string, string> = {
                                     'accounting': '财务对账', 'invoice': '发票管理', 'payment': '回款管理', 'reconciliation': '对账单',
@@ -687,7 +705,7 @@ export default function SystemMenuPage() {
                                     'quality': '质量检验', 'system': '系统管理', 'config': '参数配置', 'database': '数据库', 'dept': '部门管理', 'log': '日志管理', 'menu': '菜单管理', 'role': '角色管理', 'storage': '存储配置', 'user': '用户管理',
                                     'tech-task': '技术任务', 'tech': '工艺管理', 'bom': 'BOM管理', 'drawing': '图纸管理',
                                   };
-                                  const displayName = nameMap[name] || name.replace(/-/g, '');
+                                  const displayName = fullPathMap[path] || nameMap[lastName] || lastName.replace(/-/g, '');
                                   try {
                                     await fetch('/api/system/menu', {
                                       method: 'POST',
