@@ -13,3 +13,4 @@ src/app/dashboard/system/team/page.tsx
 src/app/dashboard/system/equipment/page.tsx
 src/app/dashboard/system/process/page.tsx
 src/app/dashboard/tech/bom/page.tsx
+src/app/dashboard/system/customer/page.tsx
