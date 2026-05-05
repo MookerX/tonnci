@@ -9,3 +9,6 @@ src/app/dashboard/system/menu/page.tsx
 src/app/dashboard/system/dept/page.tsx
 src/app/dashboard/system/log/page.tsx
 src/app/dashboard/system/database/page.tsx
+src/app/dashboard/system/team/page.tsx
+src/app/dashboard/system/equipment/page.tsx
+src/app/dashboard/system/process/page.tsx
