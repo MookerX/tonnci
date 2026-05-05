@@ -6,6 +6,7 @@
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
 import { v4 as uuidv4 } from 'uuid';
+import { prisma } from '@/lib/prisma';
 import { getJwtSecret, getJwtExpiresIn } from '../config/env';
 
 // =============================================================================
@@ -187,6 +188,33 @@ export function extractToken(request: Request): string | null {
   token = extractTokenFromCookie(cookieHeader);
   
   return token;
+}
+
+/**
+ * 从Token获取用户信息（验证+查询）
+ */
+export async function getUserFromToken(request: Request) {
+  const token = extractToken(request);
+  if (!token) return null;
+
+  const decoded = jwtTokenManager.verifyToken(token);
+  if (!decoded) return null;
+
+  // 从数据库查询用户信息
+  const user = await prisma.user.findUnique({
+    where: { id: parseInt(decoded.sub), isDelete: false },
+    select: {
+      id: true,
+      username: true,
+      realName: true,
+      email: true,
+      phone: true,
+      status: true,
+      roles: { select: { id: true, roleCode: true, roleName: true } },
+    },
+  });
+
+  return user;
 }
 
 export default jwtTokenManager;
