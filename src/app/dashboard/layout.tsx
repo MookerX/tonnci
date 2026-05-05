@@ -156,7 +156,7 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
   // 转换DB菜单为侧边栏格式
   const buildSidebarItems = useCallback((menus: any[]): any[] => {
     return menus
-      .filter(m => m.isVisible !== false && m.menuType !== 'button')
+      .filter(m => m.isVisible !== false && m.menuType !== 'button' && m.status === 'active')
       .map(m => {
         const key = m.menuCode || m.menuName;
         const children = m.children ? buildSidebarItems(m.children) : undefined;
