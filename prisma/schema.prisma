@@ -259,6 +259,7 @@ model Dept {
 
   // 关系
   users        User[]    @relation("UserDept")
+  teams        Team[]    // 班组关联
 
   @@map("dept")
 }
@@ -461,7 +462,8 @@ model Team {
   id           Int       @id @default(autoincrement())
   teamCode     String    @unique @map("team_code") @db.VarChar(50)
   teamName     String    @map("team_name") @db.VarChar(100)
-  leaderId     Int?      @map("leader_id")
+  deptId       Int?      @map("dept_id")            // 关联部门
+  leaderId     Int?      @map("leader_id")           // 负责人（关联员工）
   teamType     String    @default("processing") @map("team_type") @db.VarChar(20)
   status       String    @default("active") @db.VarChar(20)
   remark       String?   @db.Text
@@ -471,7 +473,37 @@ model Team {
   createdBy    Int?      @map("created_by")
   modifiedBy   Int?      @map("modified_by")
 
+  // 关系
+  dept         Dept?     @relation(fields: [deptId], references: [id])
+  leader       Worker?   @relation("TeamLeader", fields: [leaderId], references: [id])
+  workers      Worker[]  @relation("TeamWorkers")
+  equipments   Equipment[]
+
   @@map("team")
+}
+
+// 设备表
+model Equipment {
+  id             Int       @id @default(autoincrement())
+  equipmentCode  String    @unique @map("equipment_code") @db.VarChar(50)  // 设备唯一编码
+  equipmentName  String    @map("equipment_name") @db.VarChar(100)
+  teamId         Int?      @map("team_id")           // 所属班组
+  equipmentType  String    @default("other") @map("equipment_type") @db.VarChar(50)  // 设备类型
+  parameters     String?   @db.Text                  // 设备参数（JSON格式）
+  brand          String?   @map("brand") @db.VarChar(100)  // 品牌
+  model          String?   @map("model") @db.VarChar(100)  // 型号
+  status         String    @default("active") @db.VarChar(20)
+  remark         String?   @db.Text
+  isDelete       Boolean   @default(false)
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
+  createdBy      Int?      @map("created_by")
+  modifiedBy     Int?      @map("modified_by")
+
+  // 关系
+  team           Team?     @relation(fields: [teamId], references: [id])
+
+  @@map("equipment")
 }
 
 // 工序表
@@ -482,10 +514,12 @@ model Process {
   processType      String    @default("other") @map("process_type") @db.VarChar(20)
   teamId           Int?      @map("team_id")
   equipmentRequired Boolean  @default(false) @map("equipment_required")
-  standardHours    Decimal?  @map("standard_hours") @db.Decimal(10, 2)
-  preparationHours Decimal?  @map("preparation_hours") @db.Decimal(10, 2)
+  needsDrawing     Boolean   @default(false) @map("needs_drawing")  // 是否需要工艺附图
+  preparationHours Decimal?  @map("preparation_hours") @db.Decimal(10, 2)  // 准备工时
+  standardHours    Decimal?  @map("standard_hours") @db.Decimal(10, 2)     // 作业工时
   qualityPoints    Int       @default(1) @map("quality_points")
   processOrder     Int       @default(0) @map("process_order")
+  description      String?   @db.Text                              // 工艺描述
   status           String    @default("active") @db.VarChar(20)
   remark           String?   @db.Text
   isDelete         Boolean   @default(false)
@@ -717,6 +751,7 @@ model Worker {
   workerCode   String    @unique @map("worker_code") @db.VarChar(50)
   realName     String    @map("real_name") @db.VarChar(50)
   phone        String?   @db.VarChar(20)
+  deptId       Int?      @map("dept_id")
   teamId       Int?      @map("team_id")
   workerType   String    @default("piece") @map("worker_type") @db.VarChar(20)
   hourlyRate   Decimal?  @map("hourly_rate") @db.Decimal(10, 2)
@@ -727,6 +762,10 @@ model Worker {
   updatedAt    DateTime  @updatedAt @map("updated_at")
   createdBy    Int?      @map("created_by")
   modifiedBy   Int?      @map("modified_by")
+
+  // 关系
+  ledTeams     Team[]    @relation("TeamLeader")
+  team         Team?     @relation("TeamWorkers", fields: [teamId], references: [id])
 
   @@map("worker")
 }
