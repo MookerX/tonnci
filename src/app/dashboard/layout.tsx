@@ -355,10 +355,14 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
     );
   };
 
-  // 判断菜单是否可见（根据权限过滤）
+  // 判断菜单是否可见（根据状态和权限过滤）
   const isMenuVisible = (menu: any) => {
+    // 检查菜单状态：禁用状态不显示
+    if (menu.dbMenu?.status !== 'active' && menu.status !== 'active') {
+      return false;
+    }
     if (menu.key === "home" || menu.key === "首页") return true;
-    // 有子菜单：检查是否至少有一个子菜单有权限
+    // 有子菜单：检查是否至少有一个子菜单有权限且启用
     if (menu.children && menu.children.length > 0) {
       return menu.children.some((child: any) => isMenuVisible(child));
     }
