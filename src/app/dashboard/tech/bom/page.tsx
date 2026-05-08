@@ -268,7 +268,10 @@ export default function BOMManagementPage() {
 
   // 搜索时自动展开到匹配的子物料
   useEffect(() => {
-    if (treeData.length === 0) return;
+    if (treeData.length === 0) {
+      setExpandedKeys(new Set());
+      return;
+    }
 
     // 搜索为空时，全部折叠
     if (!globalSearch) {
@@ -277,18 +280,52 @@ export default function BOMManagementPage() {
     }
 
     const keyword = globalSearch.toLowerCase();
-    let allAncestorKeys: string[] = [];
+    console.log('[搜索展开] 关键词:', keyword, 'searchFields:', searchFields);
 
-    // 遍历所有顶层节点，查找匹配项及其祖先
-    for (const node of treeData) {
-      const result = findAncestorsAndMatch(node, keyword, []);
-      if (result.matched && result.ancestorKeys.length > 0) {
-        allAncestorKeys = [...allAncestorKeys, ...result.ancestorKeys];
+    // 收集所有需要展开的键
+    const keysToExpand = new Set<string>();
+
+    // 递归查找并收集所有匹配节点的完整路径
+    const collectMatchPaths = (node: TreeNode, currentPath: string[]) => {
+      // 生成当前节点的键
+      const nodeKey = `node_${node.id}`;
+      const newPath = [...currentPath, nodeKey];
+
+      // 检查当前节点是否匹配
+      const fieldMatches: Record<string, boolean> = {
+        materialName: searchFields.materialName,
+        drawingCode: searchFields.drawingCode,
+        internalCode: searchFields.internalCode,
+        drawingNo: searchFields.drawingNo,
+      };
+
+      let selfMatch = false;
+      if (fieldMatches.materialName && node.materialName.toLowerCase().includes(keyword)) selfMatch = true;
+      if (fieldMatches.drawingCode && (node.drawingCode?.toLowerCase().includes(keyword) || false)) selfMatch = true;
+      if (fieldMatches.internalCode && node.internalCode.toLowerCase().includes(keyword)) selfMatch = true;
+      if (fieldMatches.drawingNo && (node.drawingNo?.toLowerCase().includes(keyword) || false)) selfMatch = true;
+
+      // 当前节点匹配，收集完整路径上的所有键
+      if (selfMatch) {
+        console.log('[搜索展开] 匹配到节点:', node.internalCode, '路径:', newPath);
+        newPath.forEach(k => keysToExpand.add(k));
       }
+
+      // 递归检查所有子节点
+      if (node.children && node.children.length > 0) {
+        for (const child of node.children) {
+          collectMatchPaths(child, newPath);
+        }
+      }
+    };
+
+    // 遍历所有顶层节点
+    for (const node of treeData) {
+      collectMatchPaths(node, []);
     }
 
-    // 搜索时：只展开命中的祖先节点，折叠其他节点
-    setExpandedKeys(new Set(allAncestorKeys));
+    console.log('[搜索展开] 最终需要展开的键:', Array.from(keysToExpand));
+    setExpandedKeys(keysToExpand);
   }, [globalSearch, treeData, searchFields]);
 
   const fetchMaterials = async () => {
