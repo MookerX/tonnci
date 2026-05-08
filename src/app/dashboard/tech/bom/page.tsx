@@ -216,12 +216,7 @@ export default function BOMManagementPage() {
     const res = await fetchApi(`/api/bom${targetGroupId ? `?groupId=${targetGroupId}` : ''}`);
     if (res.code === 200) {
       setTreeData(res.data || []);
-      // 自动展开第一层
-      const firstLevelIds = new Set<number>();
-      (res.data || []).forEach((item: TreeNode) => {
-        firstLevelIds.add(item.id);
-      });
-      setExpandedIds(firstLevelIds);
+      // 默认全部折叠，不自动展开
     }
   };
 
