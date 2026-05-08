@@ -5,14 +5,14 @@ import { successResponse, badRequestResponse, serverErrorResponse } from '@/lib/
 import { z } from 'zod';
 import { v4 as uuidv4 } from 'uuid';
 
-// 物料类型映射
+// 物料类型映射（两位字母前缀）
 const MATERIAL_TYPE_PREFIX: Record<string, string> = {
-  part: 'PT',        // 零件
-  component: 'CP',   // 组件
-  material: 'MT',    // 原材料
-  purchased: 'PU',   // 外购件
-  standard: 'SD',    // 标准件
-  auxiliary: 'AX',  // 辅材
+  part: 'LJ',        // 零件
+  component: 'ZJ',    // 组件
+  material: 'CL',     // 原材料
+  purchased: 'WG',    // 外购件
+  standard: 'BZ',     // 标准件
+  auxiliary: 'FC',    // 辅材
 };
 
 // 物料校验模式
