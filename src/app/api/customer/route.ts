@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { requireAuth } from '@/lib/auth/jwt';
+import { requireAuth } from '@/lib/auth/middleware';
 import { successResponse, badRequestResponse, serverErrorResponse } from '@/lib/response';
 import { z } from 'zod';
 
