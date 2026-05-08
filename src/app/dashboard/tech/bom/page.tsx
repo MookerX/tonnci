@@ -227,7 +227,7 @@ export default function BOMManagementPage() {
   };
 
   // 递归查找匹配的节点及其所有祖先节点ID
-  const findAncestorsAndMatch = (node: TreeNode, keyword: string, ancestorKeys: string[]): { matched: boolean; ancestorKeys: string[]; matchedNode: TreeNode | null } => {
+  const findAncestorsAndMatch = (node: TreeNode, keyword: string, ancestorKeys: string[]): { matched: boolean; ancestorKeys: string[] } => {
     const fieldMatches: Record<string, boolean> = {
       materialName: searchFields.materialName,
       drawingCode: searchFields.drawingCode,
@@ -235,6 +235,12 @@ export default function BOMManagementPage() {
       drawingNo: searchFields.drawingNo,
     };
 
+    // 生成当前节点的唯一键（使用父路径+节点ID确保唯一性）
+    const nodeKey = `node_${node.id}`;
+    // 当前节点加入祖先链
+    const currentKeys = [...ancestorKeys, nodeKey];
+
+    // 检查当前节点是否匹配
     let selfMatch = false;
     if (keyword) {
       if (fieldMatches.materialName && node.materialName.toLowerCase().includes(keyword)) selfMatch = true;
@@ -243,26 +249,21 @@ export default function BOMManagementPage() {
       if (fieldMatches.drawingNo && (node.drawingNo?.toLowerCase().includes(keyword) || false)) selfMatch = true;
     }
 
-    // 生成当前节点的唯一键
-    const nodeKey = node.bomItemId ? `bom_${node.bomItemId}` : `mat_${node.id}`;
-    const currentAncestors = [...ancestorKeys, nodeKey];
+    // 如果当前节点匹配，返回当前节点及其祖先
+    if (selfMatch) {
+      return { matched: true, ancestorKeys: currentKeys };
+    }
 
-    // 检查子节点
+    // 递归检查所有子节点
     for (const child of node.children || []) {
-      const result = findAncestorsAndMatch(child, keyword, currentAncestors);
+      const result = findAncestorsAndMatch(child, keyword, currentKeys);
       if (result.matched) {
-        // 子节点匹配，返回子节点的祖先链
         return result;
       }
     }
 
-    // 当前节点自身匹配
-    if (selfMatch) {
-      return { matched: true, ancestorKeys: currentAncestors, matchedNode: node };
-    }
-
     // 未匹配
-    return { matched: false, ancestorKeys: [], matchedNode: null };
+    return { matched: false, ancestorKeys: [] };
   };
 
   // 搜索时自动展开到匹配的子物料
@@ -623,9 +624,8 @@ export default function BOMManagementPage() {
   ];
 
   const renderTreeNode = (node: TreeNode, level: number = 0, parentKey: string = '') => {
-    // 生成唯一键：bomItemId 存在时使用 bomItemId，否则使用 id
-    // 对于同一物料在不同位置，需要通过 bomItemId 区分
-    const nodeKey = node.bomItemId ? `bom_${node.bomItemId}` : `mat_${node.id}`;
+    // 生成唯一键：使用父路径+当前节点ID，确保同一物料在不同位置有唯一键
+    const nodeKey = `node_${node.id}`;
     const fullKey = parentKey ? `${parentKey}_${nodeKey}` : nodeKey;
     const hasChildren = node.children && node.children.length > 0;
     const isExpanded = expandedKeys.has(fullKey);
