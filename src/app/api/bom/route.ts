@@ -231,11 +231,18 @@ export async function GET(request: NextRequest) {
     }
 
     // 获取所有子物料ID（用于确定真正的顶层物料）
-    childIds = new Set(bomItems.map(b => b.childMaterialId));
+    const childIdSet = new Set(bomItems.map(b => b.childMaterialId));
     // 真正的顶层物料：作为子物料出现的物料不再作为顶层显示
-    const topMaterials = allMaterials.filter(m => !childIds.has(m.id));
-    // 返回顶层物料（包含树形结构）
-    const bomTree = topMaterials.map(m => materialMap.get(m.id) || { ...m, children: [] });
+    const topMaterials = allMaterials.filter(m => !childIdSet.has(m.id));
+
+    // 返回顶层物料（包含完整树形结构，递归填充所有层级）
+    const bomTree = topMaterials.map(m => {
+      const node = materialMap.get(m.id);
+      if (node) {
+        fillChildrenRecursively(node);
+      }
+      return node || { ...m, children: [] };
+    });
     return successResponse(bomTree);
   } catch (error: any) {
     console.error('获取BOM列表失败:', error);
