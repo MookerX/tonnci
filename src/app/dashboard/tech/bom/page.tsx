@@ -882,7 +882,7 @@ export default function BOMManagementPage() {
                   placeholder="请输入物料名称"
                 />
               </div>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-3 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">物料类型</label>
                   <select
@@ -894,6 +894,18 @@ export default function BOMManagementPage() {
                       <option key={t.value} value={t.value}>{t.label}</option>
                     ))}
                   </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">单层用量 <span className="text-red-500">*</span></label>
+                  <input
+                    type="number"
+                    min="0.001"
+                    step="0.001"
+                    value={formData.quantity ?? 1}
+                    onChange={e => setFormData({ ...formData, quantity: parseFloat(e.target.value) || 0 })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                    placeholder="1"
+                  />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">内部编码</label>
