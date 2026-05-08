@@ -61,8 +61,6 @@ export default function CustomerPage() {
   const [form, setForm] = useState({
     customerName: '',
     customerType: 'enterprise' as 'enterprise' | 'personal',
-    contactPerson: '',
-    contactPhone: '',
     address: '',
     remark: '',
     invoiceInfo: {
@@ -121,8 +119,6 @@ export default function CustomerPage() {
       setForm({
         customerName: customer.customerName || '',
         customerType: customer.customerType || 'enterprise',
-        contactPerson: customer.contactPerson || '',
-        contactPhone: customer.contactPhone || '',
         address: customer.address || '',
         remark: customer.remark || '',
         invoiceInfo: {
@@ -139,8 +135,6 @@ export default function CustomerPage() {
       setForm({
         customerName: '',
         customerType: 'enterprise',
-        contactPerson: '',
-        contactPhone: '',
         address: '',
         remark: '',
         invoiceInfo: {
@@ -286,8 +280,7 @@ export default function CustomerPage() {
     const kw = searchKeyword.toLowerCase();
     return (
       c.customerName?.toLowerCase().includes(kw) ||
-      c.customerCode?.toLowerCase().includes(kw) ||
-      c.contactPerson?.toLowerCase().includes(kw)
+      c.customerCode?.toLowerCase().includes(kw)
     );
   });
 
@@ -323,7 +316,6 @@ export default function CustomerPage() {
               <th className="px-4 py-3 text-left text-sm font-medium text-gray-600">客户名称</th>
               <th className="px-4 py-3 text-left text-sm font-medium text-gray-600">类型</th>
               <th className="px-4 py-3 text-left text-sm font-medium text-gray-600">联系人</th>
-              <th className="px-4 py-3 text-left text-sm font-medium text-gray-600">联系电话</th>
               <th className="px-4 py-3 text-left text-sm font-medium text-gray-600">创建时间</th>
               <th className="px-4 py-3 text-center text-sm font-medium text-gray-600">操作</th>
             </tr>
@@ -362,7 +354,7 @@ export default function CustomerPage() {
                     <span className="text-gray-400">-</span>
                   )}
                 </td>
-                <td className="px-4 py-3 text-sm text-gray-600">{customer.contactPhone || '-'}</td>
+
                 <td className="px-4 py-3 text-sm text-gray-500">
                   {customer.createdAt ? new Date(customer.createdAt).toLocaleDateString() : '-'}
                 </td>
@@ -436,24 +428,6 @@ export default function CustomerPage() {
                       <option value="enterprise">企业</option>
                       <option value="personal">个人</option>
                     </select>
-                  </div>
-                  <div>
-                    <label className="block text-sm text-gray-600 mb-1">联系人</label>
-                    <input
-                      type="text"
-                      value={form.contactPerson}
-                      onChange={(e) => setForm({ ...form, contactPerson: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm text-gray-600 mb-1">联系电话</label>
-                    <input
-                      type="text"
-                      value={form.contactPhone}
-                      onChange={(e) => setForm({ ...form, contactPhone: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500"
-                    />
                   </div>
                   <div className="col-span-2">
                     <label className="block text-sm text-gray-600 mb-1">地址</label>
