@@ -179,9 +179,10 @@ export async function POST(request: NextRequest) {
         unit: data.unit,
         spec: data.spec,
         weight: data.weight,
-        customerId: data.customerId,
-        remark: data.remark,
-        status: data.status,
+        customerId: data.customerId || null,
+        groupId: data.groupId || null,
+        remark: data.remark || null,
+        status: data.status || 'active',
         createdBy: user.id,
       },
     });

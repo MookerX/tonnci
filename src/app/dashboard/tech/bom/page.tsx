@@ -54,7 +54,7 @@ interface Customer {
 
 const materialTypeOptions = [
   { label: '零件', value: 'part' },
-  { label: '组件', value: 'assembly' },
+  { label: '组件', value: 'component' },
   { label: '原材料', value: 'material' },
   { label: '外购件', value: 'purchased' },
   { label: '标准件', value: 'standard' },
@@ -63,7 +63,7 @@ const materialTypeOptions = [
 
 const typeLabelMap: Record<string, string> = {
   part: '零件',
-  assembly: '组件',
+  component: '组件',
   material: '原材料',
   purchased: '外购件',
   standard: '标准件',
@@ -72,13 +72,12 @@ const typeLabelMap: Record<string, string> = {
 
 // 物料类型前缀映射（用于内部编码自动生成）
 export const MATERIAL_TYPE_PREFIX: Record<string, string> = {
-  part: 'P',
-  component: 'C',
-  raw: 'R',
-  material: 'R',
-  bought: 'B',
-  standard: 'S',
-  auxiliary: 'A',
+  part: 'LJ',       // 零件
+  component: 'ZJ',  // 组件
+  material: 'CL',        // 原材料
+  purchased: 'WG',     // 外购件
+  standard: 'BZ',    // 标准件
+  auxiliary: 'FC',   // 辅材
 };
 
 export default function BOMManagementPage() {
@@ -281,7 +280,7 @@ export default function BOMManagementPage() {
     const method = editingMaterial ? 'PUT' : 'POST';
 
     // 新增时，如果内部编码为空则通过API自动生成
-    let payload: any = { ...formData };
+    let payload: any = { ...formData, groupId: selectedGroupId };
     if (!editingMaterial && !payload.internalCode) {
       try {
         const codeRes = await fetch('/api/bom/material/next-code', {

@@ -8,12 +8,12 @@ const schema = z.object({
 });
 
 const TYPE_PREFIX: Record<string, string> = {
-  part: 'P',        // 零件
-  component: 'C',   // 组件
-  material: 'R',    // 原材料
-  purchased: 'B',   // 外购件
-  standard: 'S',    // 标准件
-  auxiliary: 'A',   // 辅材
+  part: 'LJ',        // 零件
+  component: 'ZJ',   // 组件
+  material: 'CL',    // 原材料
+  purchased: 'WG',    // 外购件
+  standard: 'BZ',    // 标准件
+  auxiliary: 'FC',   // 辅材
 };
 
 /** POST /api/bom/material/next-code - 获取下一个内部编码 */
@@ -22,15 +22,15 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { materialType } = schema.parse(body);
 
-    const prefix = TYPE_PREFIX[materialType] || 'P';
+    const prefix = TYPE_PREFIX[materialType] || 'LJ';
 
-    // 查询该前缀的最大有效编码（只匹配 P00000001 格式）
+    // 查询该前缀的最大有效编码（只匹配 LJ00000001 格式）
     const maxCode = await prisma.$queryRawUnsafe<{ maxNum: bigint | null }[]>(
       `SELECT MAX(CAST(REGEXP_REPLACE(internal_code, '[^0-9]', '') AS UNSIGNED)) as maxNum
        FROM material
        WHERE internal_code LIKE ? AND internal_code REGEXP ?`,
       `${prefix}%`,
-      `^${prefix}[0-9]+$`
+      `^${prefix}[0-9]{8}$`
     );
 
     let nextNum = 1;

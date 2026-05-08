@@ -470,6 +470,7 @@ model Material {
   spec           String?   @db.Text
   weight         Decimal?  @map("weight") @db.Decimal(10, 3)
   customerId     Int?      @map("customer_id")
+  groupId        Int?      @map("group_id")
   remark         String?   @db.Text
   status         String    @default("active") @db.VarChar(20)
   isDelete       Boolean   @default(false)
@@ -479,6 +480,7 @@ model Material {
   modifiedBy     Int?      @map("modified_by")
 
   @@index([customerId], name: "idx_material_customer")
+  @@index([groupId], name: "idx_material_group")
   @@index([materialType], name: "idx_material_type")
   @@index([internalCode], name: "idx_material_code")
   @@map("material")
