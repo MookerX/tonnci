@@ -847,7 +847,13 @@ export default function BOMManagementPage() {
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg shadow-xl w-[600px] max-h-[80vh] overflow-auto">
             <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200">
-              <h3 className="font-semibold">{editingMaterial ? '编辑物料' : '新增物料'}</h3>
+              <h3 className="font-semibold">
+                {editingMaterial ? '编辑物料' : parentMaterialId ? (
+                  <span>
+                    为：(<span className="text-blue-600">{parentMaterial?.drawingCode || '-'}_{parentMaterial?.materialName || '-'}</span>) 新增子物料
+                  </span>
+                ) : '新增物料'}
+              </h3>
               <button onClick={() => setShowMaterialModal(false)} className="p-1 hover:bg-gray-100 rounded">
                 <X className="w-5 h-5" />
               </button>
