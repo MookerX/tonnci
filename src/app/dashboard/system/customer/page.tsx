@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useToast } from '@/components/ToastProvider';
 
 interface Customer {
   id?: number;
@@ -46,6 +47,7 @@ const postTypes = [
 ];
 
 export default function CustomerPage() {
+  const { success, error } = useToast();
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
@@ -171,15 +173,15 @@ export default function CustomerPage() {
 
       const data = await res.json();
       if (data.code === 200) {
-        alert(editingCustomer?.id ? '修改成功' : '添加成功');
+        success(editingCustomer?.id ? '修改成功' : '添加成功');
         setShowModal(false);
         fetchCustomers();
       } else {
-        alert(data.message || '操作失败');
+        error(data.message || '操作失败');
       }
-    } catch (error) {
-      console.error('保存失败:', error);
-      alert('保存失败');
+    } catch (err) {
+      console.error('保存失败:', err);
+      error('保存失败');
     }
   };
 
@@ -193,14 +195,14 @@ export default function CustomerPage() {
       });
       const data = await res.json();
       if (data.code === 200) {
-        alert('删除成功');
+        success('删除成功');
         fetchCustomers();
       } else {
-        alert(data.message || '删除失败');
+        error(data.message || '删除失败');
       }
-    } catch (error) {
-      console.error('删除失败:', error);
-      alert('删除失败');
+    } catch (err) {
+      console.error('删除失败:', err);
+      error('删除失败');
     }
   };
 
@@ -267,15 +269,15 @@ export default function CustomerPage() {
 
       const data = await res.json();
       if (data.code === 200) {
-        alert('保存成功');
+        success('保存成功');
         setShowContactModal(false);
         fetchCustomers();
       } else {
-        alert(data.message || '保存失败');
+        error(data.message || '保存失败');
       }
-    } catch (error) {
-      console.error('保存联系人失败:', error);
-      alert('保存失败');
+    } catch (err) {
+      console.error('保存联系人失败:', err);
+      error('保存失败');
     }
   };
 
