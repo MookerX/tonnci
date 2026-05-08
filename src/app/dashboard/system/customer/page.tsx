@@ -153,6 +153,20 @@ export default function CustomerPage() {
 
   const handleSave = async () => {
     try {
+      // 验证开票信息
+      if (form.invoiceInfo.taxId && !/^[A-Z0-9]{15}$|^[A-Z0-9]{17}$|^[A-Z0-9]{18}$|^[A-Z0-9]{20}$/i.test(form.invoiceInfo.taxId)) {
+        error('纳税人识别号格式不正确'); return;
+      }
+      if (form.invoiceInfo.phone && !/^[\d\-+()\s]{7,20}$/.test(form.invoiceInfo.phone)) {
+        error('联系电话格式不正确'); return;
+      }
+      if (form.invoiceInfo.bankName && /^\d+$/.test(form.invoiceInfo.bankName)) {
+        error('开户银行名称不能为纯数字'); return;
+      }
+      if (form.invoiceInfo.bankAccount && !/^\d{6,30}$/.test(form.invoiceInfo.bankAccount)) {
+        error('银行账号应为6-30位纯数字'); return;
+      }
+
       const url = editingCustomer?.id ? `/api/customer/${editingCustomer.id}` : '/api/customer';
       const method = editingCustomer?.id ? 'PUT' : 'POST';
 
@@ -497,8 +511,16 @@ export default function CustomerPage() {
                         ...form,
                         invoiceInfo: { ...form.invoiceInfo, taxId: e.target.value }
                       })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500"
+                      placeholder="15/17/18/20位字母数字"
+                      className={`w-full px-3 py-2 border rounded focus:ring-2 focus:ring-blue-500 ${
+                        form.invoiceInfo.taxId && !/^[A-Z0-9]{15}$|^[A-Z0-9]{17}$|^[A-Z0-9]{18}$|^[A-Z0-9]{20}$/i.test(form.invoiceInfo.taxId)
+                          ? 'border-red-500 bg-red-50'
+                          : 'border-gray-300'
+                      }`}
                     />
+                    {form.invoiceInfo.taxId && !/^[A-Z0-9]{15}$|^[A-Z0-9]{17}$|^[A-Z0-9]{18}$|^[A-Z0-9]{20}$/i.test(form.invoiceInfo.taxId) && (
+                      <p className="text-xs text-red-500 mt-1">纳税人识别号应为15、17、18或20位字母数字</p>
+                    )}
                   </div>
                   <div>
                     <label className="block text-sm text-gray-600 mb-1">注册地址</label>
@@ -521,8 +543,16 @@ export default function CustomerPage() {
                         ...form,
                         invoiceInfo: { ...form.invoiceInfo, phone: e.target.value }
                       })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500"
+                      placeholder="如 010-12345678 或 13800138000"
+                      className={`w-full px-3 py-2 border rounded focus:ring-2 focus:ring-blue-500 ${
+                        form.invoiceInfo.phone && !/^[\d\-+()\s]{7,20}$/.test(form.invoiceInfo.phone)
+                          ? 'border-red-500 bg-red-50'
+                          : 'border-gray-300'
+                      }`}
                     />
+                    {form.invoiceInfo.phone && !/^[\d\-+()\s]{7,20}$/.test(form.invoiceInfo.phone) && (
+                      <p className="text-xs text-red-500 mt-1">请输入有效的联系电话（7-20位数字、横线、加号等）</p>
+                    )}
                   </div>
                   <div>
                     <label className="block text-sm text-gray-600 mb-1">开户银行</label>
@@ -533,8 +563,16 @@ export default function CustomerPage() {
                         ...form,
                         invoiceInfo: { ...form.invoiceInfo, bankName: e.target.value }
                       })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500"
+                      placeholder="如 中国银行北京分行"
+                      className={`w-full px-3 py-2 border rounded focus:ring-2 focus:ring-blue-500 ${
+                        form.invoiceInfo.bankName && /^\d+$/.test(form.invoiceInfo.bankName)
+                          ? 'border-red-500 bg-red-50'
+                          : 'border-gray-300'
+                      }`}
                     />
+                    {form.invoiceInfo.bankName && /^\d+$/.test(form.invoiceInfo.bankName) && (
+                      <p className="text-xs text-red-500 mt-1">开户银行名称不能为纯数字</p>
+                    )}
                   </div>
                   <div>
                     <label className="block text-sm text-gray-600 mb-1">银行账号</label>
@@ -545,8 +583,16 @@ export default function CustomerPage() {
                         ...form,
                         invoiceInfo: { ...form.invoiceInfo, bankAccount: e.target.value }
                       })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500"
+                      placeholder="纯数字银行账号"
+                      className={`w-full px-3 py-2 border rounded focus:ring-2 focus:ring-blue-500 ${
+                        form.invoiceInfo.bankAccount && !/^\d{6,30}$/.test(form.invoiceInfo.bankAccount)
+                          ? 'border-red-500 bg-red-50'
+                          : 'border-gray-300'
+                      }`}
                     />
+                    {form.invoiceInfo.bankAccount && !/^\d{6,30}$/.test(form.invoiceInfo.bankAccount) && (
+                      <p className="text-xs text-red-500 mt-1">银行账号应为6-30位纯数字</p>
+                    )}
                   </div>
                 </div>
               </div>
