@@ -230,16 +230,13 @@ export async function GET(request: NextRequest) {
       return successResponse([]);
     }
 
-    // 返回所有物料（包含树形结构）
-    const bomTree = allMaterials.map(m => materialMap.get(m.id) || { ...m, children: [] });
-    // 临时调试：返回 allRelatedIds
-    return NextResponse.json({
-      code: 200,
-      message: '操作成功',
-      data: bomTree,
-      debug: (request as any)._debug,
-      timestamp: Date.now(),
-    });
+    // 获取所有子物料ID（用于确定真正的顶层物料）
+    const childMaterialIds = new Set(bomItems.map(b => b.childMaterialId));
+    // 真正的顶层物料：作为子物料出现的物料不再作为顶层显示
+    const topMaterials = allMaterials.filter(m => !childMaterialIds.has(m.id));
+    // 返回顶层物料（包含树形结构）
+    const bomTree = topMaterials.map(m => materialMap.get(m.id) || { ...m, children: [] });
+    return successResponse(bomTree);
   } catch (error: any) {
     console.error('获取BOM列表失败:', error);
     return serverErrorResponse(error.message);
