@@ -30,7 +30,7 @@ export async function DELETE(
     // 记录操作日志
     const authHeader = request.headers.get('authorization');
     if (authHeader) {
-      const user = await getUserFromToken(authHeader);
+      const user = await getUserFromToken(request);
       if (user) {
         await prisma.operationLog.create({
           data: {

@@ -96,7 +96,7 @@ export async function POST(
     // 记录操作日志
     const authHeader = request.headers.get('authorization');
     if (authHeader) {
-      const user = await getUserFromToken(authHeader);
+      const user = await getUserFromToken(request);
       if (user) {
         await operationLog.logSuccess(
           '客户管理',
@@ -192,7 +192,7 @@ export async function PUT(
     // 记录操作日志
     const authHeader = request.headers.get('authorization');
     if (authHeader) {
-      const user = await getUserFromToken(authHeader);
+      const user = await getUserFromToken(request);
       if (user) {
         await operationLog.logSuccess(
           '客户管理',
