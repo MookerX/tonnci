@@ -904,6 +904,18 @@ export default function BOMManagementPage() {
                   </select>
                 </div>
                 <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">内部编码</label>
+                  <input
+                    type="text"
+                    value={formData.internalCode}
+                    readOnly
+                    disabled
+                    className="w-full px-3 py-2 border border-gray-200 rounded-lg bg-gray-50 text-gray-500 cursor-not-allowed"
+                    placeholder="自动生成"
+                  />
+                </div>
+                {parentMaterialId && (
+                <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">单层用量 <span className="text-red-500">*</span></label>
                   <input
                     type="number"
@@ -915,17 +927,7 @@ export default function BOMManagementPage() {
                     placeholder="1"
                   />
                 </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">内部编码</label>
-                  <input
-                    type="text"
-                    value={formData.internalCode}
-                    readOnly
-                    disabled
-                    className="w-full px-3 py-2 border border-gray-200 rounded-lg bg-gray-50 text-gray-500 cursor-not-allowed"
-                    placeholder="自动生成"
-                  />
-                </div>
+                )}
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
