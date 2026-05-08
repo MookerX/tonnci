@@ -50,6 +50,8 @@ export default function CustomerPage() {
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [showContactModal, setShowContactModal] = useState(false);
+  const [showContactDetail, setShowContactDetail] = useState(false);
+  const [selectedContact, setSelectedContact] = useState<CustomerContact | null>(null);
   const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
   const [editingContacts, setEditingContacts] = useState<CustomerContact[]>([]);
   const [searchKeyword, setSearchKeyword] = useState('');
@@ -197,12 +199,22 @@ export default function CustomerPage() {
     }
   };
 
-  const handleOpenContacts = (customer: Customer) => {
-    setCurrentCustomer(customer);
-    if (customer.id) {
-      fetchContacts(customer.id);
-    }
-    setShowContactModal(true);
+  const [contactDetailModal, setContactDetailModal] = useState(false);
+  const [selectedContact, setSelectedContact] = useState<CustomerContact | null>(null);
+
+  const postTypeLabels: Record<string, string> = {
+    boss: '老板',
+    finance: '财务',
+    tech: '技术',
+    quality: '质量',
+    business: '商务',
+    delivery: '交付',
+    production: '生产',
+  };
+
+  const handleViewContact = (contact: CustomerContact) => {
+    setSelectedContact(contact);
+    setContactDetailModal(true);
   };
 
   const handleAddContact = () => {
@@ -322,7 +334,26 @@ export default function CustomerPage() {
                     {customer.customerType === 'enterprise' ? '企业' : '个人'}
                   </span>
                 </td>
-                <td className="px-4 py-3 text-sm text-gray-600">{customer.contactPerson || '-'}</td>
+                <td className="px-4 py-3 text-sm">
+                  {customer.contacts && customer.contacts.length > 0 ? (
+                    <div className="flex flex-wrap gap-1">
+                      {customer.contacts.map((contact, idx) => (
+                        <button
+                          key={contact.id || idx}
+                          onClick={() => handleViewContact(contact)}
+                          className="px-2 py-0.5 text-xs bg-blue-50 text-blue-600 rounded hover:bg-blue-100"
+                          title={`${contact.contactName}${contact.postType ? ` - ${postTypeLabels[contact.postType] || contact.postType}` : ''}${contact.phone ? ` (${contact.phone})` : ''}`}
+                        >
+                          {contact.contactName}
+                          {contact.postType ? `(${postTypeLabels[contact.postType] || contact.postType})` : ''}
+                          {contact.isPrimary && <span className="text-red-500 ml-1">*</span>}
+                        </button>
+                      ))}
+                    </div>
+                  ) : (
+                    <span className="text-gray-400">-</span>
+                  )}
+                </td>
                 <td className="px-4 py-3 text-sm text-gray-600">{customer.contactPhone || '-'}</td>
                 <td className="px-4 py-3 text-sm text-gray-500">
                   {customer.createdAt ? new Date(customer.createdAt).toLocaleDateString() : '-'}
@@ -529,6 +560,52 @@ export default function CustomerPage() {
                 className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
               >
                 保存
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 联系人详情弹窗 */}
+      {showContactDetail && selectedContact && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg w-full max-w-md m-4">
+            <div className="px-6 py-4 border-b flex justify-between items-center">
+              <h3 className="text-lg font-bold">联系人详情</h3>
+              <button onClick={() => setShowContactDetail(false)} className="text-gray-500 hover:text-gray-700">
+                ✕
+              </button>
+            </div>
+            <div className="p-6 space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-500">姓名</label>
+                  <p className="mt-1 text-gray-900">{selectedContact.contactName}</p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-500">岗位</label>
+                  <p className="mt-1 text-gray-900">{selectedContact.postType}</p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-500">联系电话</label>
+                  <p className="mt-1 text-gray-900">{selectedContact.phone}</p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-500">邮箱</label>
+                  <p className="mt-1 text-gray-900">{selectedContact.email || '-'}</p>
+                </div>
+                <div className="col-span-2">
+                  <label className="block text-sm font-medium text-gray-500">备注</label>
+                  <p className="mt-1 text-gray-900">{selectedContact.remark || '-'}</p>
+                </div>
+              </div>
+            </div>
+            <div className="px-6 py-4 border-t bg-gray-50 flex justify-end">
+              <button
+                onClick={() => setShowContactDetail(false)}
+                className="px-4 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300"
+              >
+                关闭
               </button>
             </div>
           </div>
