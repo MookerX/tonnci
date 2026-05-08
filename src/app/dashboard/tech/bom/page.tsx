@@ -77,24 +77,25 @@ const typeLabelMap: Record<string, string> = {
 export default function BOMManagementPage() {
   const { success, error, warning } = useToast();
   const [token, setToken] = useState<string>('');
-  const [activeTab, setActiveTab] = useState<'tree' | 'list'>('tree');
-  
-  // 删除确认对话框状态
-  const [deleteDialog, setDeleteDialog] = useState<{ open: boolean; id: number | null; name: string }>({
-    open: false,
-    id: null,
-    name: '',
+  // 全局搜索和筛选状态
+  const [globalSearch, setGlobalSearch] = useState('');
+  const [searchFields, setSearchFields] = useState({
+    materialName: true,
+    drawingCode: true,
+    internalCode: true,
+    drawingNo: true,
   });
+  const [filterName, setFilterName] = useState('');
+  const [filterType, setFilterType] = useState('');
+  const [filterGroupId, setFilterGroupId] = useState<number | null>(null);
   
   // 树形视图状态
   const [treeData, setTreeData] = useState<TreeNode[]>([]);
   const [expandedIds, setExpandedIds] = useState<Set<number>>(new Set());
   const [selectedMaterialId, setSelectedMaterialId] = useState<number | null>(null);
   
-  // 列表视图状态
+  // 列表视图状态（保留用于筛选后的数据）
   const [materials, setMaterials] = useState<Material[]>([]);
-  const [searchKeyword, setSearchKeyword] = useState('');
-  const [filterType, setFilterType] = useState('');
   
   // 群组列表
   const [customerGroups, setCustomerGroups] = useState<CustomerGroup[]>([]);
@@ -153,7 +154,26 @@ export default function BOMManagementPage() {
     if (token) {
       fetchMaterials();
     }
-  }, [token, searchKeyword, filterType]);
+  }, [token, globalSearch, filterName, filterType, filterGroupId]);
+
+  // 清空所有筛选
+  const clearFilters = () => {
+    setGlobalSearch('');
+    setSearchFields({
+      materialName: true,
+      drawingCode: true,
+      internalCode: true,
+      drawingNo: true,
+    });
+    setFilterName('');
+    setFilterType('');
+    setFilterGroupId(null);
+  };
+
+  // 切换搜索字段
+  const toggleSearchField = (field: keyof typeof searchFields) => {
+    setSearchFields(prev => ({ ...prev, [field]: !prev[field] }));
+  };
 
   const fetchApi = async (url: string, options: RequestInit = {}) => {
     const res = await fetch(url, {
@@ -196,7 +216,7 @@ export default function BOMManagementPage() {
   const fetchMaterials = async () => {
     let url = `/api/bom/material?pageSize=1000`;
     const params = new URLSearchParams();
-    if (searchKeyword) params.append('keyword', searchKeyword);
+    if (globalSearch) params.append('keyword', globalSearch);
     if (filterType) params.append('materialType', filterType);
     if (params.toString()) url += '&' + params.toString();
     
@@ -419,6 +439,60 @@ export default function BOMManagementPage() {
     });
   };
 
+  // 筛选树形数据
+  const filterTreeNode = (node: TreeNode): TreeNode | null => {
+    const keyword = globalSearch.toLowerCase();
+    const nameMatch = filterName.toLowerCase();
+    const typeMatch = filterType;
+    const groupMatch = filterGroupId;
+
+    // 检查当前节点是否匹配
+    const fieldMatches: Record<string, boolean> = {
+      materialName: searchFields.materialName,
+      drawingCode: searchFields.drawingCode,
+      internalCode: searchFields.internalCode,
+      drawingNo: searchFields.drawingNo,
+    };
+
+    let selfMatch = true;
+    if (keyword && Object.values(fieldMatches).some(v => v)) {
+      selfMatch = false;
+      if (fieldMatches.materialName && node.materialName.toLowerCase().includes(keyword)) selfMatch = true;
+      if (fieldMatches.drawingCode && (node.drawingCode?.toLowerCase().includes(keyword) || false)) selfMatch = true;
+      if (fieldMatches.internalCode && node.internalCode.toLowerCase().includes(keyword)) selfMatch = true;
+      if (fieldMatches.drawingNo && (node.drawingNo?.toLowerCase().includes(keyword) || false)) selfMatch = true;
+    }
+
+    // 列筛选
+    if (nameMatch && !node.materialName.toLowerCase().includes(nameMatch)) selfMatch = false;
+    if (typeMatch && node.materialType !== typeMatch) selfMatch = false;
+    if (groupMatch && node.groupId !== groupMatch) selfMatch = false;
+
+    // 递归筛选子节点
+    const filteredChildren = node.children
+      .map(child => filterTreeNode(child))
+      .filter((child): child is TreeNode => child !== null);
+
+    // 如果当前节点匹配或其子节点有匹配的，则返回
+    if (selfMatch || filteredChildren.length > 0) {
+      return {
+        ...node,
+        children: filteredChildren,
+      };
+    }
+
+    return null;
+  };
+
+  const filteredTreeData = useMemo(() => {
+    if (!globalSearch && !filterName && !filterType && !filterGroupId) {
+      return treeData;
+    }
+    return treeData
+      .map(node => filterTreeNode(node))
+      .filter((node): node is TreeNode => node !== null);
+  }, [treeData, globalSearch, filterName, filterType, filterGroupId, searchFields]);
+
   const renderTreeNode = (node: TreeNode, level: number = 0) => {
     const hasChildren = node.children && node.children.length > 0;
     const isExpanded = expandedIds.has(node.id);
@@ -541,143 +615,144 @@ export default function BOMManagementPage() {
         </div>
       </div>
 
-      {/* 标签页 */}
-      <div className="border-b border-gray-200 px-4">
-        <div className="flex gap-4">
-          <button
-            onClick={() => setActiveTab('tree')}
-            className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px ${
-              activeTab === 'tree'
-                ? 'border-blue-600 text-blue-600'
-                : 'border-transparent text-gray-500 hover:text-gray-700'
-            }`}
-          >
-            <FolderTree className="w-4 h-4 inline mr-1" />
-            树形结构
-          </button>
-          <button
-            onClick={() => setActiveTab('list')}
-            className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px ${
-              activeTab === 'list'
-                ? 'border-blue-600 text-blue-600'
-                : 'border-transparent text-gray-500 hover:text-gray-700'
-            }`}
-          >
-            <FileText className="w-4 h-4 inline mr-1" />
-            列表视图
-          </button>
+      {/* 全局搜索和列筛选 */}
+      <div className="border-b border-gray-200 px-4 py-3 bg-gray-50">
+        <div className="flex items-center gap-6 flex-wrap">
+          {/* 全局搜索 */}
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-medium text-gray-700">全局搜索：</span>
+            <input
+              type="text"
+              placeholder="输入关键词搜索..."
+              value={globalSearch}
+              onChange={e => setGlobalSearch(e.target.value)}
+              className="px-3 py-1.5 border border-gray-300 rounded-lg text-sm w-56"
+            />
+          </div>
+          
+          {/* 搜索字段勾选 */}
+          <div className="flex items-center gap-3">
+            <span className="text-sm text-gray-500">检索字段：</span>
+            <label className="flex items-center gap-1 text-sm cursor-pointer">
+              <input
+                type="checkbox"
+                checked={searchFields.materialName}
+                onChange={() => toggleSearchField('materialName')}
+                className="w-4 h-4 text-blue-600 rounded border-gray-300"
+              />
+              物料名称
+            </label>
+            <label className="flex items-center gap-1 text-sm cursor-pointer">
+              <input
+                type="checkbox"
+                checked={searchFields.drawingCode}
+                onChange={() => toggleSearchField('drawingCode')}
+                className="w-4 h-4 text-blue-600 rounded border-gray-300"
+              />
+              图纸编码
+            </label>
+            <label className="flex items-center gap-1 text-sm cursor-pointer">
+              <input
+                type="checkbox"
+                checked={searchFields.internalCode}
+                onChange={() => toggleSearchField('internalCode')}
+                className="w-4 h-4 text-blue-600 rounded border-gray-300"
+              />
+              内部编码
+            </label>
+            <label className="flex items-center gap-1 text-sm cursor-pointer">
+              <input
+                type="checkbox"
+                checked={searchFields.drawingNo}
+                onChange={() => toggleSearchField('drawingNo')}
+                className="w-4 h-4 text-blue-600 rounded border-gray-300"
+              />
+              图号
+            </label>
+          </div>
+
+          {/* 列筛选 */}
+          <div className="flex items-center gap-4">
+            <span className="text-sm text-gray-500">列筛选：</span>
+            <div className="flex items-center gap-1">
+              <span className="text-sm text-gray-600">名称：</span>
+              <input
+                type="text"
+                placeholder="名称筛选"
+                value={filterName}
+                onChange={e => setFilterName(e.target.value)}
+                className="px-2 py-1 border border-gray-300 rounded text-sm w-32"
+              />
+            </div>
+            <div className="flex items-center gap-1">
+              <span className="text-sm text-gray-600">类型：</span>
+              <select
+                value={filterType}
+                onChange={e => setFilterType(e.target.value)}
+                className="px-2 py-1 border border-gray-300 rounded text-sm"
+              >
+                <option value="">全部</option>
+                {materialTypeOptions.map(t => (
+                  <option key={t.value} value={t.value}>{t.label}</option>
+                ))}
+              </select>
+            </div>
+            <div className="flex items-center gap-1">
+              <span className="text-sm text-gray-600">客户：</span>
+              <select
+                value={filterGroupId || ''}
+                onChange={e => setFilterGroupId(e.target.value ? parseInt(e.target.value) : null)}
+                className="px-2 py-1 border border-gray-300 rounded text-sm"
+              >
+                <option value="">全部</option>
+                {customerGroups.map(g => (
+                  <option key={g.id} value={g.id}>{g.groupName}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          {/* 清空筛选 */}
+          {(globalSearch || filterName || filterType || filterGroupId) && (
+            <button
+              onClick={clearFilters}
+              className="px-3 py-1 text-sm text-gray-600 hover:text-gray-800 hover:bg-gray-200 rounded"
+            >
+              清空筛选
+            </button>
+          )}
         </div>
       </div>
 
       {/* 内容区域 */}
       <div className="flex-1 overflow-auto">
-        {activeTab === 'tree' ? (
-          <div>
-            {treeData.length === 0 ? (
-              <div className="flex flex-col items-center justify-center h-64 text-gray-400">
-                <FolderTree className="w-12 h-12 mb-2" />
-                <p>暂无BOM数据</p>
-                <p className="text-sm">点击"新增顶层物料"或"Excel导入"添加</p>
-              </div>
-            ) : (
-              <>
-                {/* 表头 */}
-                <div className="sticky top-0 bg-gray-50 border-b border-gray-200">
-                  <div className="flex items-center text-xs font-medium text-gray-500 py-2 px-3">
-                    <div className="w-6" />
-                    <div className="flex-1 grid grid-cols-12 gap-2">
-                      <div className="col-span-1">内部编码</div>
-                      <div className="col-span-2">物料名称</div>
-                      <div className="col-span-1">物料类型</div>
-                      <div className="col-span-1">图纸编码</div>
-                      <div className="col-span-1">图号</div>
-                      <div className="col-span-1 text-center">用量</div>
-                      <div className="col-span-2">备注</div>
-                      <div className="col-span-2">操作</div>
-                    </div>
-                  </div>
-                </div>
-                {/* 树内容 */}
-                {treeData.map(node => renderTreeNode(node))}
-              </>
-            )}
+        {filteredTreeData.length === 0 ? (
+          <div className="flex flex-col items-center justify-center h-64 text-gray-400">
+            <FolderTree className="w-12 h-12 mb-2" />
+            <p>暂无BOM数据</p>
+            <p className="text-sm">点击"新增顶层物料"或"Excel导入"添加</p>
           </div>
         ) : (
-          <div>
-            {/* 筛选 */}
-            <div className="sticky top-0 bg-white border-b border-gray-200 px-4 py-3 flex gap-4">
-              <input
-                type="text"
-                placeholder="搜索编码、名称..."
-                value={searchKeyword}
-                onChange={e => setSearchKeyword(e.target.value)}
-                className="px-3 py-1.5 border border-gray-300 rounded-lg text-sm w-64"
-              />
-              <select
-                value={filterType}
-                onChange={e => setFilterType(e.target.value)}
-                className="px-3 py-1.5 border border-gray-300 rounded-lg text-sm"
-              >
-                <option value="">全部类型</option>
-                {materialTypeOptions.map(t => (
-                  <option key={t.value} value={t.value}>{t.label}</option>
-                ))}
-              </select>
-              <button
-                onClick={() => fetchMaterials()}
-                className="p-1.5 text-gray-600 hover:bg-gray-100 rounded-lg"
-              >
-                <RefreshCw className="w-4 h-4" />
-              </button>
+          <>
+            {/* 表头 */}
+            <div className="sticky top-0 bg-gray-50 border-b border-gray-200">
+              <div className="flex items-center text-xs font-medium text-gray-500 py-2 px-3">
+                <div className="w-6" />
+                <div className="flex-1 grid grid-cols-12 gap-2">
+                  <div className="col-span-1">内部编码</div>
+                  <div className="col-span-2">物料名称</div>
+                  <div className="col-span-1">物料类型</div>
+                  <div className="col-span-1">图纸编码</div>
+                  <div className="col-span-1">图号</div>
+                  <div className="col-span-1 text-center">用量</div>
+                  <div className="col-span-2">备注</div>
+                  <div className="col-span-2">操作</div>
+                </div>
+              </div>
             </div>
-
-            {/* 表格 */}
-            <table className="w-full">
-              <thead className="bg-gray-50 text-xs font-medium text-gray-500">
-                <tr>
-                  <th className="px-3 py-2 text-left">内部编码</th>
-                  <th className="px-3 py-2 text-left">物料名称</th>
-                  <th className="px-3 py-2 text-left">物料类型</th>
-                  <th className="px-3 py-2 text-left">图纸编码</th>
-                  <th className="px-3 py-2 text-left">图号</th>
-                  <th className="px-3 py-2 text-left">所属客户群组</th>
-                  <th className="px-3 py-2 text-left">备注</th>
-                  <th className="px-3 py-2 text-left">操作</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100">
-                {materials.map(m => (
-                  <tr key={m.id} className="hover:bg-gray-50">
-                    <td className="px-3 py-2 font-mono text-sm">{m.internalCode}</td>
-                    <td className="px-3 py-2">{m.materialName}</td>
-                    <td className="px-3 py-2">{typeLabelMap[m.materialType] || m.materialType}</td>
-                    <td className="px-3 py-2 font-mono text-sm">{m.drawingCode || '-'}</td>
-                    <td className="px-3 py-2 font-mono text-sm">{m.drawingNo || '-'}</td>
-                    <td className="px-3 py-2 text-sm">{m.customerGroupName || '-'}</td>
-                    <td className="px-3 py-2 text-sm text-gray-500 truncate max-w-32">{m.remark || '-'}</td>
-                    <td className="px-3 py-2">
-                      <div className="flex items-center gap-1">
-                        <button
-                          onClick={() => handleEditMaterial(m)}
-                          className="p-1 text-gray-600 hover:bg-gray-100 rounded"
-                          title="编辑"
-                        >
-                          <Edit2 className="w-4 h-4" />
-                        </button>
-                        <button
-                          onClick={() => handleDeleteMaterial(m.id, m.materialName)}
-                          className="p-1 text-red-600 hover:bg-red-50 rounded"
-                          title="删除"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+            {/* 树内容 */}
+            {filteredTreeData.map(node => renderTreeNode(node))}
+          </>
         )}
       </div>
 
