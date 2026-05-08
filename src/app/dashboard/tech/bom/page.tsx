@@ -12,7 +12,7 @@ interface TreeNode {
   materialName: string;
   internalCode: string;
   drawingCode: string | null;
-  drawingNumber: string | null;
+  drawingNo: string | null;
   materialType: string;
   quantity: number;
   remark: string | null;
@@ -29,7 +29,7 @@ interface Material {
   materialName: string;
   internalCode: string;
   drawingCode: string | null;
-  drawingNumber: string | null;
+  drawingNo: string | null;
   materialType: string;
   remark: string | null;
   customerId: number | null;
@@ -102,7 +102,7 @@ export default function BOMManagementPage() {
     materialName: '',
     internalCode: '',
     drawingCode: '',
-    drawingNumber: '',
+    drawingNo: '',
     materialType: 'part',
     quantity: 1,
     remark: '',
@@ -213,7 +213,7 @@ export default function BOMManagementPage() {
       materialName: '',
       internalCode: '',  // 空字符串，由保存时API自动生成
       drawingCode: '',
-      drawingNumber: '',
+      drawingNo: '',
       materialType: 'part',
       quantity: 1,
       remark: '',
@@ -228,7 +228,7 @@ export default function BOMManagementPage() {
       materialName: '',
       internalCode: '',  // 空字符串，由保存时API自动生成
       drawingCode: '',
-      drawingNumber: '',
+      drawingNo: '',
       materialType: 'part',
       quantity: 1,
       remark: '',
@@ -243,7 +243,7 @@ export default function BOMManagementPage() {
       materialName: material.materialName,
       internalCode: material.internalCode,
       drawingCode: material.drawingCode || '',
-      drawingNumber: material.drawingNumber || '',
+      drawingNo: material.drawingNo || '',
       materialType: material.materialType,
       quantity: 1,
       remark: material.remark || '',
@@ -412,7 +412,7 @@ export default function BOMManagementPage() {
             <div className="col-span-2">{node.materialName}</div>
             <div className="col-span-1">{typeLabelMap[node.materialType] || node.materialType}</div>
             <div className="col-span-1 font-mono text-gray-500">{node.drawingCode || '-'}</div>
-            <div className="col-span-1 font-mono text-gray-500">{node.drawingNumber || '-'}</div>
+            <div className="col-span-1 font-mono text-gray-500">{node.drawingNo || '-'}</div>
             <div className="col-span-1 text-center">{node.quantity}</div>
             <div className="col-span-2 text-gray-500 truncate">{node.remark || '-'}</div>
             <div className="col-span-2 flex items-center gap-1">
@@ -647,7 +647,7 @@ export default function BOMManagementPage() {
                     <td className="px-3 py-2">{m.materialName}</td>
                     <td className="px-3 py-2">{typeLabelMap[m.materialType] || m.materialType}</td>
                     <td className="px-3 py-2 font-mono text-sm">{m.drawingCode || '-'}</td>
-                    <td className="px-3 py-2 font-mono text-sm">{m.drawingNumber || '-'}</td>
+                    <td className="px-3 py-2 font-mono text-sm">{m.drawingNo || '-'}</td>
                     <td className="px-3 py-2 text-sm">{m.customerGroupName || '-'}</td>
                     <td className="px-3 py-2 text-sm text-gray-500 truncate max-w-32">{m.remark || '-'}</td>
                     <td className="px-3 py-2">
@@ -738,8 +738,8 @@ export default function BOMManagementPage() {
                   <label className="block text-sm font-medium text-gray-700 mb-1">图号</label>
                   <input
                     type="text"
-                    value={formData.drawingNumber}
-                    onChange={e => setFormData({ ...formData, drawingNumber: e.target.value })}
+                    value={formData.drawingNo}
+                    onChange={e => setFormData({ ...formData, drawingNo: e.target.value })}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg"
                   />
                 </div>
@@ -884,8 +884,8 @@ export default function BOMManagementPage() {
                             <td className="px-2 py-1">
                               <input
                                 type="text"
-                                value={row.drawingNumber || ''}
-                                onChange={e => updateImportRow(idx, 'drawingNumber', e.target.value)}
+                                value={row.drawingNo || ''}
+                                onChange={e => updateImportRow(idx, 'drawingNo', e.target.value)}
                                 className="w-full border border-gray-300 rounded px-1 py-0.5"
                               />
                             </td>
