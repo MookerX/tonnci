@@ -1,21 +1,12 @@
 'use client';
 
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
-  Search, Plus, Upload, Download, ChevronRight, ChevronDown, FileText, Trash2,
-  X, AlertCircle, CheckCircle, RefreshCw, Layers
+  Search, Plus, Upload, Download, ChevronRight, ChevronDown, FileText, Edit2, Trash2,
+  X, Save, AlertCircle, CheckCircle, RefreshCw, FolderTree, Eye, DownloadCloud, Settings2, Layers
 } from 'lucide-react';
 import { useToast } from '@/components/ToastProvider';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
-import {
-  useReactTable,
-  getCoreRowModel,
-  getExpandedRowModel,
-  flexRender,
-  createColumnHelper,
-  ExpandedState,
-  Row,
-} from '@tanstack/react-table';
 
 interface TreeNode {
   id: number;
@@ -32,7 +23,7 @@ interface TreeNode {
   _count?: { children: number };
   hasDrawing?: boolean;
   processId?: number | null;
-  bomItemId?: number;
+  bomItemId?: number; // BOM关系ID，用于唯一标识父子关系
   groupId?: number | null;
   customerGroupName?: string | null;
   unit?: string | null;
@@ -57,1065 +48,1291 @@ interface Material {
 
 interface CustomerGroup {
   id: number;
+  groupCode: string;
   groupName: string;
+  customerCount?: number;
 }
 
-const MATERIAL_TYPES = ['零件', '组件', '原材料', '外购件', '标准件', '辅材'];
+interface Customer {
+  id: number;
+  customerCode: string;
+  customerName: string;
+  customerType: string;
+  groupId: number | null;
+}
 
-const TYPE_COLORS: Record<string, string> = {
-  '零件': 'bg-orange-100 text-orange-800',
-  '组件': 'bg-blue-100 text-blue-800',
-  '原材料': 'bg-green-100 text-green-800',
-  '外购件': 'bg-purple-100 text-purple-800',
-  '标准件': 'bg-gray-100 text-gray-800',
-  '辅材': 'bg-yellow-100 text-yellow-800',
+const materialTypeOptions = [
+  { label: '零件', value: 'part' },
+  { label: '组件', value: 'component' },
+  { label: '原材料', value: 'material' },
+  { label: '外购件', value: 'purchased' },
+  { label: '标准件', value: 'standard' },
+  { label: '辅材', value: 'auxiliary' },
+];
+
+const typeLabelMap: Record<string, string> = {
+  part: '零件',
+  component: '组件',
+  material: '原材料',
+  purchased: '外购件',
+  standard: '标准件',
+  auxiliary: '辅材',
 };
-
-const LEVEL_INDENTS: Record<number, string> = {
-  1: 'pl-0',
-  2: 'pl-6',
-  3: 'pl-12',
-  4: 'pl-18',
-  5: 'pl-24',
-};
-
-interface EditableCellProps {
-  value: string | number | null;
-  onSave: (value: string | number) => void;
-  type?: 'text' | 'number';
-  disabled?: boolean;
-}
-
-function EditableCell({ value, onSave, type = 'text', disabled }: EditableCellProps) {
-  const [isEditing, setIsEditing] = useState(false);
-  const [editValue, setEditValue] = useState(value ?? '');
-
-  useEffect(() => {
-    setEditValue(value ?? '');
-  }, [value]);
-
-  const handleBlur = () => {
-    setIsEditing(false);
-    if (editValue !== value) {
-      onSave(type === 'number' ? Number(editValue) : editValue);
-    }
-  };
-
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter') {
-      handleBlur();
-    } else if (e.key === 'Escape') {
-      setEditValue(value ?? '');
-      setIsEditing(false);
-    }
-  };
-
-  if (disabled) {
-    return <span className="text-muted-foreground">{value ?? '-'}</span>;
-  }
-
-  if (isEditing) {
-    return (
-      <input
-        type={type}
-        value={editValue}
-        onChange={(e) => setEditValue(e.target.value)}
-        onBlur={handleBlur}
-        onKeyDown={handleKeyDown}
-        className="w-full h-7 px-2 border border-primary rounded text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
-        autoFocus
-      />
-    );
-  }
-
-  return (
-    <div
-      onClick={() => setIsEditing(true)}
-      className="cursor-pointer hover:bg-muted/50 rounded px-2 py-1 min-h-[28px] flex items-center"
-    >
-      {value ?? '-'}
-    </div>
-  );
-}
 
 export default function BOMManagementPage() {
-  const toast = useToast();
-  
-  // 数据状态
-  const [treeData, setTreeData] = useState<TreeNode[]>([]);
-  const [customerGroups, setCustomerGroups] = useState<CustomerGroup[]>([]);
-  
-  // 筛选状态
-  const [filterType, setFilterType] = useState('');
-  const [filterGroupId, setFilterGroupId] = useState<string>('');
-  const [filterName, setFilterName] = useState('');
+  const { success, error, warning } = useToast();
+  const [token, setToken] = useState<string>('');
+  // 全局搜索和筛选状态
   const [globalSearch, setGlobalSearch] = useState('');
+  const [searchFields, setSearchFields] = useState({
+    materialName: true,
+    drawingCode: true,
+    internalCode: true,
+    drawingNo: true,
+  });
+  const [filterName, setFilterName] = useState('');
+  const [filterType, setFilterType] = useState('');
+  const [filterGroupId, setFilterGroupId] = useState<number | null>(null);
   
-  // 展开状态
-  const [expanded, setExpanded] = useState<ExpandedState>({});
+  // 树形视图状态
+  const [treeData, setTreeData] = useState<TreeNode[]>([]);
+  // 使用唯一键标识展开状态：parentId_bomItemId，确保同一物料在不同位置可独立展开
+  const [expandedKeys, setExpandedKeys] = useState<Set<string>>(new Set());
+  const [selectedMaterialId, setSelectedMaterialId] = useState<number | null>(null);
   
+  // 列表视图状态（保留用于筛选后的数据）
+  const [materials, setMaterials] = useState<Material[]>([]);
+  
+  // 群组列表
+  const [customerGroups, setCustomerGroups] = useState<CustomerGroup[]>([]);
+  // 群组名称映射（用于快速查找）
+  const [groupNameMap, setGroupNameMap] = useState<Record<number, string>>({});
+  // 客户列表（当前群组下的客户）
+  const [customers, setCustomers] = useState<Customer[]>([]);
+
   // 弹窗状态
-  const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
-  const [isAddChildDialogOpen, setIsAddChildDialogOpen] = useState(false);
-  const [parentMaterial, setParentMaterial] = useState<TreeNode | null>(null);
-  const [addChildDialogTitle, setAddChildDialogTitle] = useState('');
+  const [showImportModal, setShowImportModal] = useState(false);
+  const [showMaterialModal, setShowMaterialModal] = useState(false);
+  const [editingMaterial, setEditingMaterial] = useState<Material | null>(null);
+  const [parentMaterialId, setParentMaterialId] = useState<number | null>(null);
+  const [parentMaterial, setParentMaterial] = useState<{ drawingCode: string; materialName: string } | null>(null);
   
   // 表单状态
   const [formData, setFormData] = useState({
+    materialName: '',
     internalCode: '',
     drawingCode: '',
-    materialName: '',
     drawingNo: '',
-    materialType: '零件',
+    materialType: 'part',
+    groupId: null as number | null,
     quantity: 1,
     remark: '',
-    groupId: '',
   });
   
-  // 删除确认
-  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [deleteMaterial, setDeleteMaterial] = useState<TreeNode | null>(null);
+  // 导入时选择的客户群组
+  const [importGroupId, setImportGroupId] = useState<number | null>(null);
   
-  // 加载状态
-  const [isLoading, setIsLoading] = useState(true);
-  const [isSaving, setIsSaving] = useState(false);
+  // 导入状态
+  const [importStep, setImportStep] = useState(1);
+  const [importData, setImportData] = useState<any[]>([]);
+  const [importErrors, setImportErrors] = useState<Record<number, string>>({});
+  const [editedImportData, setEditedImportData] = useState<any[]>([]);
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [deleteMaterial, setDeleteMaterial] = useState<Material | null>(null);
 
-  // 将树形数据扁平化，用于表格显示
-  const flattenData = useCallback((nodes: TreeNode[], depth = 0): TreeNode[] => {
-    let result: TreeNode[] = [];
-    for (const node of nodes) {
-      result.push({ ...node, levelCode: String(depth + 1) });
-      if (node.children && node.children.length > 0) {
-        result = result.concat(flattenData(node.children, depth + 1));
-      }
-    }
-    return result;
-  }, []);
-
-  // 获取扁平化的数据
-  const flatData = useMemo(() => flattenData(treeData), [treeData, flattenData]);
-
-  // 筛选逻辑
-  const filteredData = useMemo(() => {
-    if (!filterType && !filterGroupId && !filterName && !globalSearch) {
-      return flatData;
-    }
-    
-    const searchLower = (globalSearch || filterName || '').toLowerCase();
-    
-    return flatData.filter(item => {
-      // 类型筛选
-      if (filterType && item.materialType !== filterType) return false;
-      
-      // 客户群组筛选
-      if (filterGroupId && String(item.groupId) !== filterGroupId) return false;
-      
-      // 全局搜索或名称筛选
-      if (searchLower) {
-        const matches = 
-          item.materialName?.toLowerCase().includes(searchLower) ||
-          item.internalCode?.toLowerCase().includes(searchLower) ||
-          item.drawingCode?.toLowerCase().includes(searchLower) ||
-          item.drawingNo?.toLowerCase().includes(searchLower);
-        if (!matches) return false;
-      }
-      
-      return true;
-    });
-  }, [flatData, filterType, filterGroupId, filterName, globalSearch]);
-
-  // 收集匹配节点的所有祖先节点键
-  const collectAncestors = useCallback((nodes: TreeNode[], targetId: number, path: (string | number)[] = []): (string | number)[] | null => {
-    for (const node of nodes) {
-      const currentPath = [...path, node.id];
-      if (node.id === targetId) {
-        return currentPath;
-      }
-      if (node.children && node.children.length > 0) {
-        const result = collectAncestors(node.children, targetId, currentPath);
-        if (result) return result;
-      }
-    }
-    return null;
-  }, []);
-
-  // 收集所有匹配节点的祖先路径
-  const collectAllMatchAncestors = useCallback((nodes: TreeNode[], predicate: (node: TreeNode) => boolean, path: (string | number)[] = []): (string | number)[][] => {
-    const result: (string | number)[][] = [];
-    
-    for (const node of nodes) {
-      const currentPath = [...path, node.id];
-      if (predicate(node)) {
-        result.push(currentPath);
-      }
-      if (node.children && node.children.length > 0) {
-        result.push(...collectAllMatchAncestors(node.children, predicate, currentPath));
-      }
-    }
-    
-    return result;
-  }, []);
-
-  // 获取顶层物料
-  const getTopLevelNodes = useCallback((nodes: TreeNode[]): TreeNode[] => {
-    return nodes.filter(node => {
-      const isTopLevel = !treeData.some(parent => 
-        parent.children?.some(child => child.id === node.id)
-      );
-      return isTopLevel;
-    });
-  }, [treeData]);
-
-  // 全局搜索展开逻辑
   useEffect(() => {
-    if (!globalSearch || treeData.length === 0) {
-      if (globalSearch === '') {
-        setExpanded({});
-      }
-      return;
-    }
+    const stored = localStorage.getItem('token');
+    if (stored) setToken(stored);
+  }, []);
 
-    const searchLower = globalSearch.toLowerCase();
-    const predicate = (node: TreeNode): boolean =>
-      node.materialName?.toLowerCase().includes(searchLower) ||
-      node.internalCode?.toLowerCase().includes(searchLower) ||
-      node.drawingCode?.toLowerCase().includes(searchLower) ||
-      node.drawingNo?.toLowerCase().includes(searchLower) ||
-      false;
-
-    const matchPaths = collectAllMatchAncestors(treeData, predicate);
-    const newExpanded: ExpandedState = {};
-    
-    for (const path of matchPaths) {
-      for (let i = 0; i < path.length - 1; i++) {
-        const parentPath = path.slice(0, i + 1).join('.');
-        newExpanded[parentPath] = true;
-      }
-    }
-
-    setExpanded(newExpanded);
-  }, [globalSearch, treeData, collectAllMatchAncestors]);
-
-  // 筛选展开逻辑
   useEffect(() => {
-    const hasFilter = filterType || filterGroupId || filterName;
-    
-    if (!hasFilter) {
-      if (filterName === '') {
-        setExpanded({});
-      }
-      return;
+    if (token) {
+      fetchCustomerGroups();
     }
+  }, [token]);
 
-    const predicate = (node: TreeNode) => {
-      if (filterType && node.materialType !== filterType) return false;
-      if (filterGroupId && String(node.groupId) !== filterGroupId) return false;
-      if (filterName) {
-        const searchLower = filterName.toLowerCase();
-        if (!node.materialName?.toLowerCase().includes(searchLower)) return false;
-      }
-      return true;
+  useEffect(() => {
+    if (token) {
+      fetchBOMTree();
+      fetchGroupCustomers();
+    } else {
+      setTreeData([]);
+      setCustomers([]);
+    }
+  }, [token]);
+
+  useEffect(() => {
+    if (token) {
+      fetchMaterials();
+    }
+  }, [token, globalSearch, filterName, filterType, filterGroupId]);
+
+  // 清空所有筛选
+  const clearFilters = () => {
+    setGlobalSearch('');
+    setSearchFields({
+      materialName: true,
+      drawingCode: true,
+      internalCode: true,
+      drawingNo: true,
+    });
+    setFilterName('');
+    setFilterType('');
+    setFilterGroupId(null);
+  };
+
+  // 切换搜索字段
+  const toggleSearchField = (field: keyof typeof searchFields) => {
+    setSearchFields(prev => ({ ...prev, [field]: !prev[field] }));
+  };
+
+  const fetchApi = async (url: string, options: RequestInit = {}) => {
+    const res = await fetch(url, {
+      ...options,
+      headers: {
+        ...options.headers,
+        Authorization: `Bearer ${token}`,
+      },
+    });
+    return res.json();
+  };
+
+  const fetchCustomerGroups = async () => {
+    const res = await fetchApi('/api/customer-group?pageSize=1000');
+    if (res.code === 200) {
+      const groups = res.data?.list || [];
+      setCustomerGroups(groups);
+      // 构建群组名称映射
+      const nameMap: Record<number, string> = {};
+      groups.forEach((g: CustomerGroup) => {
+        nameMap[g.id] = g.groupName;
+      });
+      setGroupNameMap(nameMap);
+    }
+  };
+
+  const fetchGroupCustomers = async () => {
+    const res = await fetchApi('/api/customer?pageSize=1000');
+    if (res.code === 200) {
+      setCustomers(res.data?.list || []);
+    }
+  };
+
+  const fetchBOMTree = async (targetGroupId?: number | null) => {
+    const res = await fetchApi(`/api/bom${targetGroupId ? `?groupId=${targetGroupId}` : ''}`);
+    if (res.code === 200) {
+      setTreeData(res.data || []);
+      // 默认全部折叠，不自动展开
+    }
+  };
+
+  // 递归查找匹配的节点及其所有祖先节点ID
+  const findAncestorsAndMatch = (node: TreeNode, keyword: string, ancestorKeys: string[]): { matched: boolean; ancestorKeys: string[] } => {
+    const fieldMatches: Record<string, boolean> = {
+      materialName: searchFields.materialName,
+      drawingCode: searchFields.drawingCode,
+      internalCode: searchFields.internalCode,
+      drawingNo: searchFields.drawingNo,
     };
 
-    const matchPaths = collectAllMatchAncestors(treeData, predicate);
-    const newExpanded: ExpandedState = {};
-    
-    for (const path of matchPaths) {
-      for (let i = 0; i < path.length - 1; i++) {
-        const parentPath = path.slice(0, i + 1).join('.');
-        newExpanded[parentPath] = true;
+    // 生成当前节点的唯一键（使用父路径+节点ID确保唯一性）
+    const nodeKey = `node_${node.id}`;
+    // 当前节点加入祖先链
+    const currentKeys = [...ancestorKeys, nodeKey];
+
+    // 检查当前节点是否匹配
+    let selfMatch = false;
+    if (keyword) {
+      if (fieldMatches.materialName && node.materialName.toLowerCase().includes(keyword)) selfMatch = true;
+      if (fieldMatches.drawingCode && (node.drawingCode?.toLowerCase().includes(keyword) || false)) selfMatch = true;
+      if (fieldMatches.internalCode && node.internalCode.toLowerCase().includes(keyword)) selfMatch = true;
+      if (fieldMatches.drawingNo && (node.drawingNo?.toLowerCase().includes(keyword) || false)) selfMatch = true;
+    }
+
+    // 如果当前节点匹配，返回当前节点及其祖先
+    if (selfMatch) {
+      return { matched: true, ancestorKeys: currentKeys };
+    }
+
+    // 递归检查所有子节点
+    for (const child of node.children || []) {
+      const result = findAncestorsAndMatch(child, keyword, currentKeys);
+      if (result.matched) {
+        return result;
       }
     }
 
-    setExpanded(newExpanded);
-  }, [filterType, filterGroupId, filterName, treeData, collectAllMatchAncestors]);
-
-  // 获取子节点的 key 格式
-  const getChildrenKeys = useCallback((parentId: number, parentPath: (string | number)[] = []): string[] => {
-    const parent = treeData.find(n => n.id === parentId);
-    if (!parent || !parent.children) return [];
-    
-    const currentPath = [...parentPath, parentId];
-    const parentKey = currentPath.join('.');
-    const keys: string[] = [parentKey];
-    
-    for (const child of parent.children) {
-      keys.push(...getChildrenKeys(child.id, currentPath));
-    }
-    
-    return keys;
-  }, [treeData]);
-
-  // 获取 BOM 树数据
-  const fetchBOMTree = async () => {
-    try {
-      setIsLoading(true);
-      const res = await fetch('/api/bom');
-      const data = await res.json();
-      if (data.code === 200) {
-        setTreeData(data.data || []);
-      }
-    } catch {
-      toast.error('获取BOM数据失败');
-    } finally {
-      setIsLoading(false);
-    }
+    // 未匹配
+    return { matched: false, ancestorKeys: [] };
   };
 
-  // 获取客户群组列表
-  const fetchCustomerGroups = async () => {
-    try {
-      const res = await fetch('/api/system/customer-group');
-      const data = await res.json();
-      if (data.code === 200) {
-        setCustomerGroups(data.data || []);
-      }
-    } catch {
-      toast.error('获取客户群组失败');
-    }
-  };
-
+  // 搜索时自动展开到匹配的子物料
   useEffect(() => {
-    fetchBOMTree();
-    fetchCustomerGroups();
-  }, []);
-
-  // 获取物料详情
-  const fetchMaterialDetail = async (materialId: number) => {
-    try {
-      const res = await fetch(`/api/bom/material?id=${materialId}`);
-      const data = await res.json();
-      if (data.code === 200) {
-        return data.data;
-      }
-    } catch {
-      toast.error('获取物料详情失败');
-    }
-    return null;
-  };
-
-  // 打开添加子物料弹窗
-  const handleAddChild = async (material: TreeNode) => {
-    const materialWithDetail = await fetchMaterialDetail(material.id);
-    if (!materialWithDetail) return;
-
-    setParentMaterial(material);
-    setAddChildDialogTitle(`为 ${material.drawingCode || material.internalCode}_${material.materialName} 新增子物料`);
-    
-    setFormData({
-      internalCode: '',
-      drawingCode: '',
-      materialName: '',
-      drawingNo: '',
-      materialType: '零件',
-      quantity: 1,
-      remark: '',
-      groupId: materialWithDetail.groupId ? String(materialWithDetail.groupId) : '',
-    });
-    
-    setIsAddChildDialogOpen(true);
-  };
-
-  // 打开添加顶层物料弹窗
-  const handleAddTopLevel = () => {
-    setParentMaterial(null);
-    setFormData({
-      internalCode: '',
-      drawingCode: '',
-      materialName: '',
-      drawingNo: '',
-      materialType: '零件',
-      quantity: 1,
-      remark: '',
-      groupId: customerGroups.length > 0 ? String(customerGroups[0].id) : '',
-    });
-    setIsAddDialogOpen(true);
-  };
-
-  // 保存新增物料
-  const handleSaveMaterial = async () => {
-    if (!formData.materialName.trim()) {
-      toast.error('请输入物料名称');
+    if (treeData.length === 0) {
+      setExpandedKeys(new Set());
       return;
     }
-    
-    setIsSaving(true);
-    try {
-      // 创建物料
-      const createRes = await fetch('/api/bom/material', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          materialName: formData.materialName,
-          internalCode: formData.internalCode || undefined,
-          drawingCode: formData.drawingCode || undefined,
-          drawingNo: formData.drawingNo || undefined,
-          materialType: formData.materialType,
-          remark: formData.remark || undefined,
-          groupId: formData.groupId ? Number(formData.groupId) : undefined,
-        }),
-      });
-      
-      const createData = await createRes.json();
-      if (createData.code !== 200) {
-        toast.error(createData.message || '创建物料失败');
-        return;
+
+    // 搜索为空时，全部折叠
+    if (!globalSearch) {
+      setExpandedKeys(new Set());
+      return;
+    }
+
+    const keyword = globalSearch.toLowerCase();
+    console.log('[搜索展开] 关键词:', keyword, 'searchFields:', searchFields);
+
+    // 收集所有需要展开的键
+    const keysToExpand = new Set<string>();
+
+    // 递归查找并收集所有匹配节点的完整路径
+    const collectMatchPaths = (node: TreeNode, currentPath: string[]) => {
+      // 生成当前节点的键
+      const nodeKey = `node_${node.id}`;
+      const newPath = [...currentPath, nodeKey];
+
+      // 检查当前节点是否匹配
+      const fieldMatches: Record<string, boolean> = {
+        materialName: searchFields.materialName,
+        drawingCode: searchFields.drawingCode,
+        internalCode: searchFields.internalCode,
+        drawingNo: searchFields.drawingNo,
+      };
+
+      let selfMatch = false;
+      if (fieldMatches.materialName && node.materialName.toLowerCase().includes(keyword)) selfMatch = true;
+      if (fieldMatches.drawingCode && (node.drawingCode?.toLowerCase().includes(keyword) || false)) selfMatch = true;
+      if (fieldMatches.internalCode && node.internalCode.toLowerCase().includes(keyword)) selfMatch = true;
+      if (fieldMatches.drawingNo && (node.drawingNo?.toLowerCase().includes(keyword) || false)) selfMatch = true;
+
+      // 当前节点匹配，收集完整路径上的所有键（每一层的前缀都要存储）
+      if (selfMatch) {
+        // newPath 包含从根到当前节点的所有键
+        // 需要把每一层的前缀都加入展开列表
+        for (let i = 0; i < newPath.length; i++) {
+          const prefixPath = newPath.slice(0, i + 1).join('_');
+          keysToExpand.add(prefixPath);
+        }
+        console.log('[搜索展开] 匹配到节点:', node.internalCode, '展开键:', Array.from(keysToExpand).slice(-3));
       }
-      
-      const materialId = createData.data?.id;
-      if (!materialId) {
-        toast.error('创建物料失败：未获取到物料ID');
-        return;
-      }
-      
-      // 如果是子物料，创建 BOM 关系
-      if (parentMaterial) {
-        const bomRes = await fetch('/api/bom', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            parentMaterialId: parentMaterial.id,
-            childMaterialId: materialId,
-            quantity: formData.quantity,
-          }),
-        });
-        
-        const bomData = await bomRes.json();
-        if (bomData.code !== 200) {
-          toast.error(bomData.message || '创建BOM关系失败');
-          return;
+
+      // 递归检查所有子节点
+      if (node.children && node.children.length > 0) {
+        for (const child of node.children) {
+          collectMatchPaths(child, newPath);
         }
       }
-      
-      toast.success('创建物料成功');
-      setIsAddDialogOpen(false);
-      setIsAddChildDialogOpen(false);
-      fetchBOMTree();
-    } catch {
-      toast.error('创建物料失败');
-    } finally {
-      setIsSaving(false);
+    };
+
+    // 遍历所有顶层节点
+    for (const node of treeData) {
+      collectMatchPaths(node, []);
+    }
+
+    console.log('[搜索展开] 最终需要展开的键:', Array.from(keysToExpand));
+    setExpandedKeys(keysToExpand);
+  }, [globalSearch, treeData, searchFields]);
+
+  // 筛选条件变化时自动展开命中的节点
+  useEffect(() => {
+    // 只有当有筛选条件时才执行展开逻辑
+    const hasFilter = filterType || filterGroupId || filterName;
+    if (treeData.length === 0) {
+      return;
+    }
+
+    if (!hasFilter) {
+      // 清空筛选时折叠所有
+      setExpandedKeys(new Set());
+      return;
+    }
+
+    const keysToExpand = new Set<string>();
+
+    // 递归查找并收集所有匹配节点的完整路径
+    const collectMatchPaths = (node: TreeNode, currentPath: string[]) => {
+      const nodeKey = `node_${node.id}`;
+      const newPath = [...currentPath, nodeKey];
+
+      // 检查当前节点是否匹配筛选条件
+      let selfMatch = true;
+      if (filterType && node.materialType !== filterType) selfMatch = false;
+      if (filterGroupId && node.groupId !== filterGroupId) selfMatch = false;
+      if (filterName && !node.materialName.toLowerCase().includes(filterName.toLowerCase())) selfMatch = false;
+
+      // 匹配则收集所有祖先节点
+      if (selfMatch) {
+        for (let i = 0; i < newPath.length; i++) {
+          const prefixPath = newPath.slice(0, i + 1).join('_');
+          keysToExpand.add(prefixPath);
+        }
+        console.log('[筛选展开] 匹配到节点:', node.internalCode, '展开键:', Array.from(keysToExpand).slice(-3));
+      }
+
+      // 递归检查所有子节点
+      if (node.children && node.children.length > 0) {
+        for (const child of node.children) {
+          collectMatchPaths(child, newPath);
+        }
+      }
+    };
+
+    for (const node of treeData) {
+      collectMatchPaths(node, []);
+    }
+
+    console.log('[筛选展开] 最终需要展开的键:', Array.from(keysToExpand));
+    setExpandedKeys(keysToExpand);
+  }, [filterType, filterGroupId, filterName, treeData]);
+
+  const fetchMaterials = async () => {
+    let url = `/api/bom/material?pageSize=1000`;
+    const params = new URLSearchParams();
+    if (globalSearch) params.append('keyword', globalSearch);
+    if (filterType) params.append('materialType', filterType);
+    if (params.toString()) url += '&' + params.toString();
+    
+    const res = await fetchApi(url);
+    if (res.code === 200) {
+      setMaterials(res.data?.list || []);
     }
   };
 
-  // 删除物料
-  const handleDeleteMaterial = async () => {
-    if (!deleteMaterial) return;
-    
-    try {
-      const res = await fetch(`/api/bom/material?id=${deleteMaterial.id}`, {
-        method: 'DELETE',
-      });
-      
-      const data = await res.json();
-      if (data.code === 200) {
-        toast.success('删除物料成功');
-        fetchBOMTree();
-      } else {
-        toast.error(data.message || '删除物料失败');
-      }
-    } catch {
-      toast.error('删除物料失败');
+  const toggleExpand = (key: string) => {
+    setExpandedKeys(prev => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  };
+
+  const handleAddRootMaterial = () => {
+    setEditingMaterial(null);
+    setParentMaterialId(null);
+    setFormData({
+      materialName: '',
+      internalCode: '',  // 空字符串，由保存时API自动生成
+      drawingCode: '',
+      drawingNo: '',
+      materialType: 'part',
+      groupId: null,
+      quantity: 1,
+      remark: '',
+    });
+    setShowMaterialModal(true);
+  };
+
+  const handleAddChildMaterial = (parentId: number, parentGroupId: number | null, parentDrawingCode: string, parentMaterialName: string) => {
+    setEditingMaterial(null);
+    setParentMaterialId(parentId);
+    setParentMaterial({ drawingCode: parentDrawingCode, materialName: parentMaterialName });
+    setFormData({
+      materialName: '',
+      internalCode: '',  // 空字符串，由保存时API自动生成
+      drawingCode: '',
+      drawingNo: '',
+      materialType: 'part',
+      groupId: parentGroupId,
+      quantity: 1,
+      remark: '',
+    });
+    setShowMaterialModal(true);
+  };
+
+  const handleEditMaterial = (material: Material) => {
+    setEditingMaterial(material);
+    setParentMaterialId(null);
+    setFormData({
+      materialName: material.materialName,
+      internalCode: material.internalCode,
+      drawingCode: material.drawingCode || '',
+      drawingNo: material.drawingNo || '',
+      materialType: material.materialType,
+      groupId: material.groupId,
+      quantity: 1,
+      remark: material.remark || '',
+    });
+    setShowMaterialModal(true);
+  };
+
+  const handleSaveMaterial = async () => {
+    if (!formData.materialName) {
+      warning('物料名称不能为空');
+      return;
     }
+    // 新增顶层物料时必须选择客户群组，子物料继承父物料的群组
+    if (!editingMaterial && !parentMaterialId && !formData.groupId) {
+      warning('请选择所属客户群组');
+      return;
+    }
+
+    const url = editingMaterial
+      ? `/api/bom/material/${editingMaterial.id}`
+      : '/api/bom/material';
+
+    const method = editingMaterial ? 'PUT' : 'POST';
+
+    // 新增时，如果内部编码为空则通过API自动生成
+    let payload: any = { ...formData };
+    if (!editingMaterial && !payload.internalCode) {
+      try {
+        const codeRes = await fetch('/api/bom/material/next-code', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ materialType: payload.materialType }),
+        });
+        const codeData = await codeRes.json();
+        if (codeData.code === 200 && codeData.data) {
+          payload.internalCode = codeData.data;
+        } else {
+          error('内部编码生成失败，请重试');
+          return;
+        }
+      } catch {
+        error('内部编码生成失败，请重试');
+        return;
+      }
+    }
+
+    const res = await fetchApi(url, {
+      method,
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+
+    if (res.code === 200) {
+      // 如果是新增子物料，需要建立BOM关系
+      if (!editingMaterial && parentMaterialId && res.data?.id) {
+        await handleAddBOMRelation(parentMaterialId, res.data.id, formData.quantity || 1);
+      }
+      
+      setShowMaterialModal(false);
+      success(editingMaterial ? '物料更新成功' : '物料创建成功');
+      if (formData.groupId) {
+        fetchBOMTree(formData.groupId);
+      }
+      fetchMaterials();
+    } else {
+      error(res.message || '保存失败');
+    }
+  };
+
+  const handleAddBOMRelation = async (parentId: number, childId: number, quantity: number) => {
+    const res = await fetchApi('/api/bom', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ parentMaterialId: parentId, childMaterialId: childId, quantity }),
+    });
+
+    if (res.code === 200) {
+      success('BOM关系添加成功');
+    } else {
+      error(res.message || '添加BOM关系失败');
+    }
+  };
+
+  const handleDeleteMaterial = async (material: TreeNode) => {
+    const materialData: Material = {
+      id: material.id,
+      uuid: material.uuid,
+      materialName: material.materialName,
+      internalCode: material.internalCode,
+      drawingCode: material.drawingCode,
+      drawingNo: material.drawingNo,
+      materialType: material.materialType,
+      remark: material.remark,
+      customerId: null,
+      groupId: material.groupId ?? null,
+      customerGroupName: material.customerGroupName ?? undefined,
+      processId: material.processId,
+    };
+    setDeleteMaterial(materialData);
+    setDeleteConfirmOpen(true);
+  };
+
+  const confirmDeleteMaterial = async () => {
+    const id = deleteMaterial?.id;
+    if (!id) return;
     
-    setDeleteDialogOpen(false);
+    const res = await fetchApi(`/api/bom/material/${id}`, { method: 'DELETE' });
+    if (res.code === 200) {
+      success('物料删除成功');
+      fetchBOMTree();
+      fetchMaterials();
+    } else {
+      error(res.message || '删除失败');
+    }
+    setDeleteConfirmOpen(false);
     setDeleteMaterial(null);
   };
 
-  // 确认删除
-  const confirmDelete = (material: TreeNode) => {
-    setDeleteMaterial(material);
-    setDeleteDialogOpen(true);
-  };
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!importGroupId) {
+      warning('请先选择客户群组');
+      return;
+    }
 
-  // 更新物料
-  const handleUpdateMaterial = async (id: number, field: string, value: string | number) => {
-    try {
-      const res = await fetch(`/api/bom/material?id=${id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ [field]: value }),
-      });
-      
-      const data = await res.json();
-      if (data.code === 200) {
-        toast.success('更新成功');
-        fetchBOMTree();
-      } else {
-        toast.error(data.message || '更新失败');
-        fetchBOMTree(); // 刷新数据
-      }
-    } catch {
-      toast.error('更新失败');
-      fetchBOMTree();
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('groupId', importGroupId.toString());
+
+    const res = await fetchApi('/api/bom/material/import', {
+      method: 'POST',
+      body: formData,
+    });
+
+    if (res.code === 200) {
+      const data = res.data || [];
+      setImportData(data);
+      setEditedImportData(data.map((item: any) => ({ ...item })));
+      setImportErrors({});
+      setImportStep(2);
+    } else {
+      error(res.message || '导入失败');
     }
   };
 
-  // 展开/折叠行
-  const handleToggleExpand = (row: Row<TreeNode>) => {
-    const rowPath = row.original.id.toString();
-    setExpanded(prev => {
-      // 使用类型断言来处理 ExpandedState
-      const prevObj = prev as Record<string, boolean>;
-      if (prevObj[rowPath]) {
-        const newExpanded = { ...prevObj };
-        delete newExpanded[rowPath];
-        return newExpanded as ExpandedState;
-      } else {
-        return { ...prevObj, [rowPath]: true } as ExpandedState;
+  const handleConfirmImport = async () => {
+    // 应用编辑的数据
+    const validData = editedImportData.filter((_, idx) => !importErrors[idx]);
+    
+    const res = await fetchApi('/api/bom/import', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        groupId: importGroupId,
+        materials: validData,
+      }),
+    });
+
+    if (res.code === 200) {
+      success('导入成功');
+      setShowImportModal(false);
+      setImportStep(1);
+      setImportData([]);
+      setEditedImportData([]);
+      setImportErrors({});
+      setImportGroupId(null);
+      if (importGroupId) {
+        fetchBOMTree(importGroupId);
       }
+      fetchMaterials();
+    } else {
+      error(res.message || '导入失败');
+    }
+  };
+
+  const updateImportRow = (idx: number, field: string, value: any) => {
+    setEditedImportData(prev => {
+      const next = [...prev];
+      next[idx] = { ...next[idx], [field]: value };
+      return next;
     });
   };
 
-  // 获取行级别
-  const getRowLevel = (row: Row<TreeNode>): number => {
-    return parseInt(row.original.levelCode) || 1;
+  // 筛选树形数据
+  const filterTreeNode = (node: TreeNode): TreeNode | null => {
+    const keyword = globalSearch.toLowerCase();
+    const nameMatch = filterName.toLowerCase();
+    const typeMatch = filterType;
+    const groupMatch = filterGroupId;
+
+    // 检查当前节点是否匹配
+    const fieldMatches: Record<string, boolean> = {
+      materialName: searchFields.materialName,
+      drawingCode: searchFields.drawingCode,
+      internalCode: searchFields.internalCode,
+      drawingNo: searchFields.drawingNo,
+    };
+
+    let selfMatch = true;
+    if (keyword && Object.values(fieldMatches).some(v => v)) {
+      selfMatch = false;
+      if (fieldMatches.materialName && node.materialName.toLowerCase().includes(keyword)) selfMatch = true;
+      if (fieldMatches.drawingCode && (node.drawingCode?.toLowerCase().includes(keyword) || false)) selfMatch = true;
+      if (fieldMatches.internalCode && node.internalCode.toLowerCase().includes(keyword)) selfMatch = true;
+      if (fieldMatches.drawingNo && (node.drawingNo?.toLowerCase().includes(keyword) || false)) selfMatch = true;
+    }
+
+    // 列筛选
+    if (nameMatch && !node.materialName.toLowerCase().includes(nameMatch)) selfMatch = false;
+    if (typeMatch && node.materialType !== typeMatch) selfMatch = false;
+    if (groupMatch && node.groupId !== groupMatch) selfMatch = false;
+
+    // 递归筛选子节点
+    const filteredChildren = node.children
+      .map(child => filterTreeNode(child))
+      .filter((child): child is TreeNode => child !== null);
+
+    // 如果当前节点匹配或其子节点有匹配的，则返回
+    if (selfMatch || filteredChildren.length > 0) {
+      return {
+        ...node,
+        children: filteredChildren,
+      };
+    }
+
+    return null;
   };
 
-  // 定义列
-  const columnHelper = createColumnHelper<TreeNode>();
-  
-  const columns = [
-    columnHelper.display({
-      id: 'expand',
-      header: '',
-      cell: ({ row }) => {
-        const hasChildren = row.original.children && row.original.children.length > 0;
-        if (!hasChildren) {
-          return <div className="w-6" />;
-        }
-        return (
-          <button
-            onClick={() => handleToggleExpand(row)}
-            className="p-1 hover:bg-muted rounded"
-          >
-            {row.getIsExpanded() ? (
-              <ChevronDown className="w-4 h-4" />
-            ) : (
-              <ChevronRight className="w-4 h-4" />
-            )}
-          </button>
-        );
-      },
-      size: 40,
-    }),
-    columnHelper.accessor('internalCode', {
-      header: '内部编码',
-      cell: info => info.getValue() || '-',
-      size: 120,
-    }),
-    columnHelper.accessor('drawingCode', {
-      header: '图纸编码',
-      cell: ({ row, getValue }) => (
-        <EditableCell
-          value={getValue()}
-          onSave={(value) => handleUpdateMaterial(row.original.id, 'drawingCode', value as string)}
-        />
-      ),
-      size: 120,
-    }),
-    columnHelper.accessor('materialName', {
-      header: '物料名称',
-      cell: ({ row, getValue }) => (
-        <EditableCell
-          value={getValue()}
-          onSave={(value) => handleUpdateMaterial(row.original.id, 'materialName', value as string)}
-        />
-      ),
-      size: 180,
-    }),
-    columnHelper.accessor('drawingNo', {
-      header: '图号',
-      cell: ({ row, getValue }) => (
-        <EditableCell
-          value={getValue()}
-          onSave={(value) => handleUpdateMaterial(row.original.id, 'drawingNo', value as string)}
-        />
-      ),
-      size: 120,
-    }),
-    columnHelper.accessor('quantity', {
-      header: '单层用量',
-      cell: ({ row, getValue }) => {
-        const level = getRowLevel(row);
-        if (level === 1) {
-          return <span className="text-muted-foreground">-</span>;
-        }
-        return (
-          <EditableCell
-            value={getValue()}
-            onSave={(value) => handleUpdateMaterial(row.original.id, 'quantity', value as number)}
-            type="number"
-          />
-        );
-      },
-      size: 100,
-    }),
-    columnHelper.accessor('materialType', {
-      header: '物料类型',
-      cell: info => {
-        const type = info.getValue();
-        return (
-          <span className={`px-2 py-0.5 rounded text-xs ${TYPE_COLORS[type] || 'bg-gray-100 text-gray-800'}`}>
-            {type}
-          </span>
-        );
-      },
-      size: 90,
-    }),
-    columnHelper.accessor('customerGroupName', {
-      header: '所属客户',
-      cell: info => info.getValue() || '-',
-      size: 120,
-    }),
-    columnHelper.accessor('remark', {
-      header: '备注',
-      cell: ({ row, getValue }) => (
-        <EditableCell
-          value={getValue()}
-          onSave={(value) => handleUpdateMaterial(row.original.id, 'remark', value as string)}
-        />
-      ),
-      size: 150,
-    }),
-    columnHelper.display({
-      id: 'actions',
-      header: '操作',
-      cell: ({ row }) => (
-        <div className="flex items-center gap-1">
-          <button
-            onClick={() => handleAddChild(row.original)}
-            className="p-1.5 hover:bg-primary/10 rounded text-primary"
-            title="添加子物料"
-          >
-            <Plus className="w-4 h-4" />
-          </button>
-          <button
-            onClick={() => confirmDelete(row.original)}
-            className="p-1.5 hover:bg-destructive/10 rounded text-destructive"
-            title="删除"
-          >
-            <Trash2 className="w-4 h-4" />
-          </button>
-        </div>
-      ),
-      size: 100,
-    }),
+  const filteredTreeData = useMemo(() => {
+    if (!globalSearch && !filterName && !filterType && !filterGroupId) {
+      return treeData;
+    }
+    return treeData
+      .map(node => filterTreeNode(node))
+      .filter((node): node is TreeNode => node !== null);
+  }, [treeData, globalSearch, filterName, filterType, filterGroupId, searchFields]);
+
+  // 层级背景颜色配置
+  const levelColors = [
+    'bg-white',       // 0级：白色
+    'bg-blue-50',     // 1级：浅蓝
+    'bg-green-50',    // 2级：浅绿
+    'bg-yellow-50',   // 3级：浅黄
+    'bg-purple-50',   // 4级：浅紫
+    'bg-pink-50',     // 5级：浅粉
   ];
 
-  // 创建表格实例
-  const table = useReactTable({
-    data: filteredData,
-    columns,
-    state: {
-      expanded,
-    },
-    onExpandedChange: setExpanded,
-    getSubRows: (row) => row.children,
-    getCoreRowModel: getCoreRowModel(),
-    getExpandedRowModel: getExpandedRowModel(),
-    manualPagination: true,
-    autoResetExpanded: false,
-  });
+  // 层级字体大小配置
+  const levelFontSizes = [
+    'text-sm',        // 0级：正常
+    'text-sm',        // 1级：稍小
+    'text-xs',        // 2级：较小
+    'text-xs',        // 3级：更小
+    'text-xs',        // 4级：更小
+    'text-xs',        // 5级：最小
+  ];
 
-  // 获取行样式
-  const getRowStyle = (level: number) => {
-    const baseStyle = 'border-b';
-    const levelStyles: Record<number, string> = {
-      1: 'bg-background font-medium',
-      2: 'bg-muted/30',
-      3: 'bg-muted/10',
-      4: '',
-      5: '',
-    };
-    return `${baseStyle} ${levelStyles[level] || ''}`;
+  // 层级行高配置
+  const levelPadding = [
+    'py-2.5',        // 0级：正常
+    'py-2',          // 1级：稍小
+    'py-1.5',        // 2级：较小
+    'py-1.5',        // 3级：更小
+    'py-1',          // 4级：更小
+    'py-1',          // 5级：最小
+  ];
+
+  const renderTreeNode = (node: TreeNode, level: number = 0, parentKey: string = '') => {
+    // 生成唯一键：使用父路径+当前节点ID，确保同一物料在不同位置有唯一键
+    const nodeKey = `node_${node.id}`;
+    const fullKey = parentKey ? `${parentKey}_${nodeKey}` : nodeKey;
+    const hasChildren = node.children && node.children.length > 0;
+    const isExpanded = expandedKeys.has(fullKey);
+    const levelIndex = Math.min(level, levelColors.length - 1);
+    const bgColor = levelColors[levelIndex];
+    const fontSize = levelFontSizes[levelIndex];
+    const paddingY = levelPadding[levelIndex];
+    const groupName = node.customerGroupName || (node.groupId ? '未知' : '-');
+
+    return (
+      <div key={fullKey}>
+        <div
+          className={`flex items-center border-b border-gray-200 hover:brightness-95 transition-all ${bgColor}`}
+          style={{ paddingLeft: `${level * 20 + 8}px` }}
+        >
+          {/* 展开/折叠图标列 */}
+          <div className="w-8 flex-shrink-0 flex items-center justify-center">
+            {hasChildren ? (
+              <button
+                onClick={() => toggleExpand(fullKey)}
+                className="p-1 hover:bg-black/5 rounded transition-colors"
+              >
+                {isExpanded ? (
+                  <ChevronDown className={`w-4 h-4 text-gray-500 ${level > 0 ? 'text-gray-400' : ''}`} />
+                ) : (
+                  <ChevronRight className={`w-4 h-4 text-gray-500 ${level > 0 ? 'text-gray-400' : ''}`} />
+                )}
+              </button>
+            ) : (
+              <span className="w-4 h-4" />
+            )}
+          </div>
+
+          {/* 数据列 */}
+          <div className={`flex-1 grid grid-cols-9 gap-1 ${paddingY} ${fontSize} min-w-0`}>
+            {/* 内部编码 */}
+            <div className="col-span-1 font-mono text-gray-700 truncate px-1">{node.internalCode}</div>
+            {/* 图纸编码 */}
+            <div className="col-span-1 text-gray-600 truncate px-1">{node.drawingCode || '-'}</div>
+            {/* 物料名称 */}
+            <div className="col-span-2 font-medium text-gray-800 truncate px-1">{node.materialName}</div>
+            {/* 图号 */}
+            <div className="col-span-1 text-gray-600 truncate px-1">{node.drawingNo || '-'}</div>
+            {/* 单层用量 */}
+            <div className="col-span-1 text-center text-gray-700 truncate px-1">{node.quantity}</div>
+            {/* 物料类型 */}
+            <div className="col-span-1 text-center truncate px-1">
+              <span className={`px-1.5 py-0.5 rounded text-xs ${
+                node.materialType === 'component' ? 'bg-blue-100 text-blue-700' :
+                node.materialType === 'part' ? 'bg-green-100 text-green-700' :
+                node.materialType === 'material' ? 'bg-orange-100 text-orange-700' :
+                node.materialType === 'purchased' ? 'bg-purple-100 text-purple-700' :
+                node.materialType === 'standard' ? 'bg-cyan-100 text-cyan-700' :
+                'bg-gray-100 text-gray-700'
+              }`}>
+                {typeLabelMap[node.materialType] || node.materialType}
+              </span>
+            </div>
+            {/* 所属客户 */}
+            <div className="col-span-1 text-gray-600 truncate px-1">{groupName}</div>
+            {/* 备注 */}
+            <div className="col-span-1 text-gray-500 truncate px-1">{node.remark || '-'}</div>
+          </div>
+
+          {/* 操作列 */}
+          <div className="w-32 flex-shrink-0 flex items-center justify-center gap-1 px-1">
+            {/* 添加子物料 */}
+            <button
+              onClick={() => handleAddChildMaterial(node.id, node.groupId ?? null, node.drawingCode || '', node.materialName)}
+              className="p-1.5 text-green-600 hover:bg-green-100 rounded transition-colors"
+              title="添加子物料"
+            >
+              <Plus className={`w-4 h-4 ${level > 0 ? 'w-3 h-3' : ''}`} />
+            </button>
+            {/* 查看图纸 */}
+            <button
+              onClick={() => {/* TODO: 查看图纸 */}}
+              className="p-1.5 text-blue-600 hover:bg-blue-100 rounded transition-colors"
+              title="查看图纸"
+            >
+              <FileText className={`w-4 h-4 ${level > 0 ? 'w-3 h-3' : ''}`} />
+            </button>
+            {/* 查看工艺 */}
+            <button
+              onClick={() => {/* TODO: 查看工艺 */}}
+              className="p-1.5 text-purple-600 hover:bg-purple-100 rounded transition-colors"
+              title="查看工艺"
+            >
+              <Settings2 className={`w-4 h-4 ${level > 0 ? 'w-3 h-3' : ''}`} />
+            </button>
+            {/* 删除 */}
+            <button
+              onClick={() => handleDeleteMaterial(node)}
+              className="p-1.5 text-red-600 hover:bg-red-100 rounded transition-colors"
+              title="删除"
+            >
+              <Trash2 className={`w-4 h-4 ${level > 0 ? 'w-3 h-3' : ''}`} />
+            </button>
+          </div>
+        </div>
+        {/* 子节点 */}
+        {hasChildren && isExpanded && node.children.map(child => renderTreeNode(child, level + 1, fullKey))}
+      </div>
+    );
   };
 
-  // 获取字体大小样式
-  const getFontSizeStyle = (level: number) => {
-    const sizes: Record<number, string> = {
-      1: 'text-sm',
-      2: 'text-sm',
-      3: 'text-xs',
-      4: 'text-xs',
-      5: 'text-xs',
-    };
-    return sizes[level] || 'text-sm';
+  const downloadTemplate = () => {
+    const headers = ['序号', '物料名称', '图纸编码', '内部编码', '图号', '单层用量', '物料类型', '物料备注', 'BOM备注', '层级编码'];
+    const sampleData = [
+      ['1', '产品A', 'DWG001', '', 'P-001', '1', '组件', '', '', '1'],
+      ['1.1', '零件X', 'DWG002', '', 'P-002', '2', '零件', '', '', '1.1'],
+      ['1.2', '零件Y', 'DWG003', '', 'P-003', '4', '零件', '', '', '1.2'],
+      ['2', '产品B', 'DWG004', '', 'P-004', '1', '组件', '', '', '2'],
+    ];
+    
+    const csv = [headers, ...sampleData].map(row => row.join(',')).join('\n');
+    const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'BOM导入模板.csv';
+    a.click();
+    URL.revokeObjectURL(url);
   };
 
   return (
-    <div className="h-full flex flex-col">
+    <div className="h-full flex flex-col bg-white">
       {/* 头部 */}
-      <div className="flex items-center justify-between px-6 py-4 border-b">
-        <div className="flex items-center gap-2">
-          <Layers className="w-5 h-5 text-primary" />
-          <h1 className="text-lg font-semibold">BOM管理</h1>
+      <div className="border-b border-gray-200 px-4 py-3">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <h2 className="text-lg font-semibold">BOM管理</h2>
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={downloadTemplate}
+              className="flex items-center gap-1 px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-100 rounded-lg"
+            >
+              <Download className="w-4 h-4" />
+              导入模板
+            </button>
+            <button
+              onClick={() => { setImportGroupId(null); setShowImportModal(true); }}
+              className="flex items-center gap-1 px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-100 rounded-lg"
+            >
+              <Upload className="w-4 h-4" />
+              Excel导入
+            </button>
+            <button
+              onClick={handleAddRootMaterial}
+              className="flex items-center gap-1 px-3 py-1.5 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+            >
+              <Plus className="w-4 h-4" />
+              新增顶层物料
+            </button>
+          </div>
         </div>
-        <button
-          onClick={handleAddTopLevel}
-          className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors"
-        >
-          <Plus className="w-4 h-4" />
-          新增物料
-        </button>
       </div>
 
-      {/* 筛选栏 */}
-      <div className="flex items-center gap-4 px-6 py-3 border-b bg-muted/30">
-        {/* 全局搜索 */}
-        <div className="relative flex-1 max-w-md">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-          <input
-            type="text"
-            placeholder="全局搜索..."
-            value={globalSearch}
-            onChange={(e) => setGlobalSearch(e.target.value)}
-            className="w-full h-9 pl-9 pr-4 border rounded-md text-sm bg-background focus:outline-none focus:ring-2 focus:ring-primary/30"
-          />
+      {/* 全局搜索和列筛选 */}
+      <div className="border-b border-gray-200 px-4 py-3 bg-gray-50">
+        <div className="flex items-center gap-6 flex-wrap">
+          {/* 全局搜索 */}
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-medium text-gray-700">全局搜索：</span>
+            <input
+              type="text"
+              placeholder="输入关键词搜索..."
+              value={globalSearch}
+              onChange={e => setGlobalSearch(e.target.value)}
+              className="px-3 py-1.5 border border-gray-300 rounded-lg text-sm w-56"
+            />
+          </div>
+          
+          {/* 搜索字段勾选 */}
+          <div className="flex items-center gap-3">
+            <span className="text-sm text-gray-500">检索字段：</span>
+            <label className="flex items-center gap-1 text-sm cursor-pointer">
+              <input
+                type="checkbox"
+                checked={searchFields.materialName}
+                onChange={() => toggleSearchField('materialName')}
+                className="w-4 h-4 text-blue-600 rounded border-gray-300"
+              />
+              物料名称
+            </label>
+            <label className="flex items-center gap-1 text-sm cursor-pointer">
+              <input
+                type="checkbox"
+                checked={searchFields.drawingCode}
+                onChange={() => toggleSearchField('drawingCode')}
+                className="w-4 h-4 text-blue-600 rounded border-gray-300"
+              />
+              图纸编码
+            </label>
+            <label className="flex items-center gap-1 text-sm cursor-pointer">
+              <input
+                type="checkbox"
+                checked={searchFields.internalCode}
+                onChange={() => toggleSearchField('internalCode')}
+                className="w-4 h-4 text-blue-600 rounded border-gray-300"
+              />
+              内部编码
+            </label>
+            <label className="flex items-center gap-1 text-sm cursor-pointer">
+              <input
+                type="checkbox"
+                checked={searchFields.drawingNo}
+                onChange={() => toggleSearchField('drawingNo')}
+                className="w-4 h-4 text-blue-600 rounded border-gray-300"
+              />
+              图号
+            </label>
+          </div>
+
+          {/* 列筛选 */}
+          <div className="flex items-center gap-4">
+            <span className="text-sm text-gray-500">列筛选：</span>
+            <div className="flex items-center gap-1">
+              <span className="text-sm text-gray-600">名称：</span>
+              <input
+                type="text"
+                placeholder="名称筛选"
+                value={filterName}
+                onChange={e => setFilterName(e.target.value)}
+                className="px-2 py-1 border border-gray-300 rounded text-sm w-32"
+              />
+            </div>
+            <div className="flex items-center gap-1">
+              <span className="text-sm text-gray-600">类型：</span>
+              <select
+                value={filterType}
+                onChange={e => setFilterType(e.target.value)}
+                className="px-2 py-1 border border-gray-300 rounded text-sm"
+              >
+                <option value="">全部</option>
+                {materialTypeOptions.map(t => (
+                  <option key={t.value} value={t.value}>{t.label}</option>
+                ))}
+              </select>
+            </div>
+            <div className="flex items-center gap-1">
+              <span className="text-sm text-gray-600">客户：</span>
+              <select
+                value={filterGroupId || ''}
+                onChange={e => setFilterGroupId(e.target.value ? parseInt(e.target.value) : null)}
+                className="px-2 py-1 border border-gray-300 rounded text-sm"
+              >
+                <option value="">全部</option>
+                {customerGroups.map(g => (
+                  <option key={g.id} value={g.id}>{g.groupName}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          {/* 清空筛选 */}
+          {(globalSearch || filterName || filterType || filterGroupId) && (
+            <button
+              onClick={clearFilters}
+              className="px-3 py-1 text-sm text-gray-600 hover:text-gray-800 hover:bg-gray-200 rounded"
+            >
+              清空筛选
+            </button>
+          )}
         </div>
-
-        {/* 类型筛选 */}
-        <select
-          value={filterType}
-          onChange={(e) => setFilterType(e.target.value)}
-          className="h-9 px-3 border rounded-md text-sm bg-background focus:outline-none focus:ring-2 focus:ring-primary/30"
-        >
-          <option value="">全部类型</option>
-          {MATERIAL_TYPES.map(type => (
-            <option key={type} value={type}>{type}</option>
-          ))}
-        </select>
-
-        {/* 客户群组筛选 */}
-        <select
-          value={filterGroupId}
-          onChange={(e) => setFilterGroupId(e.target.value)}
-          className="h-9 px-3 border rounded-md text-sm bg-background focus:outline-none focus:ring-2 focus:ring-primary/30"
-        >
-          <option value="">全部客户</option>
-          {customerGroups.map(group => (
-            <option key={group.id} value={group.id}>{group.groupName}</option>
-          ))}
-        </select>
-
-        {/* 名称筛选 */}
-        <div className="relative">
-          <input
-            type="text"
-            placeholder="按名称筛选"
-            value={filterName}
-            onChange={(e) => setFilterName(e.target.value)}
-            className="w-40 h-9 pl-3 pr-4 border rounded-md text-sm bg-background focus:outline-none focus:ring-2 focus:ring-primary/30"
-          />
-        </div>
-
-        {/* 重置按钮 */}
-        <button
-          onClick={() => {
-            setFilterType('');
-            setFilterGroupId('');
-            setFilterName('');
-            setGlobalSearch('');
-          }}
-          className="flex items-center gap-1 h-9 px-3 text-sm text-muted-foreground hover:text-foreground transition-colors"
-        >
-          <RefreshCw className="w-4 h-4" />
-          重置
-        </button>
       </div>
 
-      {/* 表格 */}
+      {/* 内容区域 */}
       <div className="flex-1 overflow-auto">
-        {isLoading ? (
-          <div className="flex items-center justify-center h-full">
-            <div className="text-muted-foreground">加载中...</div>
+        {filteredTreeData.length === 0 ? (
+          <div className="flex flex-col items-center justify-center h-64 text-gray-400">
+            <FolderTree className="w-12 h-12 mb-2" />
+            <p>暂无BOM数据</p>
+            <p className="text-sm">点击"新增顶层物料"或"Excel导入"添加</p>
           </div>
         ) : (
-          <table className="w-full border-collapse">
-            <thead className="sticky top-0 bg-muted/50 z-10">
-              <tr>
-                {table.getHeaderGroups().map(headerGroup => (
-                  headerGroup.headers.map(header => (
-                    <th
-                      key={header.id}
-                      className="px-3 py-2 text-left text-xs font-medium text-muted-foreground border-b"
-                      style={{ width: header.getSize() }}
-                    >
-                      {header.isPlaceholder ? null : flexRender(header.column.columnDef.header, header.getContext())}
-                    </th>
-                  ))
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {table.getRowModel().rows.length === 0 ? (
-                <tr>
-                  <td colSpan={columns.length} className="px-6 py-12 text-center text-muted-foreground">
-                    暂无数据
-                  </td>
-                </tr>
-              ) : (
-                table.getRowModel().rows.map(row => {
-                  const level = getRowLevel(row);
-                  const indentClass = LEVEL_INDENTS[level] || LEVEL_INDENTS[5];
-                  return (
-                    <tr
-                      key={row.id}
-                      className={`${getRowStyle(level)} ${getFontSizeStyle(level)}`}
-                    >
-                      {row.getVisibleCells().map(cell => {
-                        if (cell.column.id === 'expand') {
-                          return (
-                            <td key={cell.id} className="px-0 py-1.5">
-                              {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                            </td>
-                          );
-                        }
-                        return (
-                          <td
-                            key={cell.id}
-                            className={`px-3 py-1.5 ${indentClass}`}
-                            style={{ width: cell.column.getSize() }}
-                          >
-                            {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                          </td>
-                        );
-                      })}
-                    </tr>
-                  );
-                })
-              )}
-            </tbody>
-          </table>
+          <>
+            {/* 表头 */}
+            <div className="sticky top-0 bg-gray-100 border-b border-gray-300 z-10">
+              <div className="flex items-center text-xs font-semibold text-gray-700 py-2.5 px-2">
+                <div className="w-8 flex-shrink-0" />
+                <div className="flex-1 grid grid-cols-9 gap-1 min-w-0">
+                  <div className="col-span-1 truncate">内部编码</div>
+                  <div className="col-span-1 truncate">图纸编码</div>
+                  <div className="col-span-2 truncate">物料名称</div>
+                  <div className="col-span-1 truncate">图号</div>
+                  <div className="col-span-1 text-center truncate">单层用量</div>
+                  <div className="col-span-1 text-center truncate">物料类型</div>
+                  <div className="col-span-1 truncate">所属客户</div>
+                  <div className="col-span-1 truncate">备注</div>
+                </div>
+                <div className="w-32 flex-shrink-0 text-center truncate px-1">操作</div>
+              </div>
+            </div>
+            {/* 树内容 */}
+            {filteredTreeData.map(node => renderTreeNode(node))}
+          </>
         )}
       </div>
 
-      {/* 新增顶层物料弹窗 */}
-      {isAddDialogOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-          <div className="bg-background rounded-lg shadow-lg w-[500px] max-h-[90vh] overflow-auto">
-            <div className="flex items-center justify-between px-6 py-4 border-b">
-              <h2 className="text-lg font-semibold">新增物料</h2>
-              <button onClick={() => setIsAddDialogOpen(false)} className="p-1 hover:bg-muted rounded">
+      {/* 物料编辑弹窗 */}
+      {showMaterialModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-xl w-[600px] max-h-[80vh] overflow-auto">
+            <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200">
+              <h3 className="font-semibold">
+                {editingMaterial ? '编辑物料' : parentMaterialId ? (
+                  <span>
+                    为：(<span className="text-blue-600">{parentMaterial?.drawingCode || '-'}_{parentMaterial?.materialName || '-'}</span>) 新增子物料
+                  </span>
+                ) : '新增物料'}
+              </h3>
+              <button onClick={() => setShowMaterialModal(false)} className="p-1 hover:bg-gray-100 rounded">
                 <X className="w-5 h-5" />
               </button>
             </div>
-            <div className="px-6 py-4 space-y-4">
+            <div className="p-4 space-y-4">
               <div>
-                <label className="block text-sm font-medium mb-1">客户群组 <span className="text-destructive">*</span></label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  客户群组 <span className="text-red-500">*</span>
+                  {parentMaterialId && <span className="text-gray-400 text-xs ml-1">(继承自父物料)</span>}
+                </label>
                 <select
-                  value={formData.groupId}
-                  onChange={(e) => setFormData({ ...formData, groupId: e.target.value })}
-                  className="w-full h-10 px-3 border rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
-                  required
+                  value={formData.groupId || ''}
+                  onChange={e => setFormData({ ...formData, groupId: e.target.value ? parseInt(e.target.value) : null })}
+                  disabled={!!parentMaterialId}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50"
                 >
                   <option value="">请选择客户群组</option>
-                  {customerGroups.map(group => (
-                    <option key={group.id} value={group.id}>{group.groupName}</option>
+                  {customerGroups.map(g => (
+                    <option key={g.id} value={g.id}>{g.groupName}</option>
                   ))}
                 </select>
               </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium mb-1">内部编码</label>
-                  <input
-                    type="text"
-                    value={formData.internalCode}
-                    onChange={(e) => setFormData({ ...formData, internalCode: e.target.value })}
-                    className="w-full h-10 px-3 border rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium mb-1">物料类型</label>
-                  <select
-                    value={formData.materialType}
-                    onChange={(e) => setFormData({ ...formData, materialType: e.target.value })}
-                    className="w-full h-10 px-3 border rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
-                  >
-                    {MATERIAL_TYPES.map(type => (
-                      <option key={type} value={type}>{type}</option>
-                    ))}
-                  </select>
-                </div>
-              </div>
               <div>
-                <label className="block text-sm font-medium mb-1">物料名称 <span className="text-destructive">*</span></label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  物料名称 <span className="text-red-500">*</span>
+                </label>
                 <input
                   type="text"
                   value={formData.materialName}
-                  onChange={(e) => setFormData({ ...formData, materialName: e.target.value })}
-                  className="w-full h-10 px-3 border rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
-                  required
+                  onChange={e => setFormData({ ...formData, materialName: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                  placeholder="请输入物料名称"
                 />
+              </div>
+              <div className="grid grid-cols-3 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">物料类型</label>
+                  <select
+                    value={formData.materialType}
+                    onChange={e => setFormData({ ...formData, materialType: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                  >
+                    {materialTypeOptions.map(t => (
+                      <option key={t.value} value={t.value}>{t.label}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">内部编码</label>
+                  <input
+                    type="text"
+                    value={formData.internalCode}
+                    readOnly
+                    disabled
+                    className="w-full px-3 py-2 border border-gray-200 rounded-lg bg-gray-50 text-gray-500 cursor-not-allowed"
+                    placeholder="自动生成"
+                  />
+                </div>
+                {parentMaterialId && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">单层用量 <span className="text-red-500">*</span></label>
+                  <input
+                    type="number"
+                    min="0.001"
+                    step="0.001"
+                    value={formData.quantity ?? 1}
+                    onChange={e => setFormData({ ...formData, quantity: parseFloat(e.target.value) || 0 })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                    placeholder="1"
+                  />
+                </div>
+                )}
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium mb-1">图纸编码</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">图纸编码</label>
                   <input
                     type="text"
                     value={formData.drawingCode}
-                    onChange={(e) => setFormData({ ...formData, drawingCode: e.target.value })}
-                    className="w-full h-10 px-3 border rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+                    onChange={e => setFormData({ ...formData, drawingCode: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium mb-1">图号</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">图号</label>
                   <input
                     type="text"
                     value={formData.drawingNo}
-                    onChange={(e) => setFormData({ ...formData, drawingNo: e.target.value })}
-                    className="w-full h-10 px-3 border rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+                    onChange={e => setFormData({ ...formData, drawingNo: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg"
                   />
                 </div>
               </div>
               <div>
-                <label className="block text-sm font-medium mb-1">备注</label>
-                <input
-                  type="text"
+                <label className="block text-sm font-medium text-gray-700 mb-1">备注</label>
+                <textarea
                   value={formData.remark}
-                  onChange={(e) => setFormData({ ...formData, remark: e.target.value })}
-                  className="w-full h-10 px-3 border rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+                  onChange={e => setFormData({ ...formData, remark: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                  rows={3}
                 />
               </div>
             </div>
-            <div className="flex justify-end gap-3 px-6 py-4 border-t bg-muted/30">
+            <div className="flex justify-end gap-2 px-4 py-3 border-t border-gray-200">
               <button
-                onClick={() => setIsAddDialogOpen(false)}
-                className="px-4 py-2 text-sm border rounded-md hover:bg-muted transition-colors"
+                onClick={() => setShowMaterialModal(false)}
+                className="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-lg"
               >
                 取消
               </button>
               <button
                 onClick={handleSaveMaterial}
-                disabled={isSaving}
-                className="px-4 py-2 text-sm bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors disabled:opacity-50"
+                className="px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700"
               >
-                {isSaving ? '保存中...' : '保存'}
+                保存
               </button>
             </div>
           </div>
         </div>
       )}
 
-      {/* 新增子物料弹窗 */}
-      {isAddChildDialogOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-          <div className="bg-background rounded-lg shadow-lg w-[500px] max-h-[90vh] overflow-auto">
-            <div className="flex items-center justify-between px-6 py-4 border-b">
-              <h2 className="text-lg font-semibold">{addChildDialogTitle}</h2>
-              <button onClick={() => setIsAddChildDialogOpen(false)} className="p-1 hover:bg-muted rounded">
+      {/* 导入弹窗 */}
+      {showImportModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-xl w-[900px] max-h-[80vh] overflow-auto">
+            <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200">
+              <h3 className="font-semibold">Excel导入BOM</h3>
+              <button onClick={() => { setShowImportModal(false); setImportStep(1); }} className="p-1 hover:bg-gray-100 rounded">
                 <X className="w-5 h-5" />
               </button>
             </div>
-            <div className="px-6 py-4 space-y-4">
-              <div className="p-3 bg-muted/50 rounded-md">
-                <p className="text-sm text-muted-foreground">
-                  父物料：<span className="font-medium text-foreground">{parentMaterial?.materialName}</span>
-                </p>
-                <p className="text-sm text-muted-foreground">
-                  客户群组：<span className="font-medium text-foreground">{parentMaterial?.customerGroupName || '-'}</span>
-                </p>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium mb-1">内部编码</label>
+            <div className="p-4">
+              {importStep === 1 && (
+                <div className="flex flex-col items-center justify-center py-12">
+                  <div className="mb-4 w-full max-w-xs">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      客户群组 <span className="text-red-500">*</span>
+                    </label>
+                    <select
+                      value={importGroupId || ''}
+                      onChange={e => setImportGroupId(e.target.value ? parseInt(e.target.value) : null)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                    >
+                      <option value="">请选择客户群组</option>
+                      {customerGroups.map(g => (
+                        <option key={g.id} value={g.id}>{g.groupName}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <Upload className="w-16 h-16 text-gray-300 mb-4" />
+                  <p className="text-gray-600 mb-4">请上传Excel文件</p>
                   <input
-                    type="text"
-                    value={formData.internalCode}
-                    onChange={(e) => setFormData({ ...formData, internalCode: e.target.value })}
-                    className="w-full h-10 px-3 border rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+                    type="file"
+                    accept=".xlsx,.xls,.csv"
+                    onChange={handleFileUpload}
+                    className="hidden"
+                    id="import-file"
                   />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium mb-1">物料类型</label>
-                  <select
-                    value={formData.materialType}
-                    onChange={(e) => setFormData({ ...formData, materialType: e.target.value })}
-                    className="w-full h-10 px-3 border rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+                  <label
+                    htmlFor="import-file"
+                    className="px-4 py-2 bg-blue-600 text-white rounded-lg cursor-pointer hover:bg-blue-700"
                   >
-                    {MATERIAL_TYPES.map(type => (
-                      <option key={type} value={type}>{type}</option>
-                    ))}
-                  </select>
+                    选择文件
+                  </label>
+                  <p className="text-xs text-gray-400 mt-4">
+                    支持 .xlsx, .xls, .csv 格式
+                  </p>
                 </div>
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-1">物料名称 <span className="text-destructive">*</span></label>
-                <input
-                  type="text"
-                  value={formData.materialName}
-                  onChange={(e) => setFormData({ ...formData, materialName: e.target.value })}
-                  className="w-full h-10 px-3 border rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
-                  required
-                />
-              </div>
-              <div className="grid grid-cols-2 gap-4">
+              )}
+              {importStep === 2 && (
                 <div>
-                  <label className="block text-sm font-medium mb-1">图纸编码</label>
-                  <input
-                    type="text"
-                    value={formData.drawingCode}
-                    onChange={(e) => setFormData({ ...formData, drawingCode: e.target.value })}
-                    className="w-full h-10 px-3 border rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
-                  />
+                  <div className="mb-4 flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <span className={`w-6 h-6 rounded-full flex items-center justify-center text-xs ${
+                        Object.keys(importErrors).length === 0 ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'
+                      }`}>
+                        {Object.keys(importErrors).length === 0 ? <CheckCircle className="w-4 h-4" /> : <AlertCircle className="w-4 h-4" />}
+                      </span>
+                      <span className="text-sm">
+                        共 {editedImportData.length} 条数据，{Object.keys(importErrors).length} 条异常
+                      </span>
+                    </div>
+                    <button
+                      onClick={downloadTemplate}
+                      className="text-sm text-blue-600 hover:underline"
+                    >
+                      下载模板
+                    </button>
+                  </div>
+                  <div className="max-h-96 overflow-auto border border-gray-200 rounded-lg">
+                    <table className="w-full text-xs">
+                      <thead className="bg-gray-50 sticky top-0">
+                        <tr>
+                          <th className="px-2 py-1 text-left">状态</th>
+                          <th className="px-2 py-1 text-left">序号</th>
+                          <th className="px-2 py-1 text-left">物料名称</th>
+                          <th className="px-2 py-1 text-left">物料类型</th>
+                          <th className="px-2 py-1 text-left">图纸编码</th>
+                          <th className="px-2 py-1 text-left">内部编码</th>
+                          <th className="px-2 py-1 text-left">图号</th>
+                          <th className="px-2 py-1 text-left">用量</th>
+                          <th className="px-2 py-1 text-left">层级</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {editedImportData.map((row, idx) => (
+                          <tr key={idx} className={`border-t border-gray-100 ${importErrors[idx] ? 'bg-red-50' : ''}`}>
+                            <td className="px-2 py-1">
+                              {importErrors[idx] ? (
+                                <span className="text-red-500" title={importErrors[idx]}>
+                                  <AlertCircle className="w-4 h-4" />
+                                </span>
+                              ) : (
+                                <span className="text-green-500"><CheckCircle className="w-4 h-4" /></span>
+                              )}
+                            </td>
+                            <td className="px-2 py-1">{row.serialNumber || idx + 1}</td>
+                            <td className="px-2 py-1">
+                              <input
+                                type="text"
+                                value={row.materialName || ''}
+                                onChange={e => updateImportRow(idx, 'materialName', e.target.value)}
+                                className="w-full border border-gray-300 rounded px-1 py-0.5"
+                              />
+                            </td>
+                            <td className="px-2 py-1">
+                              <select
+                                value={row.materialType || 'part'}
+                                onChange={e => updateImportRow(idx, 'materialType', e.target.value)}
+                                className="border border-gray-300 rounded px-1 py-0.5"
+                              >
+                                {materialTypeOptions.map(t => (
+                                  <option key={t.value} value={t.value}>{t.label}</option>
+                                ))}
+                              </select>
+                            </td>
+                            <td className="px-2 py-1">
+                              <input
+                                type="text"
+                                value={row.drawingCode || ''}
+                                onChange={e => updateImportRow(idx, 'drawingCode', e.target.value)}
+                                className="w-full border border-gray-300 rounded px-1 py-0.5"
+                              />
+                            </td>
+                            <td className="px-2 py-1">{row.internalCode || '-'}</td>
+                            <td className="px-2 py-1">
+                              <input
+                                type="text"
+                                value={row.drawingNo || ''}
+                                onChange={e => updateImportRow(idx, 'drawingNo', e.target.value)}
+                                className="w-full border border-gray-300 rounded px-1 py-0.5"
+                              />
+                            </td>
+                            <td className="px-2 py-1">
+                              <input
+                                type="number"
+                                value={row.quantity || 1}
+                                onChange={e => updateImportRow(idx, 'quantity', parseFloat(e.target.value) || 1)}
+                                className="w-16 border border-gray-300 rounded px-1 py-0.5"
+                              />
+                            </td>
+                            <td className="px-2 py-1 font-mono">{row.levelCode || '-'}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
                 </div>
-                <div>
-                  <label className="block text-sm font-medium mb-1">图号</label>
-                  <input
-                    type="text"
-                    value={formData.drawingNo}
-                    onChange={(e) => setFormData({ ...formData, drawingNo: e.target.value })}
-                    className="w-full h-10 px-3 border rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
-                  />
-                </div>
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-1">单层用量</label>
-                <input
-                  type="number"
-                  value={formData.quantity}
-                  onChange={(e) => setFormData({ ...formData, quantity: Number(e.target.value) })}
-                  className="w-full h-10 px-3 border rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
-                  min="0"
-                  step="0.01"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-1">备注</label>
-                <input
-                  type="text"
-                  value={formData.remark}
-                  onChange={(e) => setFormData({ ...formData, remark: e.target.value })}
-                  className="w-full h-10 px-3 border rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
-                />
-              </div>
+              )}
             </div>
-            <div className="flex justify-end gap-3 px-6 py-4 border-t bg-muted/30">
+            <div className="flex justify-end gap-2 px-4 py-3 border-t border-gray-200">
               <button
-                onClick={() => setIsAddChildDialogOpen(false)}
-                className="px-4 py-2 text-sm border rounded-md hover:bg-muted transition-colors"
+                onClick={() => { setShowImportModal(false); setImportStep(1); }}
+                className="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-lg"
               >
                 取消
               </button>
-              <button
-                onClick={handleSaveMaterial}
-                disabled={isSaving}
-                className="px-4 py-2 text-sm bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors disabled:opacity-50"
-              >
-                {isSaving ? '保存中...' : '保存'}
-              </button>
+              {importStep === 2 && (
+                <button
+                  onClick={handleConfirmImport}
+                  disabled={editedImportData.length === 0}
+                  className="px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
+                >
+                  确认导入
+                </button>
+              )}
             </div>
           </div>
         </div>
       )}
 
-      {/* 删除确认弹窗 */}
+      {/* 删除确认对话框 */}
       <ConfirmDialog
-        open={deleteDialogOpen}
-        onOpenChange={setDeleteDialogOpen}
+        open={deleteConfirmOpen}
+        onOpenChange={(open) => setDeleteConfirmOpen(open)}
         title="确认删除"
-        description={`确定要删除物料 "${deleteMaterial?.materialName}" 吗？此操作不可恢复。`}
-        onConfirm={handleDeleteMaterial}
+        description={`确定要删除物料"${deleteMaterial?.materialName}"吗？此操作不可恢复。`}
+        confirmText="删除"
+        variant="destructive"
+        onConfirm={confirmDeleteMaterial}
       />
     </div>
   );
