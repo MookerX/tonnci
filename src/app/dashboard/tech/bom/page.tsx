@@ -440,18 +440,31 @@ export default function BOMManagementPage() {
     setShowMaterialModal(true);
   };
 
-  const handleEditMaterial = (material: Material) => {
-    setEditingMaterial(material);
+  const handleEditMaterial = (node: TreeNode) => {
+    const materialData: Material = {
+      id: node.id,
+      uuid: node.uuid,
+      materialName: node.materialName,
+      internalCode: node.internalCode || '',
+      drawingCode: node.drawingCode || '',
+      drawingNo: node.drawingNo || '',
+      materialType: node.materialType as 'LJ' | 'ZJ' | 'CL' | 'WG' | 'BZ' | 'FC',
+      remark: node.remark || '',
+      quantity: node.quantity || 1,
+      groupId: node.groupId ?? 0,
+      isDelete: false,
+    } as unknown as Material;
+    setEditingMaterial(materialData);
     setParentMaterialId(null);
     setFormData({
-      materialName: material.materialName,
-      internalCode: material.internalCode,
-      drawingCode: material.drawingCode || '',
-      drawingNo: material.drawingNo || '',
-      materialType: material.materialType,
-      groupId: material.groupId,
-      quantity: 1,
-      remark: material.remark || '',
+      materialName: node.materialName,
+      internalCode: node.internalCode || '',
+      drawingCode: node.drawingCode || '',
+      drawingNo: node.drawingNo || '',
+      materialType: node.materialType,
+      groupId: node.groupId ?? 0,
+      quantity: node.quantity || 1,
+      remark: node.remark || '',
     });
     setShowMaterialModal(true);
   };
@@ -786,6 +799,14 @@ export default function BOMManagementPage() {
 
           {/* 操作列 */}
           <div className="w-32 flex-shrink-0 flex items-center justify-center gap-1 px-1">
+            {/* 编辑 */}
+            <button
+              onClick={() => handleEditMaterial(node)}
+              className="p-1.5 text-amber-600 hover:bg-amber-100 rounded transition-colors"
+              title="编辑"
+            >
+              <Edit2 className={`w-4 h-4 ${level > 0 ? 'w-3 h-3' : ''}`} />
+            </button>
             {/* 添加子物料 */}
             <button
               onClick={() => handleAddChildMaterial(node.id, node.groupId ?? null, node.drawingCode || '', node.materialName)}
