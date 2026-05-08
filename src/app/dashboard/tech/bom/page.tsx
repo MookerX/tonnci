@@ -543,7 +543,7 @@ export default function BOMManagementPage() {
     const bgColor = levelColors[levelIndex];
     const fontSize = levelFontSizes[levelIndex];
     const paddingY = levelPadding[levelIndex];
-    const groupName = node.groupId ? groupNameMap[node.groupId] || '未知' : '-';
+    const groupName = node.customerGroupName || (node.groupId ? '未知' : '-');
 
     return (
       <div key={node.id}>

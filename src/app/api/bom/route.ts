@@ -55,23 +55,26 @@ export async function GET(request: NextRequest) {
         unit: true,
         spec: true,
         customerId: true,
+        groupId: true,
         remark: true,
       },
     });
 
-    // 获取客户及群组名称映射
-    const customerIds = [...new Set(allMaterials.filter(m => m.customerId !== null).map(m => m.customerId as number))];
-    const customers = customerIds.length > 0 ? await prisma.$queryRaw<any[]>(
-      `SELECT c.id, c.customer_name as customerName, cg.group_name as customerGroupName
-       FROM customer c
-       LEFT JOIN customer_group cg ON c.group_id = cg.id
-       WHERE c.id IN (${customerIds.join(',')}) AND c.is_delete = false`
-    ) : [];
-    const customerMap = new Map(customers.map(c => [c.id, c]));
+    // 获取客户群组名称映射
+    const groupIds = [...new Set(allMaterials.filter(m => m.groupId !== null).map(m => m.groupId as number))];
+    let groupNameMap = new Map<number, string>();
+    if (groupIds.length > 0) {
+      // 直接用 Prisma ORM 查询
+      const groups = await prisma.customerGroup.findMany({
+        where: { id: { in: groupIds }, isDelete: false },
+        select: { id: true, groupName: true },
+      });
+      groupNameMap = new Map(groups.map(g => [g.id, g.groupName]));
+    }
 
     const materialMap = new Map(allMaterials.map(m => {
-      const customerInfo = m.customerId ? customerMap.get(m.customerId) : null;
-      return [m.id, { ...m, customerGroupName: customerInfo?.customerGroupName || null, children: [] as any[] }];
+      const groupName = m.groupId ? groupNameMap.get(m.groupId) || null : null;
+      return [m.id, { ...m, customerGroupName: groupName, children: [] as any[] }];
     }));
     const materialIds = allMaterials.map(m => m.id);
 
@@ -123,12 +126,13 @@ export async function GET(request: NextRequest) {
         unit: true,
         spec: true,
         customerId: true,
+        groupId: true,
       },
     });
-    const childMap = new Map(childMaterials.map(m => {
-      const customerInfo = m.customerId ? customerMap.get(m.customerId) : null;
-      return [m.id, { ...m, customerGroupName: customerInfo?.customerGroupName || null }];
-    }));
+    const childMap = new Map(childMaterials.map(m => ({
+      ...m,
+      customerGroupName: m.groupId ? groupNameMap.get(m.groupId) || null : null,
+    })));
 
     // 填充树节点
     for (const [parentId, children] of childrenMap) {
@@ -146,6 +150,8 @@ export async function GET(request: NextRequest) {
             materialType: detail.materialType || '',
             unit: detail.unit || '',
             spec: detail.spec || '',
+            groupId: detail.groupId || null,
+            customerGroupName: detail.customerGroupName || null,
             quantity: child.quantity,
             children: [],
           };
