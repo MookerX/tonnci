@@ -251,6 +251,23 @@ export default function CustomerPage() {
   const handleSaveContacts = async () => {
     if (!currentCustomer?.id) return;
 
+    // 验证联系人数据
+    for (let i = 0; i < editingContacts.length; i++) {
+      const c = editingContacts[i];
+      if (!c.contactName.trim()) {
+        warning(`第${i + 1}个联系人姓名不能为空`);
+        return;
+      }
+      if (c.phone && !/^[\d\-+\s()]{7,20}$/.test(c.phone)) {
+        warning(`第${i + 1}个联系人电话格式不正确`);
+        return;
+      }
+      if (c.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(c.email)) {
+        warning(`第${i + 1}个联系人邮箱格式不正确`);
+        return;
+      }
+    }
+
     try {
       const token = localStorage.getItem('token') || '';
       const res = await fetch(`/api/customer/${currentCustomer.id}/contact`, {
@@ -369,7 +386,7 @@ export default function CustomerPage() {
                       }}
                       className="px-2 py-1 text-xs bg-green-50 text-green-600 rounded hover:bg-green-100"
                     >
-                      添加联系人
+                      管理联系人
                     </button>
                     <button
                       onClick={() => handleOpenModal(customer)}
@@ -655,11 +672,19 @@ export default function CustomerPage() {
                       <div>
                         <label className="block text-xs text-gray-600 mb-1">电话</label>
                         <input
-                          type="text"
+                          type="tel"
                           value={contact.phone || ''}
                           onChange={(e) => handleContactChange(index, 'phone', e.target.value)}
-                          className="w-full px-3 py-1.5 border border-gray-300 rounded text-sm focus:ring-2 focus:ring-blue-500"
+                          placeholder="手机号或固话"
+                          className={`w-full px-3 py-1.5 border rounded text-sm focus:ring-2 focus:ring-blue-500 ${
+                            contact.phone && !/^[\d\-+\s()]{7,20}$/.test(contact.phone)
+                              ? 'border-red-400 bg-red-50'
+                              : 'border-gray-300'
+                          }`}
                         />
+                        {contact.phone && !/^[\d\-+\s()]{7,20}$/.test(contact.phone) && (
+                          <p className="text-xs text-red-500 mt-0.5">请输入有效的电话号码</p>
+                        )}
                       </div>
                       <div>
                         <label className="block text-xs text-gray-600 mb-1">邮箱</label>
@@ -667,8 +692,16 @@ export default function CustomerPage() {
                           type="email"
                           value={contact.email || ''}
                           onChange={(e) => handleContactChange(index, 'email', e.target.value)}
-                          className="w-full px-3 py-1.5 border border-gray-300 rounded text-sm focus:ring-2 focus:ring-blue-500"
+                          placeholder="example@mail.com"
+                          className={`w-full px-3 py-1.5 border rounded text-sm focus:ring-2 focus:ring-blue-500 ${
+                            contact.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(contact.email)
+                              ? 'border-red-400 bg-red-50'
+                              : 'border-gray-300'
+                          }`}
                         />
+                        {contact.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(contact.email) && (
+                          <p className="text-xs text-red-500 mt-0.5">请输入有效的邮箱地址</p>
+                        )}
                       </div>
                       <div className="col-span-2">
                         <label className="block text-xs text-gray-600 mb-1">备注</label>
