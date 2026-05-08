@@ -91,6 +91,12 @@ export default function BOMManagementPage() {
   // 客户列表（当前群组下的客户）
   const [customers, setCustomers] = useState<Customer[]>([]);
   
+  // 生成临时编码（用于新增时自动填充）
+  const generateTempCode = (type: string) => {
+    const prefix = MATERIAL_TYPE_PREFIX[type] || 'X';
+    return `${prefix}TEMP_${Date.now().toString(36)}`;
+  };
+
   // 弹窗状态
   const [showImportModal, setShowImportModal] = useState(false);
   const [showMaterialModal, setShowMaterialModal] = useState(false);
