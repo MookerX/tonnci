@@ -144,6 +144,7 @@ export async function GET(request: NextRequest) {
           childMaterialId: item.childMaterialId,
           bomItemId: item.id,
           quantity: item.quantity,
+          parentId: item.parentMaterialId,
         });
       }
     }
@@ -179,6 +180,7 @@ export async function GET(request: NextRequest) {
           return {
             id: child.childMaterialId,
             bomItemId: child.bomItemId,
+            parentId: child.parentId,
             materialName: detail.materialName || '',
             internalCode: detail.internalCode || '',
             drawingCode: detail.drawingCode || '',
@@ -203,6 +205,7 @@ export async function GET(request: NextRequest) {
         const childNode = {
           id: child.childMaterialId,
           bomItemId: child.bomItemId,
+          parentId: child.parentId,
           materialName: detail.materialName || '',
           internalCode: detail.internalCode || '',
           drawingCode: detail.drawingCode || '',

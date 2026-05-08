@@ -100,6 +100,18 @@ export default function BOMManagementPage() {
   const [expandedKeys, setExpandedKeys] = useState<Set<string>>(new Set());
   const [selectedMaterialId, setSelectedMaterialId] = useState<number | null>(null);
   
+  // 辅助函数：在树中查找指定ID的节点
+  const findNodeById = (nodes: TreeNode[], id: number): TreeNode | null => {
+    for (const node of nodes) {
+      if (node.id === id) return node;
+      if (node.children && node.children.length > 0) {
+        const found = findNodeById(node.children, id);
+        if (found) return found;
+      }
+    }
+    return null;
+  };
+  
   // 列表视图状态（保留用于筛选后的数据）
   const [materials, setMaterials] = useState<Material[]>([]);
   
@@ -116,6 +128,8 @@ export default function BOMManagementPage() {
   const [editingMaterial, setEditingMaterial] = useState<Material | null>(null);
   const [parentMaterialId, setParentMaterialId] = useState<number | null>(null);
   const [parentMaterial, setParentMaterial] = useState<{ drawingCode: string; materialName: string } | null>(null);
+  // 编辑时存储父物料信息（用于子物料编辑时的客户群组锁定）
+  const [editingParentInfo, setEditingParentInfo] = useState<{ id: number; groupId: number; groupName: string } | null>(null);
   
   // 表单状态
   const [formData, setFormData] = useState({
@@ -455,17 +469,58 @@ export default function BOMManagementPage() {
       isDelete: false,
     } as unknown as Material;
     setEditingMaterial(materialData);
-    setParentMaterialId(null);
-    setFormData({
-      materialName: node.materialName,
-      internalCode: node.internalCode || '',
-      drawingCode: node.drawingCode || '',
-      drawingNo: node.drawingNo || '',
-      materialType: node.materialType,
-      groupId: node.groupId ?? 0,
-      quantity: node.quantity || 1,
-      remark: node.remark || '',
-    });
+
+    // 检查是否是子物料（通过parentId判断）
+    const isChild = (node as any).parentId !== undefined && (node as any).parentId !== null;
+    
+    if (isChild) {
+      // 子物料：从树中查找父物料信息
+      const parentId = (node as any).parentId;
+      const parentNode = findNodeById(treeData, parentId);
+      if (parentNode) {
+        setEditingParentInfo({
+          id: parentNode.id,
+          groupId: parentNode.groupId ?? 0,
+          groupName: parentNode.customerGroupName || '',
+        });
+        // 子物料：客户群组与父物料一致，使用父物料的groupId
+        setFormData({
+          materialName: node.materialName,
+          internalCode: node.internalCode || '',
+          drawingCode: node.drawingCode || '',
+          drawingNo: node.drawingNo || '',
+          materialType: node.materialType,
+          groupId: parentNode.groupId ?? 0, // 使用父物料的groupId
+          quantity: node.quantity || 1, // 子物料有单层用量
+          remark: node.remark || '',
+        });
+      } else {
+        setEditingParentInfo(null);
+        setFormData({
+          materialName: node.materialName,
+          internalCode: node.internalCode || '',
+          drawingCode: node.drawingCode || '',
+          drawingNo: node.drawingNo || '',
+          materialType: node.materialType,
+          groupId: node.groupId ?? 0,
+          quantity: node.quantity || 1,
+          remark: node.remark || '',
+        });
+      }
+    } else {
+      // 顶层物料：客户群组可修改，无单层用量
+      setEditingParentInfo(null);
+      setFormData({
+        materialName: node.materialName,
+        internalCode: node.internalCode || '',
+        drawingCode: node.drawingCode || '',
+        drawingNo: node.drawingNo || '',
+        materialType: node.materialType,
+        groupId: node.groupId ?? 0,
+        quantity: 1, // 顶层物料无单层用量
+        remark: node.remark || '',
+      });
+    }
     setShowMaterialModal(true);
   };
 
@@ -1048,7 +1103,9 @@ export default function BOMManagementPage() {
           <div className="bg-white rounded-lg shadow-xl w-[600px] max-h-[80vh] overflow-auto">
             <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200">
               <h3 className="font-semibold">
-                {editingMaterial ? '编辑物料' : parentMaterialId ? (
+                {editingMaterial ? (
+                  parentMaterialId || editingParentInfo ? '编辑子物料' : '编辑物料'
+                ) : parentMaterialId ? (
                   <span>
                     为：(<span className="text-blue-600">{parentMaterial?.drawingCode || '-'}_{parentMaterial?.materialName || '-'}</span>) 新增子物料
                   </span>
@@ -1062,12 +1119,12 @@ export default function BOMManagementPage() {
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   客户群组 <span className="text-red-500">*</span>
-                  {parentMaterialId && <span className="text-gray-400 text-xs ml-1">(继承自父物料)</span>}
+                  {(parentMaterialId || editingParentInfo) && <span className="text-gray-400 text-xs ml-1">(继承自父物料，不可修改)</span>}
                 </label>
                 <select
                   value={formData.groupId || ''}
                   onChange={e => setFormData({ ...formData, groupId: e.target.value ? parseInt(e.target.value) : null })}
-                  disabled={!!parentMaterialId}
+                  disabled={!!(parentMaterialId || editingParentInfo)}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50"
                 >
                   <option value="">请选择客户群组</option>
@@ -1090,11 +1147,14 @@ export default function BOMManagementPage() {
               </div>
               <div className="grid grid-cols-3 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">物料类型</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    物料类型
+                    {(parentMaterialId || editingParentInfo) && <span className="text-gray-400 text-xs ml-1">(不可修改)</span>}
+                  </label>
                   <select
                     value={formData.materialType}
-                    onChange={e => setFormData({ ...formData, materialType: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                    disabled
+                    className="w-full px-3 py-2 border border-gray-200 rounded-lg bg-gray-50 text-gray-500 cursor-not-allowed"
                   >
                     {materialTypeOptions.map(t => (
                       <option key={t.value} value={t.value}>{t.label}</option>
@@ -1112,7 +1172,7 @@ export default function BOMManagementPage() {
                     placeholder="自动生成"
                   />
                 </div>
-                {parentMaterialId && (
+                {(parentMaterialId || editingParentInfo) && (
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">单层用量 <span className="text-red-500">*</span></label>
                   <input
