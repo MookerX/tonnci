@@ -70,16 +70,6 @@ const typeLabelMap: Record<string, string> = {
   auxiliary: '辅材',
 };
 
-// 物料类型前缀映射（用于内部编码自动生成）
-export const MATERIAL_TYPE_PREFIX: Record<string, string> = {
-  part: 'LJ',       // 零件
-  component: 'ZJ',  // 组件
-  material: 'CL',        // 原材料
-  purchased: 'WG',     // 外购件
-  standard: 'BZ',    // 标准件
-  auxiliary: 'FC',   // 辅材
-};
-
 export default function BOMManagementPage() {
   const [token, setToken] = useState<string>('');
   const [activeTab, setActiveTab] = useState<'tree' | 'list'>('tree');
@@ -100,12 +90,6 @@ export default function BOMManagementPage() {
   const [customerGroups, setCustomerGroups] = useState<CustomerGroup[]>([]);
   // 客户列表（当前群组下的客户）
   const [customers, setCustomers] = useState<Customer[]>([]);
-  
-  // 生成临时编码（用于新增时自动填充）
-  const generateTempCode = (type: string) => {
-    const prefix = MATERIAL_TYPE_PREFIX[type] || 'X';
-    return `${prefix}TEMP_${Date.now().toString(36)}`;
-  };
 
   // 弹窗状态
   const [showImportModal, setShowImportModal] = useState(false);
@@ -227,7 +211,7 @@ export default function BOMManagementPage() {
     setParentMaterialId(null);
     setFormData({
       materialName: '',
-      internalCode: generateTempCode('part'),
+      internalCode: '',  // 空字符串，由保存时API自动生成
       drawingCode: '',
       drawingNumber: '',
       materialType: 'part',
@@ -242,7 +226,7 @@ export default function BOMManagementPage() {
     setParentMaterialId(parentId);
     setFormData({
       materialName: '',
-      internalCode: generateTempCode('part'),
+      internalCode: '',  // 空字符串，由保存时API自动生成
       drawingCode: '',
       drawingNumber: '',
       materialType: 'part',
@@ -289,14 +273,15 @@ export default function BOMManagementPage() {
           body: JSON.stringify({ materialType: payload.materialType }),
         });
         const codeData = await codeRes.json();
-        if (codeData.code === 200 && codeData.data && !codeData.data.includes('NaN')) {
+        if (codeData.code === 200 && codeData.data) {
           payload.internalCode = codeData.data;
         } else {
-          // 编码生成失败，使用临时编码
-          payload.internalCode = `${MATERIAL_TYPE_PREFIX[payload.materialType] || 'X'}TEMP_${Date.now()}`;
+          alert('内部编码生成失败，请重试');
+          return;
         }
       } catch {
-        // 忽略，继续使用空编码
+        alert('内部编码生成失败，请重试');
+        return;
       }
     }
 
