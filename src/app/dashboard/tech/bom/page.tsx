@@ -305,11 +305,15 @@ export default function BOMManagementPage() {
       if (fieldMatches.internalCode && node.internalCode.toLowerCase().includes(keyword)) selfMatch = true;
       if (fieldMatches.drawingNo && (node.drawingNo?.toLowerCase().includes(keyword) || false)) selfMatch = true;
 
-      // 当前节点匹配，收集完整路径上的所有键
+      // 当前节点匹配，收集完整路径上的所有键（每一层的前缀都要存储）
       if (selfMatch) {
-        const fullPath = newPath.join('_');
-        console.log('[搜索展开] 匹配到节点:', node.internalCode, '完整路径:', fullPath);
-        keysToExpand.add(fullPath);
+        // newPath 包含从根到当前节点的所有键
+        // 需要把每一层的前缀都加入展开列表
+        for (let i = 0; i < newPath.length; i++) {
+          const prefixPath = newPath.slice(0, i + 1).join('_');
+          keysToExpand.add(prefixPath);
+        }
+        console.log('[搜索展开] 匹配到节点:', node.internalCode, '展开键:', Array.from(keysToExpand).slice(-3));
       }
 
       // 递归检查所有子节点
