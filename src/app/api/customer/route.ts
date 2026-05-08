@@ -107,7 +107,7 @@ export async function POST(request: NextRequest) {
 // 生成客户编码
 async function generateCustomerCode(): Promise<string> {
   const result = await prisma.$queryRaw<[{cnt: bigint}][]>`
-    SELECT COUNT(*) as cnt FROM customer WHERE is_delete = 0
+    SELECT COUNT(*) as cnt FROM customer WHERE isDelete = false
   `;
   const count = Number(result[0]?.cnt || 0);
 
