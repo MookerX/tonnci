@@ -634,7 +634,7 @@ export default function CustomerPage() {
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-500">岗位</label>
-                  <p className="mt-1 text-gray-900">{selectedContact.postType}</p>
+                  <p className="mt-1 text-gray-900">{postTypeLabels[selectedContact.postType] || selectedContact.postType}</p>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-500">联系电话</label>
