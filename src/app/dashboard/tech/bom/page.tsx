@@ -5,6 +5,7 @@ import {
   Search, Plus, Upload, Download, ChevronRight, ChevronDown, FileText, Edit2, Trash2,
   X, Save, AlertCircle, CheckCircle, RefreshCw, FolderTree, Eye, DownloadCloud
 } from 'lucide-react';
+import { useToast } from '@/components/ToastProvider';
 
 interface TreeNode {
   id: number;
@@ -71,6 +72,7 @@ const typeLabelMap: Record<string, string> = {
 };
 
 export default function BOMManagementPage() {
+  const { success, error, warning } = useToast();
   const [token, setToken] = useState<string>('');
   const [activeTab, setActiveTab] = useState<'tree' | 'list'>('tree');
   
@@ -253,7 +255,7 @@ export default function BOMManagementPage() {
 
   const handleSaveMaterial = async () => {
     if (!formData.materialName) {
-      alert('物料名称不能为空');
+      warning('物料名称不能为空');
       return;
     }
 
@@ -276,11 +278,11 @@ export default function BOMManagementPage() {
         if (codeData.code === 200 && codeData.data) {
           payload.internalCode = codeData.data;
         } else {
-          alert('内部编码生成失败，请重试');
+          error('内部编码生成失败，请重试');
           return;
         }
       } catch {
-        alert('内部编码生成失败，请重试');
+        error('内部编码生成失败，请重试');
         return;
       }
     }
@@ -293,10 +295,11 @@ export default function BOMManagementPage() {
 
     if (res.code === 200) {
       setShowMaterialModal(false);
+      success(editingMaterial ? '物料更新成功' : '物料创建成功');
       if (selectedGroupId) fetchBOMTree();
       fetchMaterials();
     } else {
-      alert(res.message || '保存失败');
+      error(res.message || '保存失败');
     }
   };
 
@@ -308,9 +311,10 @@ export default function BOMManagementPage() {
     });
 
     if (res.code === 200) {
+      success('BOM关系添加成功');
       fetchBOMTree();
     } else {
-      alert(res.message || '添加BOM关系失败');
+      error(res.message || '添加BOM关系失败');
     }
   };
 
@@ -319,10 +323,11 @@ export default function BOMManagementPage() {
     
     const res = await fetchApi(`/api/bom/material/${id}`, { method: 'DELETE' });
     if (res.code === 200) {
+      success('物料删除成功');
       if (selectedGroupId) fetchBOMTree();
       fetchMaterials();
     } else {
-      alert(res.message || '删除失败');
+      error(res.message || '删除失败');
     }
   };
 
@@ -346,7 +351,7 @@ export default function BOMManagementPage() {
       setImportErrors({});
       setImportStep(2);
     } else {
-      alert(res.message || '导入失败');
+      error(res.message || '导入失败');
     }
   };
 
@@ -364,7 +369,7 @@ export default function BOMManagementPage() {
     });
 
     if (res.code === 200) {
-      alert('导入成功');
+      success('导入成功');
       setShowImportModal(false);
       setImportStep(1);
       setImportData([]);
@@ -373,7 +378,7 @@ export default function BOMManagementPage() {
       fetchBOMTree();
       fetchMaterials();
     } else {
-      alert(res.message || '导入失败');
+      error(res.message || '导入失败');
     }
   };
 
