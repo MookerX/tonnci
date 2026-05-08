@@ -182,12 +182,18 @@ export async function POST(request: NextRequest) {
   }
 }
 
-// 生成客户编码
+// 生成客户编码：查找当前最大编号+1，避免软删除导致重复
 async function generateCustomerCode(): Promise<string> {
-  const result = await prisma.$queryRaw<[{cnt: bigint}][]>`
-    SELECT COUNT(*) as cnt FROM customer WHERE isDelete = false
+  const result = await prisma.$queryRaw<[{maxCode: string | null}][]>`
+    SELECT MAX(customer_code) as maxCode FROM customer
   `;
-  const count = Number(result[0]?.cnt || 0);
+  const maxCode = result[0]?.maxCode;
+  let nextNum = 1;
+  if (maxCode) {
+    // 提取 KH 后面的数字部分
+    const numStr = maxCode.replace(/^KH/, '');
+    nextNum = parseInt(numStr, 10) + 1;
+  }
 
-  return `KH${String(count + 1).padStart(6, '0')}`;
+  return `KH${String(nextNum).padStart(6, '0')}`;
 }
