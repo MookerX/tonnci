@@ -4,7 +4,7 @@ import { getUserFromToken } from '@/lib/auth/jwt';
 import { successResponse, badRequestResponse, serverErrorResponse } from '@/lib/response';
 import { z } from 'zod';
 
-/** GET /api/bom - 获取BOM列表（树形结构） */
+/** GET /api/bom - 获取BOM树形结构 */
 export async function GET(request: NextRequest) {
   try {
     const authResult = await getUserFromToken(request);
@@ -12,80 +12,140 @@ export async function GET(request: NextRequest) {
 
     const { searchParams } = new URL(request.url);
     const rootMaterialId = searchParams.get('rootMaterialId');
-    const customerId = searchParams.get('customerId');
     const groupId = searchParams.get('groupId');
     const keyword = searchParams.get('keyword');
 
-    // 获取顶层物料（BOM根节点）
-    const where: any = {
-      isDelete: false,
-      parentMaterials: { some: { isDelete: false } },
-    };
-
+    // 构建客户筛选条件（按群组）
+    let customerFilter: { id: { in: number[] } } | null = null;
     if (groupId) {
-      // 按客户群组查询：群组内所有客户共用技术资料
       const groupCustomers = await prisma.customer.findMany({
         where: { groupId: parseInt(groupId), isDelete: false },
         select: { id: true },
       });
       const customerIds = groupCustomers.map((c: { id: number }) => c.id);
-      where.customerId = { in: customerIds };
-    } else if (customerId) {
-      where.customerId = parseInt(customerId);
+      if (customerIds.length > 0) {
+        customerFilter = { id: { in: customerIds } };
+      } else {
+        return successResponse([]);
+      }
     }
 
+    // 获取所有相关物料
+    const materialWhere: any = { isDelete: false };
+    if (customerFilter) {
+      materialWhere.customerId = customerFilter;
+    }
     if (keyword) {
-      where.OR = [
+      materialWhere.OR = [
         { materialName: { contains: keyword } },
         { internalCode: { contains: keyword } },
         { drawingCode: { contains: keyword } },
       ];
     }
 
-    // 获取顶层物料（没有被任何物料作为子件引用的物料）
-    const topMaterials = await prisma.material.findMany({
-      where,
-      include: {
-        customer: {
-          select: { id: true, customerName: true }
-        },
-        bomItems: {
-          where: { isDelete: false },
-          include: {
-            childMaterial: {
-              include: {
-                customer: { select: { id: true, customerName: true } },
-              },
-            },
-          },
-        },
+    const allMaterials = await prisma.material.findMany({
+      where: materialWhere,
+      select: {
+        id: true,
+        materialName: true,
+        internalCode: true,
+        drawingCode: true,
+        drawingNo: true,
+        materialType: true,
+        unit: true,
+        spec: true,
+        customerId: true,
       },
-      orderBy: { materialName: 'asc' },
     });
 
-    // 如果指定了根节点物料，只返回该物料的BOM树
+    const materialMap = new Map(allMaterials.map(m => [m.id, { ...m, children: [] as any[] }]));
+    const materialIds = allMaterials.map(m => m.id);
+
+    // 获取所有BOM关系（仅针对相关物料）
+    const bomItemWhere: any = {
+      isDelete: false,
+      childMaterialId: { in: materialIds },
+    };
     if (rootMaterialId) {
-      const root = await prisma.material.findFirst({
-        where: { id: parseInt(rootMaterialId), isDelete: false },
-        include: {
-          customer: { select: { id: true, customerName: true } },
-          bomItems: {
-            where: { isDelete: false },
-            include: {
-              childMaterial: {
-                include: {
-                  customer: { select: { id: true, customerName: true } },
-                },
-              },
-            },
-          },
-        },
-      });
-      return successResponse(root ? [buildBomTree(root)] : []);
+      bomItemWhere.rootMaterialId = parseInt(rootMaterialId);
     }
 
-    // 构建BOM树形结构
-    const bomTree = topMaterials.map(m => buildBomTree(m));
+    const bomItems = await prisma.bomItem.findMany({
+      where: bomItemWhere,
+      select: {
+        id: true,
+        parentMaterialId: true,
+        childMaterialId: true,
+        quantity: true,
+      },
+    });
+
+    // 构建树：BOM的parentMaterialId指向父物料
+    const childrenMap = new Map<number, any[]>();
+    for (const item of bomItems) {
+      if (item.parentMaterialId !== null) {
+        if (!childrenMap.has(item.parentMaterialId)) {
+          childrenMap.set(item.parentMaterialId, []);
+        }
+        childrenMap.get(item.parentMaterialId)!.push({
+          id: item.childMaterialId,
+          bomItemId: item.id,
+          quantity: item.quantity,
+        });
+      }
+    }
+
+    // 获取子物料的详细信息
+    const childIds = [...new Set(bomItems.map(item => item.childMaterialId))];
+    const childMaterials = await prisma.material.findMany({
+      where: { id: { in: childIds }, isDelete: false },
+      select: {
+        id: true,
+        materialName: true,
+        internalCode: true,
+        drawingCode: true,
+        drawingNo: true,
+        materialType: true,
+        unit: true,
+        spec: true,
+      },
+    });
+    const childMap = new Map(childMaterials.map(m => [m.id, m]));
+
+    // 填充树节点
+    for (const [parentId, children] of childrenMap) {
+      const parent = materialMap.get(parentId);
+      if (parent) {
+        parent.children = children.map(child => {
+          const detail = childMap.get(child.childMaterialId) || {};
+          return {
+            id: child.childMaterialId,
+            bomItemId: child.bomItemId,
+            materialName: detail.materialName || '',
+            internalCode: detail.internalCode || '',
+            drawingCode: detail.drawingCode || '',
+            drawingNo: detail.drawingNo || '',
+            materialType: detail.materialType || '',
+            unit: detail.unit || '',
+            spec: detail.spec || '',
+            quantity: child.quantity,
+            children: [],
+          };
+        });
+      }
+    }
+
+    // 顶层物料：没有被任何BomItem作为parentMaterialId引用的物料
+    const parentIds = new Set(bomItems.map(item => item.parentMaterialId).filter(id => id !== null));
+    const topMaterials = allMaterials.filter(m => !parentIds.has(m.id));
+
+    // 如果指定了rootMaterialId，只返回该物料的BOM树
+    if (rootMaterialId) {
+      const root = materialMap.get(parseInt(rootMaterialId));
+      return successResponse(root ? [root] : []);
+    }
+
+    const bomTree = topMaterials.map(m => materialMap.get(m.id) || { ...m, children: [] });
 
     return successResponse(bomTree);
   } catch (error: any) {
@@ -94,7 +154,7 @@ export async function GET(request: NextRequest) {
   }
 }
 
-/** POST /api/bom - 创建BOM关系或顶层物料 */
+/** POST /api/bom - 创建BOM关系 */
 export async function POST(request: NextRequest) {
   try {
     const authResult = await getUserFromToken(request);
@@ -129,7 +189,7 @@ export async function POST(request: NextRequest) {
     }
 
     // 检查是否已存在该BOM关系
-    const exists = await prisma.bOMItem.findFirst({
+    const exists = await prisma.bomItem.findFirst({
       where: {
         parentMaterialId,
         childMaterialId,
@@ -140,18 +200,19 @@ export async function POST(request: NextRequest) {
       return badRequestResponse('该BOM关系已存在');
     }
 
+    // 获取根节点物料ID（顶层物料的ID）
+    const rootMaterialId = parentMaterialId;
+
     // 创建BOM关系
-    const bomItem = await prisma.bOMItem.create({
+    const bomItem = await prisma.bomItem.create({
       data: {
         parentMaterialId,
         childMaterialId,
+        rootMaterialId,
         quantity: quantity || 1,
-        remark,
+        bomRemark: remark,
+        levelIndex: Date.now().toString(36),
         createdBy: user.id,
-      },
-      include: {
-        parentMaterial: { select: { id: true, materialName: true } },
-        childMaterial: { select: { id: true, materialName: true } },
       },
     });
 
@@ -177,7 +238,7 @@ export async function DELETE(request: NextRequest) {
     }
 
     // 检查BOM关系是否存在
-    const exists = await prisma.bOMItem.findFirst({
+    const exists = await prisma.bomItem.findFirst({
       where: { id: parseInt(id), isDelete: false },
     });
     if (!exists) {
@@ -185,7 +246,7 @@ export async function DELETE(request: NextRequest) {
     }
 
     // 软删除
-    await prisma.bOMItem.update({
+    await prisma.bomItem.update({
       where: { id: parseInt(id) },
       data: { isDelete: true, modifiedBy: user.id },
     });
@@ -195,37 +256,4 @@ export async function DELETE(request: NextRequest) {
     console.error('删除BOM关系失败:', error);
     return serverErrorResponse(error.message);
   }
-}
-
-// 构建BOM树形结构
-function buildBomTree(material: any): any {
-  const children = material.bomItems
-    ?.filter((item: any) => item.isDelete === false)
-    .map((item: any) => ({
-      id: item.childMaterial.id,
-      bomItemId: item.id,
-      materialName: item.childMaterial.materialName,
-      internalCode: item.childMaterial.internalCode,
-      drawingCode: item.childMaterial.drawingCode,
-      drawingNo: item.childMaterial.drawingNo,
-      materialType: item.childMaterial.materialType,
-      quantity: item.quantity,
-      unit: item.childMaterial.unit,
-      spec: item.childMaterial.spec,
-      customer: item.childMaterial.customer,
-      children: [], // 延迟加载
-    })) || [];
-
-  return {
-    id: material.id,
-    materialName: material.materialName,
-    internalCode: material.internalCode,
-    drawingCode: material.drawingCode,
-    drawingNo: material.drawingNo,
-    materialType: material.materialType,
-    unit: material.unit,
-    spec: material.spec,
-    customer: material.customer,
-    children,
-  };
 }

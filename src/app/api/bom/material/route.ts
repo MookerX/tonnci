@@ -35,10 +35,11 @@ async function generateInternalCode(materialType: string): Promise<string> {
   const prefix = MATERIAL_TYPE_PREFIX[materialType] || 'XX';
   
   // 获取该类型物料的最大编码序号（不过滤软删除，避免重复）
-  const result = await prisma.$queryRaw<[{max_code: string | null}][]>`
-    SELECT MAX(internal_code) as max_code FROM material 
-    WHERE material_type = ${materialType} AND internal_code LIKE ${prefix + '%'}
-  `;
+  const result = await prisma.$queryRawUnsafe<[{max_code: string | null}][]>(
+    `SELECT MAX(internal_code) as max_code FROM material WHERE material_type = ? AND internal_code LIKE ?`,
+    materialType,
+    prefix + '%'
+  );
   const maxCode = result[0]?.max_code;
   let nextNum = 1;
   if (maxCode) {
@@ -99,11 +100,6 @@ export async function GET(request: NextRequest) {
       prisma.material.count({ where }),
       prisma.material.findMany({
         where,
-        include: {
-          customer: {
-            select: { id: true, customerName: true }
-          },
-        },
         orderBy: { createdAt: 'desc' },
         skip: (page - 1) * pageSize,
         take: pageSize,

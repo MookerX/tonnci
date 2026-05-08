@@ -244,9 +244,10 @@ async function generateInternalCode(materialType: string): Promise<string> {
                  materialType === 'purchased' ? 'PU' :
                  materialType === 'standard' ? 'SD' : 'AX';
 
-  const result = await prisma.$queryRaw<[{cnt: bigint}][]>`
-    SELECT COUNT(*) as cnt FROM material WHERE material_type = ${materialType} AND is_delete = 0
-  `;
+  const result = await prisma.$queryRawUnsafe<[{cnt: bigint}][]>(
+    `SELECT COUNT(*) as cnt FROM material WHERE material_type = ? AND is_delete = 0`,
+    materialType
+  );
   const count = Number(result[0]?.cnt || 0);
 
   return `${prefix}${String(count + 1).padStart(8, '0')}`;

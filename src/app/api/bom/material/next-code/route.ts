@@ -10,7 +10,7 @@ const schema = z.object({
 const TYPE_PREFIX: Record<string, string> = {
   part: 'P',        // 零件
   component: 'C',   // 组件
-  raw: 'R',         // 原材料
+  material: 'R',    // 原材料
   purchased: 'B',   // 外购件
   standard: 'S',    // 标准件
   auxiliary: 'A',   // 辅材
@@ -25,10 +25,10 @@ export async function POST(request: NextRequest) {
     const prefix = TYPE_PREFIX[materialType] || 'P';
 
     // 查询该前缀的最大编码
-    const maxCode = await prisma.$queryRaw<{ maxCode: string | null }[]>`
-      SELECT MAX(internal_code) as maxCode FROM material 
-      WHERE internal_code LIKE ${prefix + '%'}
-    `;
+    const maxCode = await prisma.$queryRawUnsafe<{ maxCode: string | null }[]>(
+      `SELECT MAX(internal_code) as maxCode FROM material WHERE internal_code LIKE ?`,
+      prefix + '%'
+    );
 
     let nextNum = 1;
     if (maxCode[0]?.maxCode) {
