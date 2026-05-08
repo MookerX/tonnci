@@ -4,32 +4,77 @@ import { requireAuth } from '@/lib/auth/middleware';
 import { successResponse, badRequestResponse, serverErrorResponse } from '@/lib/response';
 import { z } from 'zod';
 
-// 客户类型映射
-const CUSTOMER_TYPE_MAP: Record<string, string> = {
-  '企业': 'enterprise',
-  '个人': 'individual',
-};
-
+// 前端发送的表单格式（兼容嵌套 invoiceInfo 和旧的 contactPerson/contactPhone 字段）
 const customerSchema = z.object({
   customerName: z.string().min(1, '客户名称不能为空'),
   customerType: z.string().optional(),
+  // 前端可能发送 invoiceInfo 嵌套对象
+  invoiceInfo: z.object({
+    companyName: z.string().optional(),
+    taxId: z.string().optional(),
+    address: z.string().optional(),
+    phone: z.string().optional(),
+    bankName: z.string().optional(),
+    bankAccount: z.string().optional(),
+  }).optional(),
+  // 也可能直接发送扁平字段
+  invoiceName: z.string().optional(),
+  taxNo: z.string().optional(),
+  regAddress: z.string().optional(),
+  regPhone: z.string().optional(),
+  bankName: z.string().optional(),
+  bankAccount: z.string().optional(),
+  // 旧字段（前端可能发送但 Prisma 模型不需要）
   contactPerson: z.string().optional(),
   contactPhone: z.string().optional(),
   contactAddress: z.string().optional(),
   taxInfo: z.string().optional(),
+  // 其他
+  address: z.string().optional(),
   remark: z.string().optional(),
 });
 
-/** GET /api/customer - 获取客户列表 */
+const CUSTOMER_TYPE_MAP: Record<string, string> = {
+  '企业': 'enterprise',
+  '个人': 'individual',
+  'enterprise': 'enterprise',
+  'individual': 'individual',
+  'personal': 'individual',
+};
+
+const CUSTOMER_TYPE_REVERSE: Record<string, string> = {
+  'enterprise': '企业',
+  'individual': '个人',
+};
+
+/**
+ * 将前端表单数据映射为 Prisma Customer 模型字段
+ */
+function mapFormData(body: any) {
+  // 处理 invoiceInfo 嵌套对象到扁平字段
+  const invoiceInfo = body.invoiceInfo || {};
+  return {
+    customerName: body.customerName,
+    customerType: CUSTOMER_TYPE_MAP[body.customerType || 'enterprise'] || 'enterprise',
+    // 开票信息：优先从 invoiceInfo 嵌套对象取，其次从扁平字段取
+    invoiceName: invoiceInfo.companyName || body.invoiceName || null,
+    taxNo: invoiceInfo.taxId || body.taxNo || null,
+    regAddress: invoiceInfo.address || body.regAddress || null,
+    regPhone: invoiceInfo.phone || body.regPhone || null,
+    bankName: invoiceInfo.bankName || body.bankName || null,
+    bankAccount: invoiceInfo.bankAccount || body.bankAccount || null,
+    // 其他
+    address: body.address || body.contactAddress || null,
+    remark: body.remark || null,
+  };
+}
+
+// GET - 获取客户列表
 export async function GET(request: NextRequest) {
   try {
-    const authResult = await requireAuth(request);
-    if (authResult instanceof NextResponse) {
-      return authResult;
-    }
-
     const { searchParams } = new URL(request.url);
     const keyword = searchParams.get('keyword') || '';
+    const customerType = searchParams.get('customerType') || '';
     const page = parseInt(searchParams.get('page') || '1');
     const pageSize = parseInt(searchParams.get('pageSize') || '20');
 
@@ -38,42 +83,60 @@ export async function GET(request: NextRequest) {
       where.OR = [
         { customerName: { contains: keyword } },
         { customerCode: { contains: keyword } },
-        { contactPerson: { contains: keyword } },
-        { contactPhone: { contains: keyword } },
       ];
     }
+    if (customerType) {
+      where.customerType = CUSTOMER_TYPE_MAP[customerType] || customerType;
+    }
 
-    const [total, customers] = await Promise.all([
-      prisma.customer.count({ where }),
+    const [list, total] = await Promise.all([
       prisma.customer.findMany({
         where,
+        include: {
+          contacts: {
+            where: { isDelete: false },
+            orderBy: { isPrimary: 'desc' },
+          },
+        },
+        orderBy: { createdAt: 'desc' },
         skip: (page - 1) * pageSize,
         take: pageSize,
-        orderBy: { createdAt: 'desc' },
       }),
+      prisma.customer.count({ where }),
     ]);
 
-    return successResponse({
-      list: customers,
-      total,
-      page,
-      pageSize,
-      totalPages: Math.ceil(total / pageSize),
-    });
+    // 转换数据格式，兼容前端
+    const listWithTypeName = list.map(c => ({
+      ...c,
+      customerTypeName: CUSTOMER_TYPE_REVERSE[c.customerType] || c.customerType,
+      // 构造 invoiceInfo 嵌套对象供前端使用
+      invoiceInfo: {
+        companyName: c.invoiceName || '',
+        taxId: c.taxNo || '',
+        address: c.regAddress || '',
+        phone: c.regPhone || '',
+        bankName: c.bankName || '',
+        bankAccount: c.bankAccount || '',
+      },
+      // 兼容旧字段
+      contactPerson: c.contacts?.find((ct: any) => ct.isPrimary)?.contactName || '',
+      contactPhone: c.contacts?.find((ct: any) => ct.isPrimary)?.phone || '',
+    }));
+
+    return successResponse({ list: listWithTypeName, total, page, pageSize });
   } catch (error: any) {
     console.error('获取客户列表失败:', error);
     return serverErrorResponse(error.message);
   }
 }
 
-/** POST /api/customer - 创建客户 */
+// POST - 创建客户
 export async function POST(request: NextRequest) {
   try {
     const authResult = await requireAuth(request);
     if (authResult instanceof NextResponse) {
       return authResult;
     }
-    const user = authResult;
 
     const body = await request.json();
     const validation = customerSchema.safeParse(body);
@@ -81,7 +144,8 @@ export async function POST(request: NextRequest) {
       return badRequestResponse(validation.error.errors[0].message);
     }
 
-    const data = validation.data;
+    // 映射前端字段到 Prisma 模型字段
+    const mappedData = mapFormData(body);
 
     // 生成客户编码
     const customerCode = await generateCustomerCode();
@@ -89,15 +153,25 @@ export async function POST(request: NextRequest) {
     const customer = await prisma.customer.create({
       data: {
         customerCode,
-        customerName: data.customerName,
-        customerType: CUSTOMER_TYPE_MAP[data.customerType || '企业'] || 'enterprise',
-        contactPerson: data.contactPerson,
-        contactPhone: data.contactPhone,
-        contactAddress: data.contactAddress,
-        taxInfo: data.taxInfo,
-        remark: data.remark,
+        customerName: mappedData.customerName,
+        customerType: mappedData.customerType,
+        // 开票信息
+        invoiceName: mappedData.invoiceName,
+        taxNo: mappedData.taxNo,
+        regAddress: mappedData.regAddress,
+        regPhone: mappedData.regPhone,
+        bankName: mappedData.bankName,
+        bankAccount: mappedData.bankAccount,
+        // 其他
+        address: mappedData.address,
+        remark: mappedData.remark,
         status: 'active',
-        createdBy: user.id,
+        createdBy: authResult.userId,
+      },
+      include: {
+        contacts: {
+          where: { isDelete: false },
+        },
       },
     });
 

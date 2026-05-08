@@ -7,15 +7,37 @@ import { z } from 'zod';
 const customerTypeMap: Record<string, string> = {
   '企业': 'enterprise',
   '个人': 'individual',
+  'enterprise': 'enterprise',
+  'individual': 'individual',
+  'personal': 'individual',
 };
 
 const updateSchema = z.object({
   customerName: z.string().min(1, '客户名称不能为空').optional(),
   customerType: z.string().optional(),
+  // 前端可能发送 invoiceInfo 嵌套对象
+  invoiceInfo: z.object({
+    companyName: z.string().optional(),
+    taxId: z.string().optional(),
+    address: z.string().optional(),
+    phone: z.string().optional(),
+    bankName: z.string().optional(),
+    bankAccount: z.string().optional(),
+  }).optional(),
+  // 也可能直接发送扁平字段
+  invoiceName: z.string().optional(),
+  taxNo: z.string().optional(),
+  regAddress: z.string().optional(),
+  regPhone: z.string().optional(),
+  bankName: z.string().optional(),
+  bankAccount: z.string().optional(),
+  // 旧字段兼容
   contactPerson: z.string().optional(),
   contactPhone: z.string().optional(),
   contactAddress: z.string().optional(),
   taxInfo: z.string().optional(),
+  // 其他
+  address: z.string().optional(),
   remark: z.string().optional(),
   status: z.string().optional(),
 });
@@ -42,7 +64,22 @@ export async function GET(
       return notFoundResponse('客户不存在');
     }
 
-    return successResponse(customer);
+    // 构造前端兼容的数据格式
+    const result = {
+      ...customer,
+      invoiceInfo: {
+        companyName: customer.invoiceName || '',
+        taxId: customer.taxNo || '',
+        address: customer.regAddress || '',
+        phone: customer.regPhone || '',
+        bankName: customer.bankName || '',
+        bankAccount: customer.bankAccount || '',
+      },
+      contactPerson: customer.contacts?.find((ct: any) => ct.isPrimary)?.contactName || '',
+      contactPhone: customer.contacts?.find((ct: any) => ct.isPrimary)?.phone || '',
+    };
+
+    return successResponse(result);
   } catch (error: any) {
     console.error('获取客户详情失败:', error);
     return serverErrorResponse(error.message);
@@ -59,17 +96,9 @@ export async function PUT(
     if (authResult instanceof NextResponse) {
       return authResult;
     }
-    const user = authResult;
 
     const { id } = await params;
     const body = await request.json();
-    const validation = updateSchema.safeParse(body);
-
-    if (!validation.success) {
-      return badRequestResponse(validation.error.errors[0].message);
-    }
-
-    const data = validation.data;
 
     const existing = await prisma.customer.findFirst({
       where: { id: parseInt(id), isDelete: false },
@@ -79,15 +108,29 @@ export async function PUT(
       return notFoundResponse('客户不存在');
     }
 
-    const updateData: any = { modifiedBy: user.id };
-    if (data.customerName) updateData.customerName = data.customerName;
-    if (data.customerType) updateData.customerType = customerTypeMap[data.customerType] || data.customerType;
-    if (data.contactPerson !== undefined) updateData.contactPerson = data.contactPerson;
-    if (data.contactPhone !== undefined) updateData.contactPhone = data.contactPhone;
-    if (data.contactAddress !== undefined) updateData.contactAddress = data.contactAddress;
-    if (data.taxInfo !== undefined) updateData.taxInfo = data.taxInfo;
-    if (data.remark !== undefined) updateData.remark = data.remark;
-    if (data.status) updateData.status = data.status;
+    // 处理 invoiceInfo 嵌套对象到扁平字段
+    const invoiceInfo = body.invoiceInfo || {};
+
+    const updateData: any = { modifiedBy: authResult.userId };
+    if (body.customerName) updateData.customerName = body.customerName;
+    if (body.customerType) updateData.customerType = customerTypeMap[body.customerType] || body.customerType;
+    // 开票信息：优先从 invoiceInfo 嵌套对象取
+    if (invoiceInfo.companyName !== undefined) updateData.invoiceName = invoiceInfo.companyName || null;
+    else if (body.invoiceName !== undefined) updateData.invoiceName = body.invoiceName || null;
+    if (invoiceInfo.taxId !== undefined) updateData.taxNo = invoiceInfo.taxId || null;
+    else if (body.taxNo !== undefined) updateData.taxNo = body.taxNo || null;
+    if (invoiceInfo.address !== undefined) updateData.regAddress = invoiceInfo.address || null;
+    else if (body.regAddress !== undefined) updateData.regAddress = body.regAddress || null;
+    if (invoiceInfo.phone !== undefined) updateData.regPhone = invoiceInfo.phone || null;
+    else if (body.regPhone !== undefined) updateData.regPhone = body.regPhone || null;
+    if (invoiceInfo.bankName !== undefined) updateData.bankName = invoiceInfo.bankName || null;
+    else if (body.bankName !== undefined) updateData.bankName = body.bankName || null;
+    if (invoiceInfo.bankAccount !== undefined) updateData.bankAccount = invoiceInfo.bankAccount || null;
+    else if (body.bankAccount !== undefined) updateData.bankAccount = body.bankAccount || null;
+    // 其他
+    if (body.address !== undefined) updateData.address = body.address || null;
+    if (body.remark !== undefined) updateData.remark = body.remark || null;
+    if (body.status) updateData.status = body.status;
 
     const customer = await prisma.customer.update({
       where: { id: parseInt(id) },
@@ -111,7 +154,6 @@ export async function DELETE(
     if (authResult instanceof NextResponse) {
       return authResult;
     }
-    const user = authResult;
 
     const { id } = await params;
 
@@ -134,7 +176,7 @@ export async function DELETE(
 
     await prisma.customer.update({
       where: { id: parseInt(id) },
-      data: { isDelete: true, modifiedBy: user.id },
+      data: { isDelete: true, modifiedBy: authResult.userId },
     });
 
     return successResponse(null, '客户删除成功');
