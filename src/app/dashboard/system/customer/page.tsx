@@ -47,7 +47,7 @@ const postTypes = [
 ];
 
 export default function CustomerPage() {
-  const { success, error } = useToast();
+  const { success, error, warning } = useToast();
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
@@ -56,6 +56,7 @@ export default function CustomerPage() {
   const [selectedContact, setSelectedContact] = useState<CustomerContact | null>(null);
   const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
   const [editingContacts, setEditingContacts] = useState<CustomerContact[]>([]);
+  const [deleteConfirmId, setDeleteConfirmId] = useState<number | null>(null);
   const [searchKeyword, setSearchKeyword] = useState('');
   const [currentCustomer, setCurrentCustomer] = useState<Customer | null>(null);
   const [form, setForm] = useState({
@@ -180,9 +181,8 @@ export default function CustomerPage() {
   };
 
   const handleDelete = async (id: number) => {
-    if (!confirm('确定要删除该客户吗？')) return;
-
     try {
+      const token = localStorage.getItem('token') || '';
       const res = await fetch(`/api/customer/${id}`, {
         method: 'DELETE',
         headers: { Authorization: `Bearer ${token}` },
@@ -190,6 +190,7 @@ export default function CustomerPage() {
       const data = await res.json();
       if (data.code === 200) {
         success('删除成功');
+        setDeleteConfirmId(null);
         fetchCustomers();
       } else {
         error(data.message || '删除失败');
@@ -373,7 +374,7 @@ export default function CustomerPage() {
                       编辑
                     </button>
                     <button
-                      onClick={() => customer.id && handleDelete(customer.id)}
+                      onClick={() => customer.id && setDeleteConfirmId(customer.id)}
                       className="px-2 py-1 text-xs bg-red-50 text-red-600 rounded hover:bg-red-100"
                     >
                       删除
@@ -709,6 +710,34 @@ export default function CustomerPage() {
                 className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
               >
                 保存联系人
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 删除确认弹窗 */}
+      {deleteConfirmId && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-xl w-96">
+            <div className="px-6 py-4 border-b">
+              <h3 className="text-lg font-semibold text-gray-800">确认删除</h3>
+            </div>
+            <div className="px-6 py-6">
+              <p className="text-gray-600">确定要删除该客户吗？此操作不可恢复。</p>
+            </div>
+            <div className="px-6 py-4 border-t bg-gray-50 flex justify-end gap-3">
+              <button
+                onClick={() => setDeleteConfirmId(null)}
+                className="px-4 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300"
+              >
+                取消
+              </button>
+              <button
+                onClick={() => handleDelete(deleteConfirmId)}
+                className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
+              >
+                确认删除
               </button>
             </div>
           </div>
