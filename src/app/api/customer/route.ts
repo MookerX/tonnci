@@ -23,8 +23,10 @@ const customerSchema = z.object({
 /** GET /api/customer - 获取客户列表 */
 export async function GET(request: NextRequest) {
   try {
-    const authResult = await getUserFromToken(request);
-    if (authResult instanceof Response) return authResult;
+    const user = await getUserFromToken(request);
+    if (!user) {
+      return unauthorizedResponse('未授权');
+    }
 
     const { searchParams } = new URL(request.url);
     const keyword = searchParams.get('keyword') || '';
@@ -67,9 +69,10 @@ export async function GET(request: NextRequest) {
 /** POST /api/customer - 创建客户 */
 export async function POST(request: NextRequest) {
   try {
-    const authResult = await getUserFromToken(request);
-    if (authResult instanceof Response) return authResult;
-    const user = authResult;
+    const user = await getUserFromToken(request);
+    if (!user) {
+      return unauthorizedResponse('未授权');
+    }
 
     const body = await request.json();
     const validation = customerSchema.safeParse(body);

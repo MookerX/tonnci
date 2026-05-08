@@ -26,8 +26,10 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const authResult = await getUserFromToken(request);
-    if (authResult instanceof Response) return authResult;
+    const user = await getUserFromToken(request);
+    if (!user) {
+      return NextResponse.json({ code: 401, message: '未授权' }, { status: 401 });
+    }
 
     const { id } = await params;
 
@@ -52,9 +54,10 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const authResult = await getUserFromToken(request);
-    if (authResult instanceof Response) return authResult;
-    const user = authResult;
+    const user = await getUserFromToken(request);
+    if (!user) {
+      return NextResponse.json({ code: 401, message: '未授权' }, { status: 401 });
+    }
 
     const { id } = await params;
     const body = await request.json();
@@ -102,9 +105,10 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const authResult = await getUserFromToken(request);
-    if (authResult instanceof Response) return authResult;
-    const user = authResult;
+    const user = await getUserFromToken(request);
+    if (!user) {
+      return NextResponse.json({ code: 401, message: '未授权' }, { status: 401 });
+    }
 
     const { id } = await params;
 
