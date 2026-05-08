@@ -339,6 +339,11 @@ export default function BOMManagementPage() {
     });
 
     if (res.code === 200) {
+      // 如果是新增子物料，需要建立BOM关系
+      if (!editingMaterial && parentMaterialId && res.data?.id) {
+        await handleAddBOMRelation(parentMaterialId, res.data.id, formData.quantity || 1);
+      }
+      
       setShowMaterialModal(false);
       success(editingMaterial ? '物料更新成功' : '物料创建成功');
       if (formData.groupId) {
