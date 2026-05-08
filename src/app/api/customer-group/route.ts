@@ -72,9 +72,8 @@ export async function POST(request: NextRequest) {
       return badRequestResponse('群组名称已存在');
     }
 
-    // 生成群组编码 QZ+6位自增编号
+    // 生成群组编码 QZ+6位自增编号（不过滤软删除，取所有记录中最大编码）
     const lastGroup = await prisma.customerGroup.findFirst({
-      where: { isDelete: false },
       orderBy: { groupCode: 'desc' },
       select: { groupCode: true },
     });
