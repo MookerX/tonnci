@@ -105,7 +105,7 @@ export async function GET(request: NextRequest) {
           childrenMap.set(item.parentMaterialId, []);
         }
         childrenMap.get(item.parentMaterialId)!.push({
-          id: item.childMaterialId,
+          childMaterialId: item.childMaterialId,
           bomItemId: item.id,
           quantity: item.quantity,
         });
@@ -129,10 +129,10 @@ export async function GET(request: NextRequest) {
         groupId: true,
       },
     });
-    const childMap = new Map(childMaterials.map(m => ({
+    const childMap = new Map(childMaterials.map(m => [m.id, {
       ...m,
       customerGroupName: m.groupId ? groupNameMap.get(m.groupId) || null : null,
-    })));
+    }]));
 
     // 填充树节点
     for (const [parentId, children] of childrenMap) {
@@ -159,17 +159,14 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // 顶层物料：没有被任何BomItem作为parentMaterialId引用的物料
-    const parentIds = new Set(bomItems.map(item => item.parentMaterialId).filter(id => id !== null));
-    const topMaterials = allMaterials.filter(m => !parentIds.has(m.id));
-
     // 如果指定了rootMaterialId，只返回该物料的BOM树
     if (rootMaterialId) {
       const root = materialMap.get(parseInt(rootMaterialId));
       return successResponse(root ? [root] : []);
     }
 
-    const bomTree = topMaterials.map(m => materialMap.get(m.id) || { ...m, children: [] });
+    // 返回所有物料（包含树形结构）
+    const bomTree = allMaterials.map(m => materialMap.get(m.id) || { ...m, children: [] });
 
     return successResponse(bomTree);
   } catch (error: any) {
@@ -183,7 +180,7 @@ export async function POST(request: NextRequest) {
   try {
     const authResult = await getUserFromToken(request);
     if (authResult instanceof Response) return authResult;
-    const user = authResult;
+    const userId = authResult?.id || 1; // 如果未认证，使用默认值1
 
     const body = await request.json();
     const { parentMaterialId, childMaterialId, quantity, remark } = body;
@@ -236,7 +233,7 @@ export async function POST(request: NextRequest) {
         quantity: quantity || 1,
         bomRemark: remark,
         levelIndex: Date.now().toString(36),
-        createdBy: user.id,
+        createdBy: userId,
       },
     });
 
