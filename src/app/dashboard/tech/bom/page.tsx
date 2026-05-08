@@ -23,6 +23,11 @@ interface TreeNode {
   _count?: { children: number };
   hasDrawing?: boolean;
   processId?: number | null;
+  bomItemId?: number; // BOM关系ID，用于唯一标识父子关系
+  groupId?: number | null;
+  customerGroupName?: string | null;
+  unit?: string | null;
+  spec?: string | null;
 }
 
 interface Material {
@@ -91,7 +96,8 @@ export default function BOMManagementPage() {
   
   // 树形视图状态
   const [treeData, setTreeData] = useState<TreeNode[]>([]);
-  const [expandedIds, setExpandedIds] = useState<Set<number>>(new Set());
+  // 使用唯一键标识展开状态：parentId_bomItemId，确保同一物料在不同位置可独立展开
+  const [expandedKeys, setExpandedKeys] = useState<Set<string>>(new Set());
   const [selectedMaterialId, setSelectedMaterialId] = useState<number | null>(null);
   
   // 列表视图状态（保留用于筛选后的数据）
@@ -221,7 +227,7 @@ export default function BOMManagementPage() {
   };
 
   // 递归查找匹配的节点及其所有祖先节点ID
-  const findAncestorsAndMatch = (node: TreeNode, keyword: string, ancestors: number[]): { matched: boolean; ancestors: number[]; matchedNode: TreeNode | null } => {
+  const findAncestorsAndMatch = (node: TreeNode, keyword: string, ancestorKeys: string[]): { matched: boolean; ancestorKeys: string[]; matchedNode: TreeNode | null } => {
     const fieldMatches: Record<string, boolean> = {
       materialName: searchFields.materialName,
       drawingCode: searchFields.drawingCode,
@@ -237,25 +243,26 @@ export default function BOMManagementPage() {
       if (fieldMatches.drawingNo && (node.drawingNo?.toLowerCase().includes(keyword) || false)) selfMatch = true;
     }
 
-    // 当前节点的祖先链：父节点 + 当前节点
-    const currentAncestors = [...ancestors, node.id];
+    // 生成当前节点的唯一键
+    const nodeKey = node.bomItemId ? `bom_${node.bomItemId}` : `mat_${node.id}`;
+    const currentAncestors = [...ancestorKeys, nodeKey];
 
     // 检查子节点
     for (const child of node.children || []) {
       const result = findAncestorsAndMatch(child, keyword, currentAncestors);
       if (result.matched) {
-        // 子节点匹配，返回子节点的祖先链（已经包含当前节点）
+        // 子节点匹配，返回子节点的祖先链
         return result;
       }
     }
 
     // 当前节点自身匹配
     if (selfMatch) {
-      return { matched: true, ancestors: currentAncestors, matchedNode: node };
+      return { matched: true, ancestorKeys: currentAncestors, matchedNode: node };
     }
 
     // 未匹配
-    return { matched: false, ancestors: [], matchedNode: null };
+    return { matched: false, ancestorKeys: [], matchedNode: null };
   };
 
   // 搜索时自动展开到匹配的子物料
@@ -264,23 +271,23 @@ export default function BOMManagementPage() {
 
     // 搜索为空时，全部折叠
     if (!globalSearch) {
-      setExpandedIds(new Set());
+      setExpandedKeys(new Set());
       return;
     }
 
     const keyword = globalSearch.toLowerCase();
-    let allAncestors: number[] = [];
+    let allAncestorKeys: string[] = [];
 
     // 遍历所有顶层节点，查找匹配项及其祖先
     for (const node of treeData) {
       const result = findAncestorsAndMatch(node, keyword, []);
-      if (result.matched && result.ancestors.length > 0) {
-        allAncestors = [...allAncestors, ...result.ancestors];
+      if (result.matched && result.ancestorKeys.length > 0) {
+        allAncestorKeys = [...allAncestorKeys, ...result.ancestorKeys];
       }
     }
 
     // 搜索时：只展开命中的祖先节点，折叠其他节点
-    setExpandedIds(new Set(allAncestors));
+    setExpandedKeys(new Set(allAncestorKeys));
   }, [globalSearch, treeData, searchFields]);
 
   const fetchMaterials = async () => {
@@ -296,11 +303,11 @@ export default function BOMManagementPage() {
     }
   };
 
-  const toggleExpand = (id: number) => {
-    setExpandedIds(prev => {
+  const toggleExpand = (key: string) => {
+    setExpandedKeys(prev => {
       const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
       return next;
     });
   };
@@ -430,8 +437,22 @@ export default function BOMManagementPage() {
     }
   };
 
-  const handleDeleteMaterial = async (material: Material) => {
-    setDeleteMaterial(material);
+  const handleDeleteMaterial = async (material: TreeNode) => {
+    const materialData: Material = {
+      id: material.id,
+      uuid: material.uuid,
+      materialName: material.materialName,
+      internalCode: material.internalCode,
+      drawingCode: material.drawingCode,
+      drawingNo: material.drawingNo,
+      materialType: material.materialType,
+      remark: material.remark,
+      customerId: null,
+      groupId: material.groupId ?? null,
+      customerGroupName: material.customerGroupName ?? undefined,
+      processId: material.processId,
+    };
+    setDeleteMaterial(materialData);
     setDeleteConfirmOpen(true);
   };
 
@@ -601,9 +622,13 @@ export default function BOMManagementPage() {
     'py-1',          // 5级：最小
   ];
 
-  const renderTreeNode = (node: TreeNode, level: number = 0) => {
+  const renderTreeNode = (node: TreeNode, level: number = 0, parentKey: string = '') => {
+    // 生成唯一键：bomItemId 存在时使用 bomItemId，否则使用 id
+    // 对于同一物料在不同位置，需要通过 bomItemId 区分
+    const nodeKey = node.bomItemId ? `bom_${node.bomItemId}` : `mat_${node.id}`;
+    const fullKey = parentKey ? `${parentKey}_${nodeKey}` : nodeKey;
     const hasChildren = node.children && node.children.length > 0;
-    const isExpanded = expandedIds.has(node.id);
+    const isExpanded = expandedKeys.has(fullKey);
     const levelIndex = Math.min(level, levelColors.length - 1);
     const bgColor = levelColors[levelIndex];
     const fontSize = levelFontSizes[levelIndex];
@@ -611,7 +636,7 @@ export default function BOMManagementPage() {
     const groupName = node.customerGroupName || (node.groupId ? '未知' : '-');
 
     return (
-      <div key={node.id}>
+      <div key={fullKey}>
         <div
           className={`flex items-center border-b border-gray-200 hover:brightness-95 transition-all ${bgColor}`}
           style={{ paddingLeft: `${level * 20 + 8}px` }}
@@ -620,7 +645,7 @@ export default function BOMManagementPage() {
           <div className="w-8 flex-shrink-0 flex items-center justify-center">
             {hasChildren ? (
               <button
-                onClick={() => toggleExpand(node.id)}
+                onClick={() => toggleExpand(fullKey)}
                 className="p-1 hover:bg-black/5 rounded transition-colors"
               >
                 {isExpanded ? (
@@ -669,7 +694,7 @@ export default function BOMManagementPage() {
           <div className="w-32 flex-shrink-0 flex items-center justify-center gap-1 px-1">
             {/* 添加子物料 */}
             <button
-              onClick={() => handleAddChildMaterial(node.id, node.groupId, node.drawingCode, node.materialName)}
+              onClick={() => handleAddChildMaterial(node.id, node.groupId ?? null, node.drawingCode || '', node.materialName)}
               className="p-1.5 text-green-600 hover:bg-green-100 rounded transition-colors"
               title="添加子物料"
             >
@@ -702,7 +727,7 @@ export default function BOMManagementPage() {
           </div>
         </div>
         {/* 子节点 */}
-        {hasChildren && isExpanded && node.children.map(child => renderTreeNode(child, level + 1))}
+        {hasChildren && isExpanded && node.children.map(child => renderTreeNode(child, level + 1, fullKey))}
       </div>
     );
   };
