@@ -149,7 +149,7 @@ export async function GET(request: NextRequest) {
     }
 
     // 获取子物料的详细信息
-    const childIds = [...new Set(bomItems.map(item => item.childMaterialId))];
+    let childIds = [...new Set(bomItems.map(item => item.childMaterialId))];
     const childMaterials = await prisma.material.findMany({
       where: { id: { in: childIds }, isDelete: false },
       select: {
@@ -231,9 +231,9 @@ export async function GET(request: NextRequest) {
     }
 
     // 获取所有子物料ID（用于确定真正的顶层物料）
-    const childMaterialIds = new Set(bomItems.map(b => b.childMaterialId));
+    childIds = new Set(bomItems.map(b => b.childMaterialId));
     // 真正的顶层物料：作为子物料出现的物料不再作为顶层显示
-    const topMaterials = allMaterials.filter(m => !childMaterialIds.has(m.id));
+    const topMaterials = allMaterials.filter(m => !childIds.has(m.id));
     // 返回顶层物料（包含树形结构）
     const bomTree = topMaterials.map(m => materialMap.get(m.id) || { ...m, children: [] });
     return successResponse(bomTree);
