@@ -58,7 +58,7 @@ export async function POST(request: NextRequest) {
     if (authResult instanceof NextResponse) return authResult;
 
     const body = await request.json();
-    const { groupName, description, status } = body;
+    const { groupName, description, status, customerIds } = body;
 
     if (!groupName) {
       return badRequestResponse('群组名称不能为空');
@@ -94,6 +94,14 @@ export async function POST(request: NextRequest) {
         createdBy: authResult.userId,
       },
     });
+
+    // 将选中的客户加入群组
+    if (Array.isArray(customerIds) && customerIds.length > 0) {
+      await prisma.customer.updateMany({
+        where: { id: { in: customerIds }, isDelete: false },
+        data: { groupId: group.id },
+      });
+    }
 
     await operationLog.logCreate('客户群组', authResult.userId, authResult.username, group, request);
 

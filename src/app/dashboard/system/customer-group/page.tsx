@@ -14,6 +14,15 @@ interface CustomerGroup {
   createdBy: number;
 }
 
+interface CustomerOption {
+  id: number;
+  customerCode: string;
+  customerName: string;
+  customerType: string;
+  groupId: number | null;
+  groupName?: string;
+}
+
 export default function CustomerGroupPage() {
   const { success, error } = useToast();
   const [groups, setGroups] = useState<CustomerGroup[]>([]);
@@ -23,7 +32,6 @@ export default function CustomerGroupPage() {
   const [loading, setLoading] = useState(false);
   const [keyword, setKeyword] = useState('');
 
-  // 弹窗状态
   const [showModal, setShowModal] = useState(false);
   const [editingGroup, setEditingGroup] = useState<CustomerGroup | null>(null);
   const [deleteConfirmId, setDeleteConfirmId] = useState<number | null>(null);
@@ -32,6 +40,11 @@ export default function CustomerGroupPage() {
     description: '',
     status: 'active',
   });
+
+  // 客户多选
+  const [customerOptions, setCustomerOptions] = useState<CustomerOption[]>([]);
+  const [selectedCustomerIds, setSelectedCustomerIds] = useState<number[]>([]);
+  const [customerSearch, setCustomerSearch] = useState('');
 
   // 群组详情
   const [showDetail, setShowDetail] = useState(false);
@@ -62,7 +75,21 @@ export default function CustomerGroupPage() {
     }
   };
 
-  const handleOpenModal = (group?: CustomerGroup) => {
+  const fetchAllCustomers = async () => {
+    try {
+      const params = new URLSearchParams({ pageSize: '9999' });
+      const res = await fetch(`/api/customer?${params}`);
+      const data = await res.json();
+      if (data.code === 200) {
+        return data.data.list || [];
+      }
+      return [];
+    } catch {
+      return [];
+    }
+  };
+
+  const handleOpenModal = async (group?: CustomerGroup) => {
     if (group) {
       setEditingGroup(group);
       setForm({
@@ -70,10 +97,25 @@ export default function CustomerGroupPage() {
         description: group.description || '',
         status: group.status,
       });
+      try {
+        const res = await fetch(`/api/customer-group/${group.id}`);
+        const data = await res.json();
+        if (data.code === 200 && data.data.customers) {
+          setSelectedCustomerIds(data.data.customers.map((c: any) => c.id));
+        } else {
+          setSelectedCustomerIds([]);
+        }
+      } catch {
+        setSelectedCustomerIds([]);
+      }
     } else {
       setEditingGroup(null);
       setForm({ groupName: '', description: '', status: 'active' });
+      setSelectedCustomerIds([]);
     }
+    const customers = await fetchAllCustomers();
+    setCustomerOptions(customers);
+    setCustomerSearch('');
     setShowModal(true);
   };
 
@@ -93,7 +135,10 @@ export default function CustomerGroupPage() {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`,
         },
-        body: JSON.stringify(form),
+        body: JSON.stringify({
+          ...form,
+          customerIds: selectedCustomerIds,
+        }),
       });
       const data = await res.json();
       if (data.code === 200) {
@@ -140,6 +185,23 @@ export default function CustomerGroupPage() {
       error('获取详情失败');
     }
   };
+
+  const toggleCustomer = (customerId: number) => {
+    setSelectedCustomerIds(prev =>
+      prev.includes(customerId)
+        ? prev.filter(id => id !== customerId)
+        : [...prev, customerId]
+    );
+  };
+
+  const filteredCustomers = customerOptions.filter(c => {
+    if (!customerSearch) return true;
+    const q = customerSearch.toLowerCase();
+    return (
+      c.customerName.toLowerCase().includes(q) ||
+      c.customerCode.toLowerCase().includes(q)
+    );
+  });
 
   const totalPages = Math.ceil(total / pageSize);
 
@@ -256,18 +318,31 @@ export default function CustomerGroupPage() {
       {/* 新增/编辑弹窗 */}
       {showModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-full max-w-md">
+          <div className="bg-white rounded-lg p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
             <h2 className="text-lg font-bold mb-4">{editingGroup ? '编辑群组' : '新增群组'}</h2>
             <div className="space-y-4">
-              <div>
-                <label className="block text-sm text-gray-600 mb-1">群组名称 *</label>
-                <input
-                  type="text"
-                  value={form.groupName}
-                  onChange={(e) => setForm({ ...form, groupName: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500"
-                  placeholder="请输入群组名称"
-                />
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm text-gray-600 mb-1">群组名称 *</label>
+                  <input
+                    type="text"
+                    value={form.groupName}
+                    onChange={(e) => setForm({ ...form, groupName: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500"
+                    placeholder="请输入群组名称"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm text-gray-600 mb-1">状态</label>
+                  <select
+                    value={form.status}
+                    onChange={(e) => setForm({ ...form, status: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="active">启用</option>
+                    <option value="disabled">禁用</option>
+                  </select>
+                </div>
               </div>
               <div>
                 <label className="block text-sm text-gray-600 mb-1">描述</label>
@@ -275,20 +350,99 @@ export default function CustomerGroupPage() {
                   value={form.description}
                   onChange={(e) => setForm({ ...form, description: e.target.value })}
                   className="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500"
-                  rows={3}
+                  rows={2}
                   placeholder="同一群组内的客户共用同一套技术资料"
                 />
               </div>
+
+              {/* 客户多选 */}
               <div>
-                <label className="block text-sm text-gray-600 mb-1">状态</label>
-                <select
-                  value={form.status}
-                  onChange={(e) => setForm({ ...form, status: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500"
-                >
-                  <option value="active">启用</option>
-                  <option value="disabled">禁用</option>
-                </select>
+                <div className="flex items-center justify-between mb-2">
+                  <label className="block text-sm text-gray-600">
+                    选择客户（已选 {selectedCustomerIds.length} 个）
+                  </label>
+                  {selectedCustomerIds.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => setSelectedCustomerIds([])}
+                      className="text-xs text-red-500 hover:text-red-700"
+                    >
+                      清空选择
+                    </button>
+                  )}
+                </div>
+                <input
+                  type="text"
+                  value={customerSearch}
+                  onChange={(e) => setCustomerSearch(e.target.value)}
+                  placeholder="搜索客户编码或名称..."
+                  className="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 mb-2"
+                />
+                <div className="border border-gray-200 rounded max-h-60 overflow-y-auto">
+                  {filteredCustomers.length === 0 ? (
+                    <div className="text-center py-4 text-gray-400 text-sm">暂无客户数据</div>
+                  ) : (
+                    filteredCustomers.map(c => {
+                      const isSelected = selectedCustomerIds.includes(c.id);
+                      const hasOtherGroup = c.groupId && c.groupId !== (editingGroup?.id || -1);
+                      return (
+                        <div
+                          key={c.id}
+                          onClick={() => toggleCustomer(c.id)}
+                          className={`flex items-center px-3 py-2 cursor-pointer text-sm border-b border-gray-100 last:border-0 ${
+                            isSelected
+                              ? 'bg-blue-50 border-l-2 border-l-blue-500'
+                              : 'hover:bg-gray-50'
+                          }`}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={isSelected}
+                            onChange={() => {}}
+                            className="mr-3 h-4 w-4 text-blue-600 rounded"
+                          />
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2">
+                              <span className="font-mono text-gray-500 text-xs">{c.customerCode}</span>
+                              <span className="font-medium text-gray-800 truncate">{c.customerName}</span>
+                              <span className="text-xs px-1.5 py-0.5 rounded bg-gray-100 text-gray-500">
+                                {c.customerType === 'enterprise' ? '企业' : '个人'}
+                              </span>
+                            </div>
+                            {hasOtherGroup && !isSelected && (
+                              <div className="text-xs text-amber-600 mt-0.5">
+                                已属于：{c.groupName || `群组ID:${c.groupId}`}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+                {selectedCustomerIds.length > 0 && (
+                  <div className="mt-2 flex flex-wrap gap-1">
+                    {selectedCustomerIds.map(id => {
+                      const c = customerOptions.find(opt => opt.id === id);
+                      if (!c) return null;
+                      return (
+                        <span
+                          key={id}
+                          className="inline-flex items-center gap-1 px-2 py-1 bg-blue-100 text-blue-700 rounded text-xs"
+                        >
+                          {c.customerName}
+                          <button
+                            type="button"
+                            onClick={(e) => { e.stopPropagation(); toggleCustomer(id); }}
+                            className="text-blue-400 hover:text-blue-700"
+                          >
+                            ×
+                          </button>
+                        </span>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
             </div>
             <div className="flex justify-end gap-3 mt-6">

@@ -39,7 +39,7 @@ export async function PUT(
 
     const { id } = await params;
     const body = await request.json();
-    const { groupName, description, status } = body;
+    const { groupName, description, status, customerIds } = body;
 
     const group = await prisma.customerGroup.findFirst({
       where: { id: parseInt(id), isDelete: false },
@@ -64,6 +64,22 @@ export async function PUT(
         modifiedBy: authResult.userId,
       },
     });
+
+    // 更新群组中的客户
+    if (Array.isArray(customerIds)) {
+      // 先将当前群组下所有客户的 groupId 置空
+      await prisma.customer.updateMany({
+        where: { groupId: parseInt(id), isDelete: false },
+        data: { groupId: null },
+      });
+      // 再将选中的客户加入群组
+      if (customerIds.length > 0) {
+        await prisma.customer.updateMany({
+          where: { id: { in: customerIds }, isDelete: false },
+          data: { groupId: parseInt(id) },
+        });
+      }
+    }
 
     await operationLog.logUpdate('客户群组', authResult.userId, authResult.username, oldData, updated, request);
 
