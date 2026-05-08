@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import {
   Search, Plus, Upload, Download, ChevronRight, ChevronDown, FileText, Edit2, Trash2,
-  X, Save, AlertCircle, CheckCircle, RefreshCw, FolderTree, Eye, DownloadCloud
+  X, Save, AlertCircle, CheckCircle, RefreshCw, FolderTree, Eye, DownloadCloud, Settings2, Layers
 } from 'lucide-react';
 import { useToast } from '@/components/ToastProvider';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
@@ -99,6 +99,8 @@ export default function BOMManagementPage() {
   
   // 群组列表
   const [customerGroups, setCustomerGroups] = useState<CustomerGroup[]>([]);
+  // 群组名称映射（用于快速查找）
+  const [groupNameMap, setGroupNameMap] = useState<Record<number, string>>({});
   // 客户列表（当前群组下的客户）
   const [customers, setCustomers] = useState<Customer[]>([]);
 
@@ -191,7 +193,14 @@ export default function BOMManagementPage() {
   const fetchCustomerGroups = async () => {
     const res = await fetchApi('/api/customer-group?pageSize=1000');
     if (res.code === 200) {
-      setCustomerGroups(res.data?.list || []);
+      const groups = res.data?.list || [];
+      setCustomerGroups(groups);
+      // 构建群组名称映射
+      const nameMap: Record<number, string> = {};
+      groups.forEach((g: CustomerGroup) => {
+        nameMap[g.id] = g.groupName;
+      });
+      setGroupNameMap(nameMap);
     }
   };
 
@@ -497,70 +506,137 @@ export default function BOMManagementPage() {
       .filter((node): node is TreeNode => node !== null);
   }, [treeData, globalSearch, filterName, filterType, filterGroupId, searchFields]);
 
+  // 层级背景颜色配置
+  const levelColors = [
+    'bg-white',       // 0级：白色
+    'bg-blue-50',     // 1级：浅蓝
+    'bg-green-50',    // 2级：浅绿
+    'bg-yellow-50',   // 3级：浅黄
+    'bg-purple-50',   // 4级：浅紫
+    'bg-pink-50',     // 5级：浅粉
+  ];
+
+  // 层级字体大小配置
+  const levelFontSizes = [
+    'text-sm',        // 0级：正常
+    'text-sm',        // 1级：稍小
+    'text-xs',        // 2级：较小
+    'text-xs',        // 3级：更小
+    'text-xs',        // 4级：更小
+    'text-xs',        // 5级：最小
+  ];
+
+  // 层级行高配置
+  const levelPadding = [
+    'py-2.5',        // 0级：正常
+    'py-2',          // 1级：稍小
+    'py-1.5',        // 2级：较小
+    'py-1.5',        // 3级：更小
+    'py-1',          // 4级：更小
+    'py-1',          // 5级：最小
+  ];
+
   const renderTreeNode = (node: TreeNode, level: number = 0) => {
     const hasChildren = node.children && node.children.length > 0;
     const isExpanded = expandedIds.has(node.id);
+    const levelIndex = Math.min(level, levelColors.length - 1);
+    const bgColor = levelColors[levelIndex];
+    const fontSize = levelFontSizes[levelIndex];
+    const paddingY = levelPadding[levelIndex];
+    const groupName = node.groupId ? groupNameMap[node.groupId] || '未知' : '-';
 
     return (
       <div key={node.id}>
         <div
-          className={`flex items-center hover:bg-gray-50 border-b border-gray-100 ${
-            selectedMaterialId === node.id ? 'bg-blue-50' : ''
-          }`}
-          style={{ paddingLeft: `${level * 24 + 12}px` }}
+          className={`flex items-center border-b border-gray-200 hover:brightness-95 transition-all ${bgColor}`}
+          style={{ paddingLeft: `${level * 20 + 8}px` }}
         >
-          <button
-            onClick={() => hasChildren && toggleExpand(node.id)}
-            className="w-6 h-6 flex items-center justify-center text-gray-400 hover:text-gray-600"
-          >
+          {/* 展开/折叠图标列 */}
+          <div className="w-8 flex-shrink-0 flex items-center justify-center">
             {hasChildren ? (
-              isExpanded ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />
+              <button
+                onClick={() => toggleExpand(node.id)}
+                className="p-1 hover:bg-black/5 rounded transition-colors"
+              >
+                {isExpanded ? (
+                  <ChevronDown className={`w-4 h-4 text-gray-500 ${level > 0 ? 'text-gray-400' : ''}`} />
+                ) : (
+                  <ChevronRight className={`w-4 h-4 text-gray-500 ${level > 0 ? 'text-gray-400' : ''}`} />
+                )}
+              </button>
             ) : (
-              <span className="w-4" />
+              <span className="w-4 h-4" />
             )}
-          </button>
-          <div className="flex-1 grid grid-cols-12 gap-2 py-2 text-sm">
-            <div className="col-span-1 font-mono text-gray-600">{node.internalCode}</div>
-            <div className="col-span-2">{node.materialName}</div>
-            <div className="col-span-1">{typeLabelMap[node.materialType] || node.materialType}</div>
-            <div className="col-span-1 font-mono text-gray-500">{node.drawingCode || '-'}</div>
-            <div className="col-span-1 font-mono text-gray-500">{node.drawingNo || '-'}</div>
-            <div className="col-span-1 text-center">{node.quantity}</div>
-            <div className="col-span-2 text-gray-500 truncate">{node.remark || '-'}</div>
-            <div className="col-span-2 flex items-center gap-1">
-              <button
-                onClick={() => setSelectedMaterialId(node.id)}
-                className="p-1 text-blue-600 hover:bg-blue-50 rounded"
-                title="查看"
-              >
-                <Eye className="w-4 h-4" />
-              </button>
-              {!node.parentId && (
-                <button
-                  onClick={() => handleAddChildMaterial(node.id, node.groupId)}
-                  className="p-1 text-green-600 hover:bg-green-50 rounded"
-                  title="添加子物料"
-                >
-                  <Plus className="w-4 h-4" />
-                </button>
-              )}
-              <button
-                onClick={() => handleEditMaterial(node)}
-                className="p-1 text-gray-600 hover:bg-gray-100 rounded"
-                title="编辑"
-              >
-                <Edit2 className="w-4 h-4" />
-              </button>
-              <button
-                onClick={() => handleDeleteMaterial(node)}
-                className="p-1 text-red-600 hover:bg-red-50 rounded"
-                title="删除"
-              >
-                <Trash2 className="w-4 h-4" />
-              </button>
+          </div>
+
+          {/* 数据列 */}
+          <div className={`flex-1 grid grid-cols-9 gap-1 ${paddingY} ${fontSize} min-w-0`}>
+            {/* 内部编码 */}
+            <div className="col-span-1 font-mono text-gray-700 truncate px-1">{node.internalCode}</div>
+            {/* 图纸编码 */}
+            <div className="col-span-1 text-gray-600 truncate px-1">{node.drawingCode || '-'}</div>
+            {/* 物料名称 */}
+            <div className="col-span-2 font-medium text-gray-800 truncate px-1">{node.materialName}</div>
+            {/* 图号 */}
+            <div className="col-span-1 text-gray-600 truncate px-1">{node.drawingNo || '-'}</div>
+            {/* 单层用量 */}
+            <div className="col-span-1 text-center text-gray-700 truncate px-1">{node.quantity}</div>
+            {/* 物料类型 */}
+            <div className="col-span-1 text-center truncate px-1">
+              <span className={`px-1.5 py-0.5 rounded text-xs ${
+                node.materialType === 'component' ? 'bg-blue-100 text-blue-700' :
+                node.materialType === 'part' ? 'bg-green-100 text-green-700' :
+                node.materialType === 'material' ? 'bg-orange-100 text-orange-700' :
+                node.materialType === 'purchased' ? 'bg-purple-100 text-purple-700' :
+                node.materialType === 'standard' ? 'bg-cyan-100 text-cyan-700' :
+                'bg-gray-100 text-gray-700'
+              }`}>
+                {typeLabelMap[node.materialType] || node.materialType}
+              </span>
             </div>
+            {/* 所属客户 */}
+            <div className="col-span-1 text-gray-600 truncate px-1">{groupName}</div>
+            {/* 备注 */}
+            <div className="col-span-1 text-gray-500 truncate px-1">{node.remark || '-'}</div>
+          </div>
+
+          {/* 操作列 */}
+          <div className="w-32 flex-shrink-0 flex items-center justify-center gap-1 px-1">
+            {/* 添加子物料 */}
+            <button
+              onClick={() => handleAddChildMaterial(node.id, node.groupId)}
+              className="p-1.5 text-green-600 hover:bg-green-100 rounded transition-colors"
+              title="添加子物料"
+            >
+              <Plus className={`w-4 h-4 ${level > 0 ? 'w-3 h-3' : ''}`} />
+            </button>
+            {/* 查看图纸 */}
+            <button
+              onClick={() => {/* TODO: 查看图纸 */}}
+              className="p-1.5 text-blue-600 hover:bg-blue-100 rounded transition-colors"
+              title="查看图纸"
+            >
+              <FileText className={`w-4 h-4 ${level > 0 ? 'w-3 h-3' : ''}`} />
+            </button>
+            {/* 查看工艺 */}
+            <button
+              onClick={() => {/* TODO: 查看工艺 */}}
+              className="p-1.5 text-purple-600 hover:bg-purple-100 rounded transition-colors"
+              title="查看工艺"
+            >
+              <Settings2 className={`w-4 h-4 ${level > 0 ? 'w-3 h-3' : ''}`} />
+            </button>
+            {/* 删除 */}
+            <button
+              onClick={() => handleDeleteMaterial(node)}
+              className="p-1.5 text-red-600 hover:bg-red-100 rounded transition-colors"
+              title="删除"
+            >
+              <Trash2 className={`w-4 h-4 ${level > 0 ? 'w-3 h-3' : ''}`} />
+            </button>
           </div>
         </div>
+        {/* 子节点 */}
         {hasChildren && isExpanded && node.children.map(child => renderTreeNode(child, level + 1))}
       </div>
     );
@@ -739,19 +815,20 @@ export default function BOMManagementPage() {
         ) : (
           <>
             {/* 表头 */}
-            <div className="sticky top-0 bg-gray-50 border-b border-gray-200">
-              <div className="flex items-center text-xs font-medium text-gray-500 py-2 px-3">
-                <div className="w-6" />
-                <div className="flex-1 grid grid-cols-12 gap-2">
-                  <div className="col-span-1">内部编码</div>
-                  <div className="col-span-2">物料名称</div>
-                  <div className="col-span-1">物料类型</div>
-                  <div className="col-span-1">图纸编码</div>
-                  <div className="col-span-1">图号</div>
-                  <div className="col-span-1 text-center">用量</div>
-                  <div className="col-span-2">备注</div>
-                  <div className="col-span-2">操作</div>
+            <div className="sticky top-0 bg-gray-100 border-b border-gray-300 z-10">
+              <div className="flex items-center text-xs font-semibold text-gray-700 py-2.5 px-2">
+                <div className="w-8 flex-shrink-0" />
+                <div className="flex-1 grid grid-cols-9 gap-1 min-w-0">
+                  <div className="col-span-1 truncate">内部编码</div>
+                  <div className="col-span-1 truncate">图纸编码</div>
+                  <div className="col-span-2 truncate">物料名称</div>
+                  <div className="col-span-1 truncate">图号</div>
+                  <div className="col-span-1 text-center truncate">单层用量</div>
+                  <div className="col-span-1 text-center truncate">物料类型</div>
+                  <div className="col-span-1 truncate">所属客户</div>
+                  <div className="col-span-1 truncate">备注</div>
                 </div>
+                <div className="w-32 flex-shrink-0 text-center truncate px-1">操作</div>
               </div>
             </div>
             {/* 树内容 */}
