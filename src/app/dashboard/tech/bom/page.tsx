@@ -140,6 +140,11 @@ export default function BOMManagementPage() {
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [deleteMaterial, setDeleteMaterial] = useState<Material | null>(null);
 
+  // 单元格编辑状态: { nodeKey: { field: value } }
+  const [editingCell, setEditingCell] = useState<Record<string, Record<string, any>>>({});
+  // 临时编辑值
+  const [editValue, setEditValue] = useState<any>(null);
+
   useEffect(() => {
     const stored = localStorage.getItem('token');
     if (stored) setToken(stored);
@@ -567,6 +572,77 @@ export default function BOMManagementPage() {
     setDeleteMaterial(null);
   };
 
+  // 开始编辑单元格
+  const handleStartEdit = (nodeKey: string, field: string, value: any) => {
+    setEditingCell(prev => ({
+      ...prev,
+      [nodeKey]: {
+        ...prev[nodeKey],
+        [field]: true,
+      },
+    }));
+    setEditValue(value);
+  };
+
+  // 保存编辑
+  const handleSaveEdit = async (node: TreeNode, field: string) => {
+    if (editValue === null || editValue === undefined) {
+      return;
+    }
+
+    // 检查值是否有变化
+    const originalValue = node[field as keyof TreeNode];
+    if (editValue === originalValue) {
+      handleCancelEdit(node.id.toString(), field);
+      return;
+    }
+
+    // 构建更新数据
+    const updateData: Record<string, any> = { [field]: editValue };
+
+    // 调用更新API
+    const res = await fetchApi(`/api/bom/material/${node.id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(updateData),
+    });
+
+    if (res.code === 200) {
+      success('修改成功');
+      fetchBOMTree();
+      fetchMaterials();
+    } else {
+      error(res.message || '修改失败');
+    }
+
+    // 清除编辑状态
+    handleCancelEdit(node.id.toString(), field);
+  };
+
+  // 取消编辑
+  const handleCancelEdit = (nodeKey: string, field: string) => {
+    setEditingCell(prev => {
+      const next = { ...prev };
+      if (next[nodeKey]) {
+        delete next[nodeKey][field];
+        if (Object.keys(next[nodeKey]).length === 0) {
+          delete next[nodeKey];
+        }
+      }
+      return next;
+    });
+    setEditValue(null);
+  };
+
+  // 按Enter键保存
+  const handleEditKeyDown = (e: React.KeyboardEvent, node: TreeNode, field: string) => {
+    if (e.key === 'Enter') {
+      handleSaveEdit(node, field);
+    } else if (e.key === 'Escape') {
+      handleCancelEdit(node.id.toString(), field);
+    }
+  };
+
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -755,17 +831,86 @@ export default function BOMManagementPage() {
 
           {/* 数据列 */}
           <div className={`flex-1 grid grid-cols-9 gap-1 ${paddingY} ${fontSize} min-w-0`}>
-            {/* 内部编码 */}
+            {/* 内部编码 - 只读 */}
             <div className="col-span-1 font-mono text-gray-700 truncate px-1">{node.internalCode}</div>
-            {/* 图纸编码 */}
-            <div className="col-span-1 text-gray-600 truncate px-1">{node.drawingCode || '-'}</div>
-            {/* 物料名称 */}
-            <div className="col-span-2 font-medium text-gray-800 truncate px-1">{node.materialName}</div>
-            {/* 图号 */}
-            <div className="col-span-1 text-gray-600 truncate px-1">{node.drawingNo || '-'}</div>
-            {/* 单层用量 */}
-            <div className="col-span-1 text-center text-gray-700 truncate px-1">{node.quantity}</div>
-            {/* 物料类型 */}
+            {/* 图纸编码 - 可编辑 */}
+            {editingCell[fullKey]?.drawingCode ? (
+              <input
+                className="col-span-1 border border-blue-400 rounded px-1 text-xs"
+                value={editValue ?? ''}
+                onChange={e => setEditValue(e.target.value)}
+                onBlur={() => handleSaveEdit(node, 'drawingCode')}
+                onKeyDown={e => handleEditKeyDown(e, node, 'drawingCode')}
+                autoFocus
+              />
+            ) : (
+              <div
+                className="col-span-1 text-gray-600 truncate px-1 cursor-pointer hover:bg-blue-50"
+                onClick={() => handleStartEdit(fullKey, 'drawingCode', node.drawingCode || '')}
+                title="点击编辑"
+              >
+                {node.drawingCode || '-'}
+              </div>
+            )}
+            {/* 物料名称 - 可编辑 */}
+            {editingCell[fullKey]?.materialName ? (
+              <input
+                className="col-span-2 border border-blue-400 rounded px-1 text-xs"
+                value={editValue ?? ''}
+                onChange={e => setEditValue(e.target.value)}
+                onBlur={() => handleSaveEdit(node, 'materialName')}
+                onKeyDown={e => handleEditKeyDown(e, node, 'materialName')}
+                autoFocus
+              />
+            ) : (
+              <div
+                className="col-span-2 font-medium text-gray-800 truncate px-1 cursor-pointer hover:bg-blue-50"
+                onClick={() => handleStartEdit(fullKey, 'materialName', node.materialName)}
+                title="点击编辑"
+              >
+                {node.materialName}
+              </div>
+            )}
+            {/* 图号 - 可编辑 */}
+            {editingCell[fullKey]?.drawingNo ? (
+              <input
+                className="col-span-1 border border-blue-400 rounded px-1 text-xs"
+                value={editValue ?? ''}
+                onChange={e => setEditValue(e.target.value)}
+                onBlur={() => handleSaveEdit(node, 'drawingNo')}
+                onKeyDown={e => handleEditKeyDown(e, node, 'drawingNo')}
+                autoFocus
+              />
+            ) : (
+              <div
+                className="col-span-1 text-gray-600 truncate px-1 cursor-pointer hover:bg-blue-50"
+                onClick={() => handleStartEdit(fullKey, 'drawingNo', node.drawingNo || '')}
+                title="点击编辑"
+              >
+                {node.drawingNo || '-'}
+              </div>
+            )}
+            {/* 单层用量 - 可编辑 */}
+            {editingCell[fullKey]?.quantity ? (
+              <input
+                type="number"
+                className="col-span-1 border border-blue-400 rounded px-1 text-xs text-center"
+                value={editValue ?? ''}
+                onChange={e => setEditValue(e.target.value)}
+                onBlur={() => handleSaveEdit(node, 'quantity')}
+                onKeyDown={e => handleEditKeyDown(e, node, 'quantity')}
+                autoFocus
+              />
+            ) : (
+              <div
+                className="col-span-1 text-center text-gray-700 truncate px-1 cursor-pointer hover:bg-blue-50"
+                onClick={() => handleStartEdit(fullKey, 'quantity', node.quantity)}
+                title="点击编辑"
+              >
+                {node.quantity}
+              </div>
+            )}
+            {/* 物料类型 - 只读 */}
             <div className="col-span-1 text-center truncate px-1">
               <span className={`px-1.5 py-0.5 rounded text-xs ${
                 node.materialType === 'component' ? 'bg-blue-100 text-blue-700' :
@@ -778,10 +923,27 @@ export default function BOMManagementPage() {
                 {typeLabelMap[node.materialType] || node.materialType}
               </span>
             </div>
-            {/* 所属客户 */}
+            {/* 所属客户 - 只读 */}
             <div className="col-span-1 text-gray-600 truncate px-1">{groupName}</div>
-            {/* 备注 */}
-            <div className="col-span-1 text-gray-500 truncate px-1">{node.remark || '-'}</div>
+            {/* 备注 - 可编辑 */}
+            {editingCell[fullKey]?.remark ? (
+              <input
+                className="col-span-1 border border-blue-400 rounded px-1 text-xs"
+                value={editValue ?? ''}
+                onChange={e => setEditValue(e.target.value)}
+                onBlur={() => handleSaveEdit(node, 'remark')}
+                onKeyDown={e => handleEditKeyDown(e, node, 'remark')}
+                autoFocus
+              />
+            ) : (
+              <div
+                className="col-span-1 text-gray-500 truncate px-1 cursor-pointer hover:bg-blue-50"
+                onClick={() => handleStartEdit(fullKey, 'remark', node.remark || '')}
+                title="点击编辑"
+              >
+                {node.remark || '-'}
+              </div>
+            )}
           </div>
 
           {/* 操作列 */}
