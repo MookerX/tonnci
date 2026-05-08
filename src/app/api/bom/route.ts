@@ -81,10 +81,46 @@ export async function GET(request: NextRequest) {
     // 获取所有BOM关系（仅针对相关物料）
     const bomItemWhere: any = {
       isDelete: false,
-      childMaterialId: { in: materialIds },
     };
+    console.log('[DEBUG] rootMaterialId:', rootMaterialId);
+    // 如果指定了rootMaterialId，只获取该BOM树的根物料及其所有层级子物料
     if (rootMaterialId) {
-      bomItemWhere.rootMaterialId = parseInt(rootMaterialId);
+      console.log('[DEBUG] in rootMaterialId block, value:', rootMaterialId);
+      const rootId = parseInt(rootMaterialId);
+      console.log('[DEBUG] parsed rootId:', rootId);
+      // 递归获取所有层级的物料ID
+      const getAllDescendantIds = async (parentId: number): Promise<number[]> => {
+        const children = await prisma.bomItem.findMany({
+          where: { parentMaterialId: parentId, isDelete: false },
+          select: { childMaterialId: true },
+        });
+        console.log(`[DEBUG] getAllDescendantIds(${parentId}) returned:`, children.map(c => c.childMaterialId));
+        let allIds: number[] = [];
+        for (const child of children) {
+          allIds.push(child.childMaterialId);
+          const grandChildren = await getAllDescendantIds(child.childMaterialId);
+          allIds = allIds.concat(grandChildren);
+        }
+        return allIds;
+      };
+      const descendantIds = await getAllDescendantIds(rootId);
+      console.log('[DEBUG] descendantIds:', descendantIds);
+      const allRelatedIds = [rootId, ...descendantIds];
+      console.log('[DEBUG] allRelatedIds:', allRelatedIds);
+      bomItemWhere.OR = [
+        { parentMaterialId: { in: allRelatedIds } },
+        { childMaterialId: { in: allRelatedIds } },
+      ];
+      // 临时添加调试信息到响应
+      (request as any)._debug = { descendantIds, allRelatedIds };
+    } else {
+      // 不指定rootMaterialId时，只获取相关物料的BOM关系
+      if (materialIds.length > 0) {
+        bomItemWhere.OR = [
+          { parentMaterialId: { in: materialIds } },
+          { childMaterialId: { in: materialIds } },
+        ];
+      }
     }
 
     const bomItems = await prisma.bomItem.findMany({
@@ -159,16 +195,51 @@ export async function GET(request: NextRequest) {
       }
     }
 
+    // 填充多层级子物料的children
+    const fillChildrenRecursively = (node: any) => {
+      const directChildren = childrenMap.get(node.id) || [];
+      node.children = directChildren.map((child: any) => {
+        const detail = childMap.get(child.childMaterialId) || {};
+        const childNode = {
+          id: child.childMaterialId,
+          bomItemId: child.bomItemId,
+          materialName: detail.materialName || '',
+          internalCode: detail.internalCode || '',
+          drawingCode: detail.drawingCode || '',
+          drawingNo: detail.drawingNo || '',
+          materialType: detail.materialType || '',
+          unit: detail.unit || '',
+          spec: detail.spec || '',
+          groupId: detail.groupId || null,
+          customerGroupName: detail.customerGroupName || null,
+          quantity: child.quantity,
+          children: [],
+        };
+        fillChildrenRecursively(childNode);
+        return childNode;
+      });
+    };
+
     // 如果指定了rootMaterialId，只返回该物料的BOM树
     if (rootMaterialId) {
       const root = materialMap.get(parseInt(rootMaterialId));
-      return successResponse(root ? [root] : []);
+      if (root) {
+        fillChildrenRecursively(root);
+        return successResponse([root]);
+      }
+      return successResponse([]);
     }
 
     // 返回所有物料（包含树形结构）
     const bomTree = allMaterials.map(m => materialMap.get(m.id) || { ...m, children: [] });
-
-    return successResponse(bomTree);
+    // 临时调试：返回 allRelatedIds
+    return NextResponse.json({
+      code: 200,
+      message: '操作成功',
+      data: bomTree,
+      debug: (request as any)._debug,
+      timestamp: Date.now(),
+    });
   } catch (error: any) {
     console.error('获取BOM列表失败:', error);
     return serverErrorResponse(error.message);
