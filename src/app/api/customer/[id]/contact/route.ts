@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { getUserFromToken } from '@/lib/auth/jwt';
+import { requireAuth } from '@/lib/auth/jwt';
 import { z } from 'zod';
 import { operationLog } from '@/lib/services/operation-log';
 import { getClientIp } from '@/lib/utils';
@@ -58,6 +58,12 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const authResult = await requireAuth(request);
+    if (authResult instanceof NextResponse) {
+      return authResult;
+    }
+    const user = authResult;
+
     const { id } = await params;
     const customerId = parseInt(id);
     const body = await request.json();
@@ -94,21 +100,15 @@ export async function POST(
     });
 
     // 记录操作日志
-    const authHeader = request.headers.get('authorization');
-    if (authHeader) {
-      const user = await getUserFromToken(request);
-      if (user) {
-        await operationLog.logSuccess(
-          '客户管理',
-          'create',
-          user.id,
-          user.username,
-          `新增联系人：${data.contactName}（${postTypeNames[data.postType]}）`,
-          { customerId },
-          getClientIp(request)
-        );
-      }
-    }
+    await operationLog.logSuccess(
+      '客户管理',
+      'create',
+      user.id,
+      user.username,
+      `新增联系人：${data.contactName}（${postTypeNames[data.postType]}）`,
+      { customerId },
+      getClientIp(request)
+    );
 
     return NextResponse.json({
       code: 200,
@@ -127,6 +127,12 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const authResult = await requireAuth(request);
+    if (authResult instanceof NextResponse) {
+      return authResult;
+    }
+    const user = authResult;
+
     const { id } = await params;
     const customerId = parseInt(id);
     const body = await request.json();
@@ -190,21 +196,15 @@ export async function PUT(
     });
 
     // 记录操作日志
-    const authHeader = request.headers.get('authorization');
-    if (authHeader) {
-      const user = await getUserFromToken(request);
-      if (user) {
-        await operationLog.logSuccess(
-          '客户管理',
-          'update',
-          user.id,
-          user.username,
-          `更新联系人，共${contacts.length}个`,
-          { customerId },
-          getClientIp(request)
-        );
-      }
-    }
+    await operationLog.logSuccess(
+      '客户管理',
+      'update',
+      user.id,
+      user.username,
+      `更新联系人，共${contacts.length}个`,
+      { customerId },
+      getClientIp(request)
+    );
 
     return NextResponse.json({ code: 200, message: '更新成功' });
   } catch (error) {

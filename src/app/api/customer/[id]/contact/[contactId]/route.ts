@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { getUserFromToken } from '@/lib/auth/jwt';
+import { requireAuth } from '@/lib/auth/jwt';
 import { getClientIp } from '@/lib/utils';
 
 // DELETE /api/customer/[id]/contact/[contactId] - 删除联系人
@@ -9,6 +9,12 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string; contactId: string }> }
 ) {
   try {
+    const authResult = await requireAuth(request);
+    if (authResult instanceof NextResponse) {
+      return authResult;
+    }
+    const user = authResult;
+
     const { id, contactId } = await params;
     const contactIdNum = parseInt(contactId);
 
@@ -28,25 +34,19 @@ export async function DELETE(
     });
 
     // 记录操作日志
-    const authHeader = request.headers.get('authorization');
-    if (authHeader) {
-      const user = await getUserFromToken(request);
-      if (user) {
-        await prisma.operationLog.create({
-          data: {
-            moduleName: '客户管理',
-            businessType: 'delete',
-            businessId: parseInt(id),
-            operUserId: user.id,
-            operUserName: user.username,
-            operIp: getClientIp(request),
-            operResult: 'success',
-            operDesc: `删除联系人：${contact.contactName}`,
-            isDelete: false,
-          },
-        });
-      }
-    }
+    await prisma.operationLog.create({
+      data: {
+        moduleName: '客户管理',
+        businessType: 'delete',
+        businessId: parseInt(id),
+        operUserId: user.id,
+        operUserName: user.username,
+        operIp: getClientIp(request),
+        operResult: 'success',
+        operDesc: `删除联系人：${contact.contactName}`,
+        isDelete: false,
+      },
+    });
 
     return NextResponse.json({ code: 200, message: '删除成功' });
   } catch (error) {

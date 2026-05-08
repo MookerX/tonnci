@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { getUserFromToken } from '@/lib/auth/jwt';
+import { requireAuth } from '@/lib/auth/jwt';
 import { successResponse, badRequestResponse, serverErrorResponse, notFoundResponse } from '@/lib/response';
 import { z } from 'zod';
 
@@ -26,15 +26,16 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const user = await getUserFromToken(request);
-    if (!user) {
-      return NextResponse.json({ code: 401, message: '未授权' }, { status: 401 });
+    const authResult = await requireAuth(request);
+    if (authResult instanceof NextResponse) {
+      return authResult;
     }
 
     const { id } = await params;
 
     const customer = await prisma.customer.findFirst({
       where: { id: parseInt(id), isDelete: false },
+      include: { contacts: { where: { isDelete: false }, orderBy: { isPrimary: 'desc' } } },
     });
 
     if (!customer) {
@@ -54,10 +55,11 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const user = await getUserFromToken(request);
-    if (!user) {
-      return NextResponse.json({ code: 401, message: '未授权' }, { status: 401 });
+    const authResult = await requireAuth(request);
+    if (authResult instanceof NextResponse) {
+      return authResult;
     }
+    const user = authResult;
 
     const { id } = await params;
     const body = await request.json();
@@ -105,10 +107,11 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const user = await getUserFromToken(request);
-    if (!user) {
-      return NextResponse.json({ code: 401, message: '未授权' }, { status: 401 });
+    const authResult = await requireAuth(request);
+    if (authResult instanceof NextResponse) {
+      return authResult;
     }
+    const user = authResult;
 
     const { id } = await params;
 

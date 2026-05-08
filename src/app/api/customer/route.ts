@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { getUserFromToken } from '@/lib/auth/jwt';
-import { successResponse, badRequestResponse, serverErrorResponse, unauthorizedResponse } from '@/lib/response';
+import { requireAuth } from '@/lib/auth/jwt';
+import { successResponse, badRequestResponse, serverErrorResponse } from '@/lib/response';
 import { z } from 'zod';
 
 // 客户类型映射
@@ -23,9 +23,9 @@ const customerSchema = z.object({
 /** GET /api/customer - 获取客户列表 */
 export async function GET(request: NextRequest) {
   try {
-    const user = await getUserFromToken(request);
-    if (!user) {
-      return unauthorizedResponse('未授权');
+    const authResult = await requireAuth(request);
+    if (authResult instanceof NextResponse) {
+      return authResult;
     }
 
     const { searchParams } = new URL(request.url);
@@ -69,10 +69,11 @@ export async function GET(request: NextRequest) {
 /** POST /api/customer - 创建客户 */
 export async function POST(request: NextRequest) {
   try {
-    const user = await getUserFromToken(request);
-    if (!user) {
-      return unauthorizedResponse('未授权');
+    const authResult = await requireAuth(request);
+    if (authResult instanceof NextResponse) {
+      return authResult;
     }
+    const user = authResult;
 
     const body = await request.json();
     const validation = customerSchema.safeParse(body);
