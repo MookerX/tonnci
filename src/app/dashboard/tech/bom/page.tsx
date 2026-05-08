@@ -6,6 +6,7 @@ import {
   X, Save, AlertCircle, CheckCircle, RefreshCw, FolderTree, Eye, DownloadCloud
 } from 'lucide-react';
 import { useToast } from '@/components/ToastProvider';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 
 interface TreeNode {
   id: number;
@@ -77,6 +78,13 @@ export default function BOMManagementPage() {
   const { success, error, warning } = useToast();
   const [token, setToken] = useState<string>('');
   const [activeTab, setActiveTab] = useState<'tree' | 'list'>('tree');
+  
+  // 删除确认对话框状态
+  const [deleteDialog, setDeleteDialog] = useState<{ open: boolean; id: number | null; name: string }>({
+    open: false,
+    id: null,
+    name: '',
+  });
   
   // 树形视图状态
   const [treeData, setTreeData] = useState<TreeNode[]>([]);
@@ -326,8 +334,13 @@ export default function BOMManagementPage() {
     }
   };
 
-  const handleDeleteMaterial = async (id: number) => {
-    if (!confirm('确定要删除该物料吗？')) return;
+  const handleDeleteMaterial = async (id: number, name: string = '该物料') => {
+    setDeleteDialog({ open: true, id, name });
+  };
+
+  const confirmDeleteMaterial = async () => {
+    const id = deleteDialog.id;
+    if (!id) return;
     
     const res = await fetchApi(`/api/bom/material/${id}`, { method: 'DELETE' });
     if (res.code === 200) {
@@ -337,6 +350,7 @@ export default function BOMManagementPage() {
     } else {
       error(res.message || '删除失败');
     }
+    setDeleteDialog({ open: false, id: null, name: '' });
   };
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -460,7 +474,7 @@ export default function BOMManagementPage() {
                 <Edit2 className="w-4 h-4" />
               </button>
               <button
-                onClick={() => handleDeleteMaterial(node.id)}
+                onClick={() => handleDeleteMaterial(node.id, node.materialName)}
                 className="p-1 text-red-600 hover:bg-red-50 rounded"
                 title="删除"
               >
@@ -651,7 +665,7 @@ export default function BOMManagementPage() {
                           <Edit2 className="w-4 h-4" />
                         </button>
                         <button
-                          onClick={() => handleDeleteMaterial(m.id)}
+                          onClick={() => handleDeleteMaterial(m.id, m.materialName)}
                           className="p-1 text-red-600 hover:bg-red-50 rounded"
                           title="删除"
                         >
@@ -947,6 +961,17 @@ export default function BOMManagementPage() {
           </div>
         </div>
       )}
+
+      {/* 删除确认对话框 */}
+      <ConfirmDialog
+        open={deleteDialog.open}
+        onOpenChange={(open) => setDeleteDialog({ ...deleteDialog, open })}
+        title="确认删除"
+        description={`确定要删除物料"${deleteDialog.name}"吗？此操作不可恢复。`}
+        confirmText="删除"
+        variant="destructive"
+        onConfirm={confirmDeleteMaterial}
+      />
     </div>
   );
 }
