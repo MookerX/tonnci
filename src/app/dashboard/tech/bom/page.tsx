@@ -299,7 +299,8 @@ export default function BOMManagementPage() {
       warning('物料名称不能为空');
       return;
     }
-    if (!editingMaterial && !formData.groupId) {
+    // 新增顶层物料时必须选择客户群组，子物料继承父物料的群组
+    if (!editingMaterial && !parentMaterialId && !formData.groupId) {
       warning('请选择所属客户群组');
       return;
     }
@@ -356,15 +357,14 @@ export default function BOMManagementPage() {
   };
 
   const handleAddBOMRelation = async (parentId: number, childId: number, quantity: number) => {
-    const res = await fetchApi(`/api/bom/${parentId}/children`, {
+    const res = await fetchApi('/api/bom', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ childMaterialId: childId, quantity }),
+      body: JSON.stringify({ parentMaterialId: parentId, childMaterialId: childId, quantity }),
     });
 
     if (res.code === 200) {
       success('BOM关系添加成功');
-      fetchBOMTree();
     } else {
       error(res.message || '添加BOM关系失败');
     }
@@ -856,11 +856,13 @@ export default function BOMManagementPage() {
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   客户群组 <span className="text-red-500">*</span>
+                  {parentMaterialId && <span className="text-gray-400 text-xs ml-1">(继承自父物料)</span>}
                 </label>
                 <select
                   value={formData.groupId || ''}
                   onChange={e => setFormData({ ...formData, groupId: e.target.value ? parseInt(e.target.value) : null })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                  disabled={!!parentMaterialId}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50"
                 >
                   <option value="">请选择客户群组</option>
                   {customerGroups.map(g => (
