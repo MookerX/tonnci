@@ -333,6 +333,53 @@ export default function BOMManagementPage() {
     setExpandedKeys(keysToExpand);
   }, [globalSearch, treeData, searchFields]);
 
+  // 筛选条件变化时自动展开命中的节点
+  useEffect(() => {
+    // 只有当有筛选条件时才执行展开逻辑
+    const hasFilter = filterType || filterGroupId || filterName;
+    if (!hasFilter || treeData.length === 0) {
+      // 清空筛选时折叠所有
+      return;
+    }
+
+    const keysToExpand = new Set<string>();
+
+    // 递归查找并收集所有匹配节点的完整路径
+    const collectMatchPaths = (node: TreeNode, currentPath: string[]) => {
+      const nodeKey = `node_${node.id}`;
+      const newPath = [...currentPath, nodeKey];
+
+      // 检查当前节点是否匹配筛选条件
+      let selfMatch = true;
+      if (filterType && node.materialType !== filterType) selfMatch = false;
+      if (filterGroupId && node.groupId !== filterGroupId) selfMatch = false;
+      if (filterName && !node.materialName.toLowerCase().includes(filterName.toLowerCase())) selfMatch = false;
+
+      // 匹配则收集所有祖先节点
+      if (selfMatch) {
+        for (let i = 0; i < newPath.length; i++) {
+          const prefixPath = newPath.slice(0, i + 1).join('_');
+          keysToExpand.add(prefixPath);
+        }
+        console.log('[筛选展开] 匹配到节点:', node.internalCode, '展开键:', Array.from(keysToExpand).slice(-3));
+      }
+
+      // 递归检查所有子节点
+      if (node.children && node.children.length > 0) {
+        for (const child of node.children) {
+          collectMatchPaths(child, newPath);
+        }
+      }
+    };
+
+    for (const node of treeData) {
+      collectMatchPaths(node, []);
+    }
+
+    console.log('[筛选展开] 最终需要展开的键:', Array.from(keysToExpand));
+    setExpandedKeys(keysToExpand);
+  }, [filterType, filterGroupId, filterName, treeData]);
+
   const fetchMaterials = async () => {
     let url = `/api/bom/material?pageSize=1000`;
     const params = new URLSearchParams();
