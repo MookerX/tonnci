@@ -135,7 +135,7 @@ export async function GET(request: NextRequest) {
     return successResponse({ list: listWithTypeName, total, page, pageSize });
   } catch (error: any) {
     console.error('获取客户列表失败:', error);
-    return serverErrorResponse(error.message);
+    return serverErrorResponse(validation.error.message);
   }
 }
 
@@ -150,7 +150,7 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const validation = customerSchema.safeParse(body);
     if (!validation.success) {
-      return badRequestResponse(validation.error.errors[0].message);
+      return badRequestResponse(validation.error.message);
     }
 
     // 映射前端字段到 Prisma 模型字段
@@ -197,7 +197,7 @@ export async function POST(request: NextRequest) {
     return successResponse(customer, '客户创建成功');
   } catch (error: any) {
     console.error('创建客户失败:', error);
-    return serverErrorResponse(error.message);
+    return serverErrorResponse(validation.error.message);
   }
 }
 

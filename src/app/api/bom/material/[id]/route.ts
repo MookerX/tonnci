@@ -46,7 +46,7 @@ export async function GET(
     return successResponse(material);
   } catch (error: any) {
     console.error('获取物料详情失败:', error);
-    return serverErrorResponse(error.message);
+    return serverErrorResponse(validation.error.message);
   }
 }
 
@@ -64,7 +64,7 @@ export async function PUT(
     const body = await request.json();
     const validation = materialSchema.safeParse(body);
     if (!validation.success) {
-      return badRequestResponse(validation.error.errors[0].message);
+      return badRequestResponse(validation.error.message);
     }
 
     const data = validation.data;
@@ -100,7 +100,7 @@ export async function PUT(
     return successResponse(material, '物料更新成功');
   } catch (error: any) {
     console.error('更新物料失败:', error);
-    return serverErrorResponse(error.message);
+    return serverErrorResponse(validation.error.message);
   }
 }
 
@@ -148,6 +148,6 @@ export async function DELETE(
     return successResponse(null, '物料删除成功');
   } catch (error: any) {
     console.error('删除物料失败:', error);
-    return serverErrorResponse(error.message);
+    return serverErrorResponse(validation.error.message);
   }
 }

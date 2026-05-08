@@ -58,7 +58,7 @@ export async function PUT(
     if (!validationResult.success) {
       return NextResponse.json({ 
         code: 400, 
-        message: validationResult.error.errors[0].message 
+        message: validation.error.message 
       }, { status: 400 });
     }
 

@@ -25,7 +25,8 @@ const materialSchema = z.object({
   unit: z.string().optional(),
   spec: z.string().optional(),
   weight: z.number().optional(),
-  customerId: z.number().optional(),
+  customerId: z.number().nullable().optional(),
+  groupId: z.number().nullable().optional(),
   remark: z.string().optional(),
   status: z.enum(['active', 'inactive']).default('active'),
 });
@@ -132,7 +133,7 @@ export async function GET(request: NextRequest) {
     });
   } catch (error: any) {
     console.error('获取物料列表失败:', error);
-    return serverErrorResponse(error.message);
+    return serverErrorResponse(validation.error.message);
   }
 }
 
@@ -146,7 +147,7 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const validation = materialSchema.safeParse(body);
     if (!validation.success) {
-      return badRequestResponse(validation.error.errors[0].message);
+      return badRequestResponse(validation.error.message);
     }
 
     const data = validation.data;
@@ -190,6 +191,6 @@ export async function POST(request: NextRequest) {
     return successResponse(material, '物料创建成功');
   } catch (error: any) {
     console.error('创建物料失败:', error);
-    return serverErrorResponse(error.message);
+    return serverErrorResponse(validation.error.message);
   }
 }
