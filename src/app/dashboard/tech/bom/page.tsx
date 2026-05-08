@@ -337,8 +337,13 @@ export default function BOMManagementPage() {
   useEffect(() => {
     // 只有当有筛选条件时才执行展开逻辑
     const hasFilter = filterType || filterGroupId || filterName;
-    if (!hasFilter || treeData.length === 0) {
+    if (treeData.length === 0) {
+      return;
+    }
+
+    if (!hasFilter) {
       // 清空筛选时折叠所有
+      setExpandedKeys(new Set());
       return;
     }
 
