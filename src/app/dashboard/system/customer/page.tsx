@@ -159,9 +159,13 @@ export default function CustomerPage() {
       const url = editingCustomer?.id ? `/api/customer/${editingCustomer.id}` : '/api/customer';
       const method = editingCustomer?.id ? 'PUT' : 'POST';
 
+      const token = localStorage.getItem('token') || '';
       const res = await fetch(url, {
         method,
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
         body: JSON.stringify(form),
       });
 
@@ -185,6 +189,7 @@ export default function CustomerPage() {
     try {
       const res = await fetch(`/api/customer/${id}`, {
         method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` },
       });
       const data = await res.json();
       if (data.code === 200) {
@@ -250,9 +255,13 @@ export default function CustomerPage() {
     if (!currentCustomer?.id) return;
 
     try {
+      const token = localStorage.getItem('token') || '';
       const res = await fetch(`/api/customer/${currentCustomer.id}/contact`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
         body: JSON.stringify({ contacts: editingContacts }),
       });
 
