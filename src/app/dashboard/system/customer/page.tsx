@@ -213,7 +213,7 @@ export default function CustomerPage() {
 
   const handleViewContact = (contact: CustomerContact) => {
     setSelectedContact(contact);
-    setContactDetailModal(true);
+    setShowContactDetail(true);
   };
 
   const handleAddContact = () => {
@@ -362,10 +362,14 @@ export default function CustomerPage() {
                 <td className="px-4 py-3 text-center">
                   <div className="flex justify-center gap-2">
                     <button
-                      onClick={() => handleOpenContacts(customer)}
+                      onClick={() => {
+                        setCurrentCustomer(customer);
+                        setEditingContacts(customer.contacts || []);
+                        setShowContactModal(true);
+                      }}
                       className="px-2 py-1 text-xs bg-green-50 text-green-600 rounded hover:bg-green-100"
                     >
-                      联系人
+                      添加联系人
                     </button>
                     <button
                       onClick={() => handleOpenModal(customer)}
