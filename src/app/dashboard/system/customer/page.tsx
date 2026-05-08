@@ -199,9 +199,6 @@ export default function CustomerPage() {
     }
   };
 
-  const [contactDetailModal, setContactDetailModal] = useState(false);
-  const [selectedContact, setSelectedContact] = useState<CustomerContact | null>(null);
-
   const postTypeLabels: Record<string, string> = {
     boss: '老板',
     finance: '财务',
