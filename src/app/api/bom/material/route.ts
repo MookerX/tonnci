@@ -34,14 +34,19 @@ const materialSchema = z.object({
 async function generateInternalCode(materialType: string): Promise<string> {
   const prefix = MATERIAL_TYPE_PREFIX[materialType] || 'XX';
   
-  // 获取该类型物料的最大序号
-  const result = await prisma.$queryRaw<[{cnt: bigint}][]>`
-    SELECT COUNT(*) as cnt FROM material 
-    WHERE material_type = ${materialType} AND is_delete = 0
+  // 获取该类型物料的最大编码序号（不过滤软删除，避免重复）
+  const result = await prisma.$queryRaw<[{max_code: string | null}][]>`
+    SELECT MAX(internal_code) as max_code FROM material 
+    WHERE material_type = ${materialType} AND internal_code LIKE ${prefix + '%'}
   `;
-  const count = Number(result[0]?.cnt || 0);
+  const maxCode = result[0]?.max_code;
+  let nextNum = 1;
+  if (maxCode) {
+    const numStr = maxCode.replace(prefix, '');
+    nextNum = parseInt(numStr) + 1;
+  }
   
-  return `${prefix}${String(count + 1).padStart(8, '0')}`;
+  return `${prefix}${String(nextNum).padStart(8, '0')}`;
 }
 
 /** GET /api/bom/material - 获取物料列表 */
@@ -54,6 +59,7 @@ export async function GET(request: NextRequest) {
     const keyword = searchParams.get('keyword') || '';
     const materialType = searchParams.get('type');
     const customerId = searchParams.get('customerId');
+    const groupId = searchParams.get('groupId');
     const status = searchParams.get('status');
     const page = parseInt(searchParams.get('page') || '1');
     const pageSize = parseInt(searchParams.get('pageSize') || '50');
@@ -73,7 +79,15 @@ export async function GET(request: NextRequest) {
       where.materialType = materialType;
     }
     
-    if (customerId) {
+    if (groupId) {
+      // 按客户群组查询
+      const groupCustomers = await prisma.customer.findMany({
+        where: { groupId: parseInt(groupId), isDelete: false },
+        select: { id: true },
+      });
+      const customerIds = groupCustomers.map((c: { id: number }) => c.id);
+      where.customerId = { in: customerIds };
+    } else if (customerId) {
       where.customerId = parseInt(customerId);
     }
     

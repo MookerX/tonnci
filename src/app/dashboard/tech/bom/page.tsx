@@ -37,11 +37,19 @@ interface Material {
   processId?: number | null;
 }
 
+interface CustomerGroup {
+  id: number;
+  groupCode: string;
+  groupName: string;
+  customerCount?: number;
+}
+
 interface Customer {
   id: number;
   customerCode: string;
   customerName: string;
   customerType: string;
+  groupId: number | null;
 }
 
 const materialTypeOptions = [
@@ -69,7 +77,7 @@ export default function BOMManagementPage() {
   // 树形视图状态
   const [treeData, setTreeData] = useState<TreeNode[]>([]);
   const [expandedIds, setExpandedIds] = useState<Set<number>>(new Set());
-  const [selectedCustomerId, setSelectedCustomerId] = useState<number | null>(null);
+  const [selectedGroupId, setSelectedGroupId] = useState<number | null>(null);
   const [selectedMaterialId, setSelectedMaterialId] = useState<number | null>(null);
   
   // 列表视图状态
@@ -78,7 +86,9 @@ export default function BOMManagementPage() {
   const [filterType, setFilterType] = useState('');
   const [filterCustomer, setFilterCustomer] = useState<number | null>(null);
   
-  // 客户列表
+  // 群组列表
+  const [customerGroups, setCustomerGroups] = useState<CustomerGroup[]>([]);
+  // 客户列表（当前群组下的客户）
   const [customers, setCustomers] = useState<Customer[]>([]);
   
   // 弹窗状态
@@ -112,18 +122,25 @@ export default function BOMManagementPage() {
 
   useEffect(() => {
     if (token) {
-      fetchCustomers();
-      if (selectedCustomerId) {
-        fetchBOMTree();
-      }
+      fetchCustomerGroups();
     }
-  }, [token, selectedCustomerId]);
+  }, [token]);
+
+  useEffect(() => {
+    if (token && selectedGroupId) {
+      fetchBOMTree();
+      fetchGroupCustomers();
+    } else {
+      setTreeData([]);
+      setCustomers([]);
+    }
+  }, [token, selectedGroupId]);
 
   useEffect(() => {
     if (token) {
       fetchMaterials();
     }
-  }, [token, searchKeyword, filterType, filterCustomer]);
+  }, [token, searchKeyword, filterType, filterCustomer, selectedGroupId]);
 
   const fetchApi = async (url: string, options: RequestInit = {}) => {
     const res = await fetch(url, {
@@ -136,16 +153,25 @@ export default function BOMManagementPage() {
     return res.json();
   };
 
-  const fetchCustomers = async () => {
+  const fetchCustomerGroups = async () => {
+    const res = await fetchApi('/api/customer-group?pageSize=1000');
+    if (res.code === 200) {
+      setCustomerGroups(res.data?.list || []);
+    }
+  };
+
+  const fetchGroupCustomers = async () => {
+    if (!selectedGroupId) return;
     const res = await fetchApi('/api/customer?pageSize=1000');
     if (res.code === 200) {
-      setCustomers(res.data?.list || []);
+      const allCustomers = res.data?.list || [];
+      setCustomers(allCustomers.filter((c: Customer) => c.groupId === selectedGroupId));
     }
   };
 
   const fetchBOMTree = async () => {
-    if (!selectedCustomerId) return;
-    const res = await fetchApi(`/api/bom?customerId=${selectedCustomerId}`);
+    if (!selectedGroupId) return;
+    const res = await fetchApi(`/api/bom?groupId=${selectedGroupId}`);
     if (res.code === 200) {
       setTreeData(res.data || []);
       // 自动展开第一层
@@ -162,6 +188,7 @@ export default function BOMManagementPage() {
     const params = new URLSearchParams();
     if (searchKeyword) params.append('keyword', searchKeyword);
     if (filterType) params.append('materialType', filterType);
+    if (selectedGroupId) params.append('groupId', selectedGroupId.toString());
     if (filterCustomer) params.append('customerId', filterCustomer.toString());
     if (params.toString()) url += '&' + params.toString();
     
@@ -191,7 +218,7 @@ export default function BOMManagementPage() {
       materialType: 'part',
       quantity: 1,
       remark: '',
-      customerId: selectedCustomerId,
+      customerId: null,
     });
     setShowMaterialModal(true);
   };
@@ -207,7 +234,7 @@ export default function BOMManagementPage() {
       materialType: 'part',
       quantity: 1,
       remark: '',
-      customerId: selectedCustomerId,
+      customerId: null,
     });
     setShowMaterialModal(true);
   };
@@ -248,7 +275,7 @@ export default function BOMManagementPage() {
 
     if (res.code === 200) {
       setShowMaterialModal(false);
-      if (selectedCustomerId) fetchBOMTree();
+      if (selectedGroupId) fetchBOMTree();
       fetchMaterials();
     } else {
       alert(res.message || '保存失败');
@@ -274,7 +301,7 @@ export default function BOMManagementPage() {
     
     const res = await fetchApi(`/api/bom/material/${id}`, { method: 'DELETE' });
     if (res.code === 200) {
-      if (selectedCustomerId) fetchBOMTree();
+      if (selectedGroupId) fetchBOMTree();
       fetchMaterials();
     } else {
       alert(res.message || '删除失败');
@@ -287,7 +314,7 @@ export default function BOMManagementPage() {
 
     const formData = new FormData();
     formData.append('file', file);
-    formData.append('customerId', selectedCustomerId?.toString() || '');
+    formData.append('groupId', selectedGroupId?.toString() || '');
 
     const res = await fetchApi('/api/bom/material/import', {
       method: 'POST',
@@ -313,7 +340,7 @@ export default function BOMManagementPage() {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        customerId: selectedCustomerId,
+        groupId: selectedGroupId,
         materials: validData,
       }),
     });
@@ -436,13 +463,16 @@ export default function BOMManagementPage() {
           <div className="flex items-center gap-4">
             <h2 className="text-lg font-semibold">BOM管理</h2>
             <select
-              value={selectedCustomerId || ''}
-              onChange={e => setSelectedCustomerId(e.target.value ? parseInt(e.target.value) : null)}
+              value={selectedGroupId || ''}
+              onChange={e => {
+                setSelectedGroupId(e.target.value ? parseInt(e.target.value) : null);
+                setFilterCustomer(null);
+              }}
               className="px-3 py-1.5 border border-gray-300 rounded-lg text-sm"
             >
-              <option value="">选择客户</option>
-              {customers.map(c => (
-                <option key={c.id} value={c.id}>{c.customerName}</option>
+              <option value="">选择客户群组</option>
+              {customerGroups.map(g => (
+                <option key={g.id} value={g.id}>{g.groupName}</option>
               ))}
             </select>
           </div>
@@ -456,7 +486,7 @@ export default function BOMManagementPage() {
             </button>
             <button
               onClick={() => setShowImportModal(true)}
-              disabled={!selectedCustomerId}
+              disabled={!selectedGroupId}
               className="flex items-center gap-1 px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-100 rounded-lg disabled:opacity-50"
             >
               <Upload className="w-4 h-4" />
@@ -464,7 +494,7 @@ export default function BOMManagementPage() {
             </button>
             <button
               onClick={handleAddRootMaterial}
-              disabled={!selectedCustomerId}
+              disabled={!selectedGroupId}
               className="flex items-center gap-1 px-3 py-1.5 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
             >
               <Plus className="w-4 h-4" />
@@ -506,9 +536,9 @@ export default function BOMManagementPage() {
       <div className="flex-1 overflow-auto">
         {activeTab === 'tree' ? (
           <div>
-            {!selectedCustomerId ? (
+            {!selectedGroupId ? (
               <div className="flex items-center justify-center h-64 text-gray-400">
-                请先选择客户
+                请先选择客户群组
               </div>
             ) : treeData.length === 0 ? (
               <div className="flex flex-col items-center justify-center h-64 text-gray-400">
@@ -695,6 +725,21 @@ export default function BOMManagementPage() {
                   />
                 </div>
               </div>
+              {customers.length > 0 && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">所属客户</label>
+                  <select
+                    value={formData.customerId || ''}
+                    onChange={e => setFormData({ ...formData, customerId: e.target.value ? parseInt(e.target.value) : null })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                  >
+                    <option value="">选择客户</option>
+                    {customers.map(c => (
+                      <option key={c.id} value={c.id}>{c.customerName} ({c.customerCode})</option>
+                    ))}
+                  </select>
+                </div>
+              )}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">备注</label>
                 <textarea

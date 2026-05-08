@@ -13,6 +13,7 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const rootMaterialId = searchParams.get('rootMaterialId');
     const customerId = searchParams.get('customerId');
+    const groupId = searchParams.get('groupId');
     const keyword = searchParams.get('keyword');
 
     // 获取顶层物料（BOM根节点）
@@ -21,7 +22,15 @@ export async function GET(request: NextRequest) {
       parentMaterials: { some: { isDelete: false } },
     };
 
-    if (customerId) {
+    if (groupId) {
+      // 按客户群组查询：群组内所有客户共用技术资料
+      const groupCustomers = await prisma.customer.findMany({
+        where: { groupId: parseInt(groupId), isDelete: false },
+        select: { id: true },
+      });
+      const customerIds = groupCustomers.map((c: { id: number }) => c.id);
+      where.customerId = { in: customerIds };
+    } else if (customerId) {
       where.customerId = parseInt(customerId);
     }
 
