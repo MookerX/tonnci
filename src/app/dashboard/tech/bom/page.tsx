@@ -128,6 +128,8 @@ export default function BOMManagementPage() {
   const [importData, setImportData] = useState<any[]>([]);
   const [importErrors, setImportErrors] = useState<Record<number, string>>({});
   const [editedImportData, setEditedImportData] = useState<any[]>([]);
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [deleteMaterial, setDeleteMaterial] = useState<Material | null>(null);
 
   useEffect(() => {
     const stored = localStorage.getItem('token');
@@ -354,12 +356,13 @@ export default function BOMManagementPage() {
     }
   };
 
-  const handleDeleteMaterial = async (id: number, name: string = '该物料') => {
-    setDeleteDialog({ open: true, id, name });
+  const handleDeleteMaterial = async (material: Material) => {
+    setDeleteMaterial(material);
+    setDeleteConfirmOpen(true);
   };
 
   const confirmDeleteMaterial = async () => {
-    const id = deleteDialog.id;
+    const id = deleteMaterial?.id;
     if (!id) return;
     
     const res = await fetchApi(`/api/bom/material/${id}`, { method: 'DELETE' });
@@ -370,7 +373,8 @@ export default function BOMManagementPage() {
     } else {
       error(res.message || '删除失败');
     }
-    setDeleteDialog({ open: false, id: null, name: '' });
+    setDeleteConfirmOpen(false);
+    setDeleteMaterial(null);
   };
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -548,7 +552,7 @@ export default function BOMManagementPage() {
                 <Edit2 className="w-4 h-4" />
               </button>
               <button
-                onClick={() => handleDeleteMaterial(node.id, node.materialName)}
+                onClick={() => handleDeleteMaterial(node)}
                 className="p-1 text-red-600 hover:bg-red-50 rounded"
                 title="删除"
               >
@@ -1040,9 +1044,9 @@ export default function BOMManagementPage() {
       {/* 删除确认对话框 */}
       <ConfirmDialog
         open={deleteDialog.open}
-        onOpenChange={(open) => setDeleteDialog({ ...deleteDialog, open })}
+        onOpenChange={(open) => setDeleteConfirmOpen(open)}
         title="确认删除"
-        description={`确定要删除物料"${deleteDialog.name}"吗？此操作不可恢复。`}
+        description={`确定要删除物料"${deleteMaterial?.materialName}"吗？此操作不可恢复。`}
         confirmText="删除"
         variant="destructive"
         onConfirm={confirmDeleteMaterial}
