@@ -106,7 +106,6 @@ export default function BOMManagementPage() {
     materialType: 'part',
     quantity: 1,
     remark: '',
-    customerId: null as number | null,
   });
   
   // 导入状态
@@ -212,13 +211,12 @@ export default function BOMManagementPage() {
     setParentMaterialId(null);
     setFormData({
       materialName: '',
-      internalCode: '',
+      internalCode: generateTempCode('part'),
       drawingCode: '',
       drawingNumber: '',
       materialType: 'part',
       quantity: 1,
       remark: '',
-      customerId: null,
     });
     setShowMaterialModal(true);
   };
@@ -228,13 +226,12 @@ export default function BOMManagementPage() {
     setParentMaterialId(parentId);
     setFormData({
       materialName: '',
-      internalCode: '',
+      internalCode: generateTempCode('part'),
       drawingCode: '',
       drawingNumber: '',
       materialType: 'part',
       quantity: 1,
       remark: '',
-      customerId: null,
     });
     setShowMaterialModal(true);
   };
@@ -250,7 +247,6 @@ export default function BOMManagementPage() {
       materialType: material.materialType,
       quantity: 1,
       remark: material.remark || '',
-      customerId: material.customerId,
     });
     setShowMaterialModal(true);
   };
@@ -261,16 +257,34 @@ export default function BOMManagementPage() {
       return;
     }
 
-    const url = editingMaterial 
+    const url = editingMaterial
       ? `/api/bom/material/${editingMaterial.id}`
       : '/api/bom/material';
-    
+
     const method = editingMaterial ? 'PUT' : 'POST';
-    
+
+    // 新增时，如果内部编码为空则通过API自动生成
+    let payload: any = { ...formData };
+    if (!editingMaterial && !payload.internalCode) {
+      try {
+        const codeRes = await fetch('/api/bom/material/next-code', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ materialType: payload.materialType }),
+        });
+        const codeData = await codeRes.json();
+        if (codeData.code === 200) {
+          payload.internalCode = codeData.data;
+        }
+      } catch {
+        // 忽略，继续使用空编码
+      }
+    }
+
     const res = await fetchApi(url, {
       method,
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(formData),
+      body: JSON.stringify(payload),
     });
 
     if (res.code === 200) {
@@ -725,21 +739,6 @@ export default function BOMManagementPage() {
                   />
                 </div>
               </div>
-              {customers.length > 0 && (
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">所属客户</label>
-                  <select
-                    value={formData.customerId || ''}
-                    onChange={e => setFormData({ ...formData, customerId: e.target.value ? parseInt(e.target.value) : null })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg"
-                  >
-                    <option value="">选择客户</option>
-                    {customers.map(c => (
-                      <option key={c.id} value={c.id}>{c.customerName} ({c.customerCode})</option>
-                    ))}
-                  </select>
-                </div>
-              )}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">备注</label>
                 <textarea

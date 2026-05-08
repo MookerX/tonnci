@@ -210,7 +210,6 @@ export async function getUserFromToken(request: Request) {
       email: true,
       phone: true,
       status: true,
-      roles: { select: { id: true, roleCode: true, roleName: true } },
     },
   });
 
