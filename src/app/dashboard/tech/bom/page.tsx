@@ -1043,7 +1043,7 @@ export default function BOMManagementPage() {
 
       {/* 删除确认对话框 */}
       <ConfirmDialog
-        open={deleteDialog.open}
+        open={deleteConfirmOpen}
         onOpenChange={(open) => setDeleteConfirmOpen(open)}
         title="确认删除"
         description={`确定要删除物料"${deleteMaterial?.materialName}"吗？此操作不可恢复。`}
