@@ -3,6 +3,8 @@ import { prisma } from '@/lib/prisma';
 import { requireAuth } from '@/lib/auth/middleware';
 import { successResponse, badRequestResponse, serverErrorResponse, notFoundResponse } from '@/lib/response';
 import { z } from 'zod';
+import { operationLog } from '@/lib/services/operation-log';
+import { getClientIp } from '@/lib/utils';
 
 const customerTypeMap: Record<string, string> = {
   '企业': 'enterprise',
@@ -137,6 +139,16 @@ export async function PUT(
       data: updateData,
     });
 
+    // 记录操作日志
+    await operationLog.logUpdate(
+      '客户管理',
+      authResult.userId,
+      authResult.username,
+      { customerCode: existing.customerCode, customerName: existing.customerName, ...existing },
+      { customerCode: existing.customerCode, customerName: customer.customerName, ...customer },
+      getClientIp(request)
+    );
+
     return successResponse(customer, '客户更新成功');
   } catch (error: any) {
     console.error('更新客户失败:', error);
@@ -178,6 +190,15 @@ export async function DELETE(
       where: { id: parseInt(id) },
       data: { isDelete: true, modifiedBy: authResult.userId },
     });
+
+    // 记录操作日志
+    await operationLog.logDelete(
+      '客户管理',
+      authResult.userId,
+      authResult.username,
+      { customerCode: existing.customerCode, customerName: existing.customerName },
+      getClientIp(request)
+    );
 
     return successResponse(null, '客户删除成功');
   } catch (error: any) {

@@ -3,6 +3,8 @@ import { prisma } from '@/lib/prisma';
 import { requireAuth } from '@/lib/auth/middleware';
 import { successResponse, badRequestResponse, serverErrorResponse } from '@/lib/response';
 import { z } from 'zod';
+import { operationLog } from '@/lib/services/operation-log';
+import { getClientIp } from '@/lib/utils';
 
 // 前端发送的表单格式（兼容嵌套 invoiceInfo 和旧的 contactPerson/contactPhone 字段）
 const customerSchema = z.object({
@@ -175,6 +177,15 @@ export async function POST(request: NextRequest) {
       },
     });
 
+    // 记录操作日志
+    await operationLog.logCreate(
+      '客户管理',
+      authResult.userId,
+      authResult.username,
+      { customerCode, customerName: mappedData.customerName, customerType: mappedData.customerType },
+      getClientIp(request)
+    );
+
     return successResponse(customer, '客户创建成功');
   } catch (error: any) {
     console.error('创建客户失败:', error);
@@ -182,7 +193,7 @@ export async function POST(request: NextRequest) {
   }
 }
 
-// 生成客户编码：查找当前最大编号+1，避免软删除导致重复
+// 生成客户编码查找当前最大编号+1，避免软删除导致重复
 async function generateCustomerCode(): Promise<string> {
   const result = await prisma.$queryRaw<[{maxCode: string | null}][]>`
     SELECT MAX(customer_code) as maxCode FROM customer
