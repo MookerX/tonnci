@@ -35,6 +35,8 @@ interface Material {
   remark: string | null;
   customerId: number | null;
   customerName?: string;
+  groupId: number | null;
+  customerGroupName?: string;
   processId?: number | null;
 }
 
@@ -79,14 +81,12 @@ export default function BOMManagementPage() {
   // 树形视图状态
   const [treeData, setTreeData] = useState<TreeNode[]>([]);
   const [expandedIds, setExpandedIds] = useState<Set<number>>(new Set());
-  const [selectedGroupId, setSelectedGroupId] = useState<number | null>(null);
   const [selectedMaterialId, setSelectedMaterialId] = useState<number | null>(null);
   
   // 列表视图状态
   const [materials, setMaterials] = useState<Material[]>([]);
   const [searchKeyword, setSearchKeyword] = useState('');
   const [filterType, setFilterType] = useState('');
-  const [filterCustomer, setFilterCustomer] = useState<number | null>(null);
   
   // 群组列表
   const [customerGroups, setCustomerGroups] = useState<CustomerGroup[]>([]);
@@ -106,9 +106,13 @@ export default function BOMManagementPage() {
     drawingCode: '',
     drawingNo: '',
     materialType: 'part',
+    groupId: null as number | null,
     quantity: 1,
     remark: '',
   });
+  
+  // 导入时选择的客户群组
+  const [importGroupId, setImportGroupId] = useState<number | null>(null);
   
   // 导入状态
   const [importStep, setImportStep] = useState(1);
@@ -128,20 +132,20 @@ export default function BOMManagementPage() {
   }, [token]);
 
   useEffect(() => {
-    if (token && selectedGroupId) {
+    if (token) {
       fetchBOMTree();
       fetchGroupCustomers();
     } else {
       setTreeData([]);
       setCustomers([]);
     }
-  }, [token, selectedGroupId]);
+  }, [token]);
 
   useEffect(() => {
     if (token) {
       fetchMaterials();
     }
-  }, [token, searchKeyword, filterType, filterCustomer, selectedGroupId]);
+  }, [token, searchKeyword, filterType]);
 
   const fetchApi = async (url: string, options: RequestInit = {}) => {
     const res = await fetch(url, {
@@ -162,17 +166,14 @@ export default function BOMManagementPage() {
   };
 
   const fetchGroupCustomers = async () => {
-    if (!selectedGroupId) return;
     const res = await fetchApi('/api/customer?pageSize=1000');
     if (res.code === 200) {
-      const allCustomers = res.data?.list || [];
-      setCustomers(allCustomers.filter((c: Customer) => c.groupId === selectedGroupId));
+      setCustomers(res.data?.list || []);
     }
   };
 
   const fetchBOMTree = async () => {
-    if (!selectedGroupId) return;
-    const res = await fetchApi(`/api/bom?groupId=${selectedGroupId}`);
+    const res = await fetchApi(`/api/bom`);
     if (res.code === 200) {
       setTreeData(res.data || []);
       // 自动展开第一层
@@ -189,8 +190,6 @@ export default function BOMManagementPage() {
     const params = new URLSearchParams();
     if (searchKeyword) params.append('keyword', searchKeyword);
     if (filterType) params.append('materialType', filterType);
-    if (selectedGroupId) params.append('groupId', selectedGroupId.toString());
-    if (filterCustomer) params.append('customerId', filterCustomer.toString());
     if (params.toString()) url += '&' + params.toString();
     
     const res = await fetchApi(url);
@@ -217,13 +216,14 @@ export default function BOMManagementPage() {
       drawingCode: '',
       drawingNo: '',
       materialType: 'part',
+      groupId: null,
       quantity: 1,
       remark: '',
     });
     setShowMaterialModal(true);
   };
 
-  const handleAddChildMaterial = (parentId: number) => {
+  const handleAddChildMaterial = (parentId: number, parentGroupId: number | null) => {
     setEditingMaterial(null);
     setParentMaterialId(parentId);
     setFormData({
@@ -232,6 +232,7 @@ export default function BOMManagementPage() {
       drawingCode: '',
       drawingNo: '',
       materialType: 'part',
+      groupId: parentGroupId,
       quantity: 1,
       remark: '',
     });
@@ -247,6 +248,7 @@ export default function BOMManagementPage() {
       drawingCode: material.drawingCode || '',
       drawingNo: material.drawingNo || '',
       materialType: material.materialType,
+      groupId: material.groupId,
       quantity: 1,
       remark: material.remark || '',
     });
@@ -258,6 +260,10 @@ export default function BOMManagementPage() {
       warning('物料名称不能为空');
       return;
     }
+    if (!editingMaterial && !formData.groupId) {
+      warning('请选择所属客户群组');
+      return;
+    }
 
     const url = editingMaterial
       ? `/api/bom/material/${editingMaterial.id}`
@@ -266,7 +272,7 @@ export default function BOMManagementPage() {
     const method = editingMaterial ? 'PUT' : 'POST';
 
     // 新增时，如果内部编码为空则通过API自动生成
-    let payload: any = { ...formData, groupId: selectedGroupId };
+    let payload: any = { ...formData };
     if (!editingMaterial && !payload.internalCode) {
       try {
         const codeRes = await fetch('/api/bom/material/next-code', {
@@ -296,7 +302,9 @@ export default function BOMManagementPage() {
     if (res.code === 200) {
       setShowMaterialModal(false);
       success(editingMaterial ? '物料更新成功' : '物料创建成功');
-      if (selectedGroupId) fetchBOMTree();
+      if (formData.groupId) {
+        fetchBOMTree(formData.groupId);
+      }
       fetchMaterials();
     } else {
       error(res.message || '保存失败');
@@ -324,7 +332,7 @@ export default function BOMManagementPage() {
     const res = await fetchApi(`/api/bom/material/${id}`, { method: 'DELETE' });
     if (res.code === 200) {
       success('物料删除成功');
-      if (selectedGroupId) fetchBOMTree();
+      fetchBOMTree();
       fetchMaterials();
     } else {
       error(res.message || '删除失败');
@@ -334,10 +342,14 @@ export default function BOMManagementPage() {
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    if (!importGroupId) {
+      warning('请先选择客户群组');
+      return;
+    }
 
     const formData = new FormData();
     formData.append('file', file);
-    formData.append('groupId', selectedGroupId?.toString() || '');
+    formData.append('groupId', importGroupId.toString());
 
     const res = await fetchApi('/api/bom/material/import', {
       method: 'POST',
@@ -363,7 +375,7 @@ export default function BOMManagementPage() {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        groupId: selectedGroupId,
+        groupId: importGroupId,
         materials: validData,
       }),
     });
@@ -375,7 +387,10 @@ export default function BOMManagementPage() {
       setImportData([]);
       setEditedImportData([]);
       setImportErrors({});
-      fetchBOMTree();
+      setImportGroupId(null);
+      if (importGroupId) {
+        fetchBOMTree(importGroupId);
+      }
       fetchMaterials();
     } else {
       error(res.message || '导入失败');
@@ -430,7 +445,7 @@ export default function BOMManagementPage() {
               </button>
               {!node.parentId && (
                 <button
-                  onClick={() => handleAddChildMaterial(node.id)}
+                  onClick={() => handleAddChildMaterial(node.id, node.groupId)}
                   className="p-1 text-green-600 hover:bg-green-50 rounded"
                   title="添加子物料"
                 >
@@ -485,19 +500,6 @@ export default function BOMManagementPage() {
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
             <h2 className="text-lg font-semibold">BOM管理</h2>
-            <select
-              value={selectedGroupId || ''}
-              onChange={e => {
-                setSelectedGroupId(e.target.value ? parseInt(e.target.value) : null);
-                setFilterCustomer(null);
-              }}
-              className="px-3 py-1.5 border border-gray-300 rounded-lg text-sm"
-            >
-              <option value="">选择客户群组</option>
-              {customerGroups.map(g => (
-                <option key={g.id} value={g.id}>{g.groupName}</option>
-              ))}
-            </select>
           </div>
           <div className="flex items-center gap-2">
             <button
@@ -508,17 +510,15 @@ export default function BOMManagementPage() {
               导入模板
             </button>
             <button
-              onClick={() => setShowImportModal(true)}
-              disabled={!selectedGroupId}
-              className="flex items-center gap-1 px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-100 rounded-lg disabled:opacity-50"
+              onClick={() => { setImportGroupId(null); setShowImportModal(true); }}
+              className="flex items-center gap-1 px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-100 rounded-lg"
             >
               <Upload className="w-4 h-4" />
               Excel导入
             </button>
             <button
               onClick={handleAddRootMaterial}
-              disabled={!selectedGroupId}
-              className="flex items-center gap-1 px-3 py-1.5 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
+              className="flex items-center gap-1 px-3 py-1.5 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700"
             >
               <Plus className="w-4 h-4" />
               新增顶层物料
@@ -559,11 +559,7 @@ export default function BOMManagementPage() {
       <div className="flex-1 overflow-auto">
         {activeTab === 'tree' ? (
           <div>
-            {!selectedGroupId ? (
-              <div className="flex items-center justify-center h-64 text-gray-400">
-                请先选择客户群组
-              </div>
-            ) : treeData.length === 0 ? (
+            {treeData.length === 0 ? (
               <div className="flex flex-col items-center justify-center h-64 text-gray-400">
                 <FolderTree className="w-12 h-12 mb-2" />
                 <p>暂无BOM数据</p>
@@ -611,16 +607,6 @@ export default function BOMManagementPage() {
                 <option value="">全部类型</option>
                 {materialTypeOptions.map(t => (
                   <option key={t.value} value={t.value}>{t.label}</option>
-                ))}
-              </select>
-              <select
-                value={filterCustomer || ''}
-                onChange={e => setFilterCustomer(e.target.value ? parseInt(e.target.value) : null)}
-                className="px-3 py-1.5 border border-gray-300 rounded-lg text-sm"
-              >
-                <option value="">全部客户</option>
-                {customers.map(c => (
-                  <option key={c.id} value={c.id}>{c.customerName}</option>
                 ))}
               </select>
               <button
@@ -692,6 +678,21 @@ export default function BOMManagementPage() {
               </button>
             </div>
             <div className="p-4 space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  客户群组 <span className="text-red-500">*</span>
+                </label>
+                <select
+                  value={formData.groupId || ''}
+                  onChange={e => setFormData({ ...formData, groupId: e.target.value ? parseInt(e.target.value) : null })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                >
+                  <option value="">请选择客户群组</option>
+                  {customerGroups.map(g => (
+                    <option key={g.id} value={g.id}>{g.groupName}</option>
+                  ))}
+                </select>
+              </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   物料名称 <span className="text-red-500">*</span>
@@ -790,6 +791,21 @@ export default function BOMManagementPage() {
             <div className="p-4">
               {importStep === 1 && (
                 <div className="flex flex-col items-center justify-center py-12">
+                  <div className="mb-4 w-full max-w-xs">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      客户群组 <span className="text-red-500">*</span>
+                    </label>
+                    <select
+                      value={importGroupId || ''}
+                      onChange={e => setImportGroupId(e.target.value ? parseInt(e.target.value) : null)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                    >
+                      <option value="">请选择客户群组</option>
+                      {customerGroups.map(g => (
+                        <option key={g.id} value={g.id}>{g.groupName}</option>
+                      ))}
+                    </select>
+                  </div>
                   <Upload className="w-16 h-16 text-gray-300 mb-4" />
                   <p className="text-gray-600 mb-4">请上传Excel文件</p>
                   <input
