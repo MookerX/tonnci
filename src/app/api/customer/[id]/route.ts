@@ -17,6 +17,7 @@ const customerTypeMap: Record<string, string> = {
 const updateSchema = z.object({
   customerName: z.string().min(1, '客户名称不能为空').optional(),
   customerType: z.string().optional(),
+  groupId: z.number().nullable().optional(),
   // 前端可能发送 invoiceInfo 嵌套对象
   invoiceInfo: z.object({
     companyName: z.string().optional(),
@@ -59,7 +60,10 @@ export async function GET(
 
     const customer = await prisma.customer.findFirst({
       where: { id: parseInt(id), isDelete: false },
-      include: { contacts: { where: { isDelete: false }, orderBy: { isPrimary: 'desc' } } },
+      include: {
+        contacts: { where: { isDelete: false }, orderBy: { isPrimary: 'desc' } },
+        group: { select: { id: true, groupCode: true, groupName: true } },
+      },
     });
 
     if (!customer) {
@@ -69,6 +73,8 @@ export async function GET(
     // 构造前端兼容的数据格式
     const result = {
       ...customer,
+      groupName: customer.group?.groupName || '',
+      groupCode: customer.group?.groupCode || '',
       invoiceInfo: {
         companyName: customer.invoiceName || '',
         taxId: customer.taxNo || '',
@@ -116,6 +122,7 @@ export async function PUT(
     const updateData: any = { modifiedBy: authResult.userId };
     if (body.customerName) updateData.customerName = body.customerName;
     if (body.customerType) updateData.customerType = customerTypeMap[body.customerType] || body.customerType;
+    if (body.groupId !== undefined) updateData.groupId = body.groupId || null;
     // 开票信息：优先从 invoiceInfo 嵌套对象取
     if (invoiceInfo.companyName !== undefined) updateData.invoiceName = invoiceInfo.companyName || null;
     else if (body.invoiceName !== undefined) updateData.invoiceName = body.invoiceName || null;

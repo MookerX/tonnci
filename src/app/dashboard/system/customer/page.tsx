@@ -62,6 +62,7 @@ export default function CustomerPage() {
   const [form, setForm] = useState({
     customerName: '',
     customerType: 'enterprise' as 'enterprise' | 'personal',
+    groupId: null as number | null,
     address: '',
     remark: '',
     invoiceInfo: {
@@ -73,6 +74,7 @@ export default function CustomerPage() {
       bankAccount: '',
     },
   });
+  const [groupList, setGroupList] = useState<{id: number; groupCode: string; groupName: string}[]>([]);
   const [contactForm, setContactForm] = useState({
     contactName: '',
     postType: 'business',
@@ -84,7 +86,18 @@ export default function CustomerPage() {
 
   useEffect(() => {
     fetchCustomers();
+    fetchGroups();
   }, []);
+
+  const fetchGroups = async () => {
+    try {
+      const res = await fetch('/api/customer-group?pageSize=999');
+      const data = await res.json();
+      if (data.code === 200) {
+        setGroupList(data.data.list || []);
+      }
+    } catch (e) { /* ignore */ }
+  };
 
   const fetchCustomers = async () => {
     try {
@@ -120,6 +133,7 @@ export default function CustomerPage() {
       setForm({
         customerName: customer.customerName || '',
         customerType: customer.customerType || 'enterprise',
+        groupId: customer.groupId || null,
         address: customer.address || '',
         remark: customer.remark || '',
         invoiceInfo: {
@@ -136,6 +150,7 @@ export default function CustomerPage() {
       setForm({
         customerName: '',
         customerType: 'enterprise',
+        groupId: null,
         address: '',
         remark: '',
         invoiceInfo: {
@@ -347,6 +362,7 @@ export default function CustomerPage() {
               <th className="px-4 py-3 text-left text-sm font-medium text-gray-600">客户编码</th>
               <th className="px-4 py-3 text-left text-sm font-medium text-gray-600">客户名称</th>
               <th className="px-4 py-3 text-left text-sm font-medium text-gray-600">类型</th>
+              <th className="px-4 py-3 text-left text-sm font-medium text-gray-600">群组</th>
               <th className="px-4 py-3 text-left text-sm font-medium text-gray-600">联系人</th>
               <th className="px-4 py-3 text-left text-sm font-medium text-gray-600">创建时间</th>
               <th className="px-4 py-3 text-center text-sm font-medium text-gray-600">操作</th>
@@ -365,6 +381,13 @@ export default function CustomerPage() {
                   }`}>
                     {customer.customerType === 'enterprise' ? '企业' : '个人'}
                   </span>
+                </td>
+                <td className="px-4 py-3 text-sm">
+                  {customer.groupName ? (
+                    <span className="px-2 py-1 rounded text-xs bg-purple-100 text-purple-700">{customer.groupName}</span>
+                  ) : (
+                    <span className="text-gray-400 text-xs">-</span>
+                  )}
                 </td>
                 <td className="px-4 py-3 text-sm">
                   {customer.contacts && customer.contacts.length > 0 ? (
@@ -463,6 +486,19 @@ export default function CustomerPage() {
                     >
                       <option value="enterprise">企业</option>
                       <option value="personal">个人</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm text-gray-600 mb-1">客户群组</label>
+                    <select
+                      value={form.groupId || ''}
+                      onChange={(e) => setForm({ ...form, groupId: e.target.value ? Number(e.target.value) : null })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500"
+                    >
+                      <option value="">无群组</option>
+                      {groupList.map(g => (
+                        <option key={g.id} value={g.id}>{g.groupName}</option>
+                      ))}
                     </select>
                   </div>
                   <div className="col-span-2">

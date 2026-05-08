@@ -10,6 +10,7 @@ import { getClientIp } from '@/lib/utils';
 const customerSchema = z.object({
   customerName: z.string().min(1, '客户名称不能为空'),
   customerType: z.string().optional(),
+  groupId: z.number().nullable().optional(),
   // 前端可能发送 invoiceInfo 嵌套对象
   invoiceInfo: z.object({
     companyName: z.string().optional(),
@@ -58,6 +59,7 @@ function mapFormData(body: any) {
   return {
     customerName: body.customerName,
     customerType: CUSTOMER_TYPE_MAP[body.customerType || 'enterprise'] || 'enterprise',
+    groupId: body.groupId || null,
     // 开票信息：优先从 invoiceInfo 嵌套对象取，其次从扁平字段取
     invoiceName: invoiceInfo.companyName || body.invoiceName || null,
     taxNo: invoiceInfo.taxId || body.taxNo || null,
@@ -99,6 +101,9 @@ export async function GET(request: NextRequest) {
             where: { isDelete: false },
             orderBy: { isPrimary: 'desc' },
           },
+          group: {
+            select: { id: true, groupCode: true, groupName: true },
+          },
         },
         orderBy: { createdAt: 'desc' },
         skip: (page - 1) * pageSize,
@@ -111,6 +116,8 @@ export async function GET(request: NextRequest) {
     const listWithTypeName = list.map(c => ({
       ...c,
       customerTypeName: CUSTOMER_TYPE_REVERSE[c.customerType] || c.customerType,
+      groupName: c.group?.groupName || '',
+      groupCode: c.group?.groupCode || '',
       // 构造 invoiceInfo 嵌套对象供前端使用
       invoiceInfo: {
         companyName: c.invoiceName || '',
@@ -157,6 +164,7 @@ export async function POST(request: NextRequest) {
         customerCode,
         customerName: mappedData.customerName,
         customerType: mappedData.customerType,
+        groupId: mappedData.groupId,
         // 开票信息
         invoiceName: mappedData.invoiceName,
         taxNo: mappedData.taxNo,

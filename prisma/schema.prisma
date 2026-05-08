@@ -350,11 +350,31 @@ model RoleDeptScope {
 // =============================================================================
 
 // 客户表
+// 客户群组表 - 同一群组内客户共用技术资料
+model CustomerGroup {
+  id          Int       @id @default(autoincrement())
+  groupCode   String    @unique @map("group_code") @db.VarChar(50)
+  groupName   String    @map("group_name") @db.VarChar(200)
+  description String?   @db.Text
+  status      String    @default("active") @db.VarChar(20)
+  isDelete    Boolean   @default(false) @map("is_delete")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+  createdBy   Int?      @map("created_by")
+  modifiedBy  Int?      @map("modified_by")
+
+  // 关联客户
+  customers   Customer[]
+
+  @@map("customer_group")
+}
+
 model Customer {
   id             Int       @id @default(autoincrement())
   customerCode   String    @unique @map("customer_code") @db.VarChar(50)
   customerName   String    @map("customer_name") @db.VarChar(200)
   customerType   String    @default("enterprise") @map("customer_type") @db.VarChar(20)
+  groupId        Int?      @map("group_id")
   // 开票信息
   invoiceName    String?   @map("invoice_name") @db.VarChar(200)   // 单位名称
   taxNo          String?   @map("tax_no") @db.VarChar(50)        // 纳税人识别号
@@ -373,6 +393,9 @@ model Customer {
 
   // 关联联系人
   contacts       CustomerContact[]
+
+  // 关联群组
+  group          CustomerGroup?  @relation(fields: [groupId], references: [id])
 
   @@map("customer")
 }
