@@ -109,6 +109,7 @@ export default function BOMManagementPage() {
   const [showMaterialModal, setShowMaterialModal] = useState(false);
   const [editingMaterial, setEditingMaterial] = useState<Material | null>(null);
   const [parentMaterialId, setParentMaterialId] = useState<number | null>(null);
+  const [parentMaterial, setParentMaterial] = useState<{ drawingCode: string; materialName: string } | null>(null);
   
   // 表单状态
   const [formData, setFormData] = useState({
@@ -262,9 +263,10 @@ export default function BOMManagementPage() {
     setShowMaterialModal(true);
   };
 
-  const handleAddChildMaterial = (parentId: number, parentGroupId: number | null) => {
+  const handleAddChildMaterial = (parentId: number, parentGroupId: number | null, parentDrawingCode: string, parentMaterialName: string) => {
     setEditingMaterial(null);
     setParentMaterialId(parentId);
+    setParentMaterial({ drawingCode: parentDrawingCode, materialName: parentMaterialName });
     setFormData({
       materialName: '',
       internalCode: '',  // 空字符串，由保存时API自动生成
@@ -609,7 +611,7 @@ export default function BOMManagementPage() {
           <div className="w-32 flex-shrink-0 flex items-center justify-center gap-1 px-1">
             {/* 添加子物料 */}
             <button
-              onClick={() => handleAddChildMaterial(node.id, node.groupId)}
+              onClick={() => handleAddChildMaterial(node.id, node.groupId, node.drawingCode, node.materialName)}
               className="p-1.5 text-green-600 hover:bg-green-100 rounded transition-colors"
               title="添加子物料"
             >
