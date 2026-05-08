@@ -273,13 +273,12 @@ export default function BOMManagementPage() {
       }
     }
 
-    // 展开所有祖先节点
-    if (allAncestors.length > 0) {
-      setExpandedIds(prev => {
-        const next = new Set(prev);
-        allAncestors.forEach(id => next.add(id));
-        return next;
-      });
+    // 搜索时：只展开命中的祖先节点，折叠其他节点
+    if (globalSearch) {
+      setExpandedIds(new Set(allAncestors));
+    } else {
+      // 搜索为空时，全部折叠
+      setExpandedIds(new Set());
     }
   }, [globalSearch, treeData, searchFields]);
 
