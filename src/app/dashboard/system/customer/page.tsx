@@ -88,7 +88,9 @@ export default function CustomerPage() {
       const res = await fetch('/api/customer');
       const data = await res.json();
       if (data.code === 200) {
-        setCustomers(data.data || []);
+        // 兼容分页格式 { list, total } 和数组格式
+        const list = data.data?.list || data.data || [];
+        setCustomers(Array.isArray(list) ? list : []);
       }
     } catch (error) {
       console.error('获取客户列表失败:', error);
