@@ -307,8 +307,9 @@ export default function BOMManagementPage() {
 
       // 当前节点匹配，收集完整路径上的所有键
       if (selfMatch) {
-        console.log('[搜索展开] 匹配到节点:', node.internalCode, '路径:', newPath);
-        newPath.forEach(k => keysToExpand.add(k));
+        const fullPath = newPath.join('_');
+        console.log('[搜索展开] 匹配到节点:', node.internalCode, '完整路径:', fullPath);
+        keysToExpand.add(fullPath);
       }
 
       // 递归检查所有子节点
