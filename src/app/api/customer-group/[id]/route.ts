@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { requireAuth } from '@/lib/auth/middleware';
 import { successResponse, badRequestResponse, serverErrorResponse, notFoundResponse } from '@/lib/response';
 import { operationLog } from '@/lib/services/operation-log';
+import { getClientIp } from '@/lib/utils';
 
 // 获取群组详情
 export async function GET(
@@ -95,7 +96,7 @@ export async function PUT(
       }
     }
 
-    await operationLog.logUpdate('客户群组', authResult.userId, authResult.username, oldData, updated, request);
+    await operationLog.logUpdate('客户群组', authResult.userId, authResult.username, oldData, updated, getClientIp(request));
 
     return successResponse(updated);
   } catch (error: any) {
@@ -129,7 +130,7 @@ export async function DELETE(
       data: { isDelete: true, modifiedBy: authResult.userId },
     });
 
-    await operationLog.logDelete('客户群组', authResult.userId, authResult.username, { groupCode: group.groupCode, groupName: group.groupName }, request);
+    await operationLog.logDelete('客户群组', authResult.userId, authResult.username, { groupCode: group.groupCode, groupName: group.groupName }, getClientIp(request));
 
     return successResponse(null, '删除成功');
   } catch (error: any) {

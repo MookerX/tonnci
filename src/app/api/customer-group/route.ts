@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { requireAuth } from '@/lib/auth/middleware';
 import { successResponse, badRequestResponse, serverErrorResponse } from '@/lib/response';
 import { operationLog } from '@/lib/services/operation-log';
+import { getClientIp } from '@/lib/utils';
 
 // 获取群组列表
 export async function GET(request: NextRequest) {
@@ -113,7 +114,7 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    await operationLog.logCreate('客户群组', authResult.userId, authResult.username, group, request);
+    await operationLog.logCreate('客户群组', authResult.userId, authResult.username, { groupCode, groupName, customerIds }, getClientIp(request));
 
     return successResponse(group);
   } catch (error: any) {

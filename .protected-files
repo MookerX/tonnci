@@ -1,5 +1,6 @@
 # 受保护文件列表 - 这些文件不可修改
 # 用户会自行编辑这些文件
+.protected-files
 src/app/setup/page.tsx
 src/app/page.tsx
 src/components/ui/sidebar.tsx
@@ -9,4 +10,5 @@ src/app/dashboard/system/menu/page.tsx
 src/app/dashboard/system/dept/page.tsx
 src/app/dashboard/system/log/page.tsx
 src/app/dashboard/system/database/page.tsx
-.protected-files
+src/app/dashboard/system/customer/page.tsx
+src/app/dashboard/system/customer-group/page.tsx
