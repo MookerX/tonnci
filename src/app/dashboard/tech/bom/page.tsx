@@ -212,8 +212,8 @@ export default function BOMManagementPage() {
     }
   };
 
-  const fetchBOMTree = async () => {
-    const res = await fetchApi(`/api/bom`);
+  const fetchBOMTree = async (targetGroupId?: number | null) => {
+    const res = await fetchApi(`/api/bom${targetGroupId ? `?groupId=${targetGroupId}` : ''}`);
     if (res.code === 200) {
       setTreeData(res.data || []);
       // 自动展开第一层
@@ -224,6 +224,61 @@ export default function BOMManagementPage() {
       setExpandedIds(firstLevelIds);
     }
   };
+
+  // 递归查找匹配的节点及其所有祖先节点ID
+  const findAncestorsAndMatch = (node: TreeNode, keyword: string, ancestors: number[]): { matched: boolean; ancestors: number[]; matchedNode: TreeNode | null } => {
+    const fieldMatches: Record<string, boolean> = {
+      materialName: searchFields.materialName,
+      drawingCode: searchFields.drawingCode,
+      internalCode: searchFields.internalCode,
+      drawingNo: searchFields.drawingNo,
+    };
+
+    let selfMatch = false;
+    if (keyword) {
+      if (fieldMatches.materialName && node.materialName.toLowerCase().includes(keyword)) selfMatch = true;
+      if (fieldMatches.drawingCode && (node.drawingCode?.toLowerCase().includes(keyword) || false)) selfMatch = true;
+      if (fieldMatches.internalCode && node.internalCode.toLowerCase().includes(keyword)) selfMatch = true;
+      if (fieldMatches.drawingNo && (node.drawingNo?.toLowerCase().includes(keyword) || false)) selfMatch = true;
+    }
+
+    const currentAncestors = selfMatch ? [...ancestors, node.id] : ancestors;
+
+    // 检查子节点
+    for (const child of node.children || []) {
+      const result = findAncestorsAndMatch(child, keyword, currentAncestors);
+      if (result.matched && result.ancestors.length > 0) {
+        return result;
+      }
+    }
+
+    return { matched: selfMatch, ancestors: currentAncestors, matchedNode: selfMatch ? node : null };
+  };
+
+  // 搜索时自动展开到匹配的子物料
+  useEffect(() => {
+    if (!globalSearch || treeData.length === 0) return;
+
+    const keyword = globalSearch.toLowerCase();
+    let allAncestors: number[] = [];
+
+    // 遍历所有顶层节点，查找匹配项及其祖先
+    for (const node of treeData) {
+      const result = findAncestorsAndMatch(node, keyword, []);
+      if (result.matched && result.ancestors.length > 0) {
+        allAncestors = [...allAncestors, ...result.ancestors];
+      }
+    }
+
+    // 展开所有祖先节点
+    if (allAncestors.length > 0) {
+      setExpandedIds(prev => {
+        const next = new Set(prev);
+        allAncestors.forEach(id => next.add(id));
+        return next;
+      });
+    }
+  }, [globalSearch, treeData, searchFields]);
 
   const fetchMaterials = async () => {
     let url = `/api/bom/material?pageSize=1000`;
