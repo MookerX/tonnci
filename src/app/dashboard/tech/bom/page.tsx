@@ -70,6 +70,17 @@ const typeLabelMap: Record<string, string> = {
   auxiliary: '辅材',
 };
 
+// 物料类型前缀映射（用于内部编码自动生成）
+export const MATERIAL_TYPE_PREFIX: Record<string, string> = {
+  part: 'P',
+  component: 'C',
+  raw: 'R',
+  material: 'R',
+  bought: 'B',
+  standard: 'S',
+  auxiliary: 'A',
+};
+
 export default function BOMManagementPage() {
   const [token, setToken] = useState<string>('');
   const [activeTab, setActiveTab] = useState<'tree' | 'list'>('tree');
