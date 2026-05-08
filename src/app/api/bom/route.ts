@@ -16,7 +16,7 @@ export async function GET(request: NextRequest) {
     const keyword = searchParams.get('keyword');
 
     // 构建客户筛选条件（按群组）
-    let customerFilter: { id: { in: number[] } } | null = null;
+    let customerIdFilter: { in: number[] } | null = null;
     if (groupId) {
       const groupCustomers = await prisma.customer.findMany({
         where: { groupId: parseInt(groupId), isDelete: false },
@@ -24,7 +24,7 @@ export async function GET(request: NextRequest) {
       });
       const customerIds = groupCustomers.map((c: { id: number }) => c.id);
       if (customerIds.length > 0) {
-        customerFilter = { id: { in: customerIds } };
+        customerIdFilter = { in: customerIds };
       } else {
         return successResponse([]);
       }
@@ -32,8 +32,8 @@ export async function GET(request: NextRequest) {
 
     // 获取所有相关物料
     const materialWhere: any = { isDelete: false };
-    if (customerFilter) {
-      materialWhere.customerId = customerFilter;
+    if (customerIdFilter) {
+      materialWhere.customerId = customerIdFilter;
     }
     if (keyword) {
       materialWhere.OR = [
