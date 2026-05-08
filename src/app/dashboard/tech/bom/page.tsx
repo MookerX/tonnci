@@ -242,17 +242,25 @@ export default function BOMManagementPage() {
       if (fieldMatches.drawingNo && (node.drawingNo?.toLowerCase().includes(keyword) || false)) selfMatch = true;
     }
 
-    const currentAncestors = selfMatch ? [...ancestors, node.id] : ancestors;
+    // 当前节点的祖先链：父节点 + 当前节点
+    const currentAncestors = [...ancestors, node.id];
 
     // 检查子节点
     for (const child of node.children || []) {
       const result = findAncestorsAndMatch(child, keyword, currentAncestors);
-      if (result.matched && result.ancestors.length > 0) {
+      if (result.matched) {
+        // 子节点匹配，返回子节点的祖先链（已经包含当前节点）
         return result;
       }
     }
 
-    return { matched: selfMatch, ancestors: currentAncestors, matchedNode: selfMatch ? node : null };
+    // 当前节点自身匹配
+    if (selfMatch) {
+      return { matched: true, ancestors: currentAncestors, matchedNode: node };
+    }
+
+    // 未匹配
+    return { matched: false, ancestors: [], matchedNode: null };
   };
 
   // 搜索时自动展开到匹配的子物料
