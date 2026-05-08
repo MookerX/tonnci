@@ -260,7 +260,13 @@ export default function BOMManagementPage() {
 
   // 搜索时自动展开到匹配的子物料
   useEffect(() => {
-    if (!globalSearch || treeData.length === 0) return;
+    if (treeData.length === 0) return;
+
+    // 搜索为空时，全部折叠
+    if (!globalSearch) {
+      setExpandedIds(new Set());
+      return;
+    }
 
     const keyword = globalSearch.toLowerCase();
     let allAncestors: number[] = [];
@@ -274,12 +280,7 @@ export default function BOMManagementPage() {
     }
 
     // 搜索时：只展开命中的祖先节点，折叠其他节点
-    if (globalSearch) {
-      setExpandedIds(new Set(allAncestors));
-    } else {
-      // 搜索为空时，全部折叠
-      setExpandedIds(new Set());
-    }
+    setExpandedIds(new Set(allAncestors));
   }, [globalSearch, treeData, searchFields]);
 
   const fetchMaterials = async () => {
