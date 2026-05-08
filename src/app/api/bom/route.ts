@@ -55,10 +55,24 @@ export async function GET(request: NextRequest) {
         unit: true,
         spec: true,
         customerId: true,
+        remark: true,
       },
     });
 
-    const materialMap = new Map(allMaterials.map(m => [m.id, { ...m, children: [] as any[] }]));
+    // 获取客户及群组名称映射
+    const customerIds = [...new Set(allMaterials.filter(m => m.customerId !== null).map(m => m.customerId as number))];
+    const customers = customerIds.length > 0 ? await prisma.$queryRaw<any[]>(
+      `SELECT c.id, c.customer_name as customerName, cg.group_name as customerGroupName
+       FROM customer c
+       LEFT JOIN customer_group cg ON c.group_id = cg.id
+       WHERE c.id IN (${customerIds.join(',')}) AND c.is_delete = false`
+    ) : [];
+    const customerMap = new Map(customers.map(c => [c.id, c]));
+
+    const materialMap = new Map(allMaterials.map(m => {
+      const customerInfo = m.customerId ? customerMap.get(m.customerId) : null;
+      return [m.id, { ...m, customerGroupName: customerInfo?.customerGroupName || null, children: [] as any[] }];
+    }));
     const materialIds = allMaterials.map(m => m.id);
 
     // 获取所有BOM关系（仅针对相关物料）
@@ -108,9 +122,13 @@ export async function GET(request: NextRequest) {
         materialType: true,
         unit: true,
         spec: true,
+        customerId: true,
       },
     });
-    const childMap = new Map(childMaterials.map(m => [m.id, m]));
+    const childMap = new Map(childMaterials.map(m => {
+      const customerInfo = m.customerId ? customerMap.get(m.customerId) : null;
+      return [m.id, { ...m, customerGroupName: customerInfo?.customerGroupName || null }];
+    }));
 
     // 填充树节点
     for (const [parentId, children] of childrenMap) {

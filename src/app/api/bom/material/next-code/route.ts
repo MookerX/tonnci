@@ -24,16 +24,18 @@ export async function POST(request: NextRequest) {
 
     const prefix = TYPE_PREFIX[materialType] || 'P';
 
-    // 查询该前缀的最大编码
-    const maxCode = await prisma.$queryRawUnsafe<{ maxCode: string | null }[]>(
-      `SELECT MAX(internal_code) as maxCode FROM material WHERE internal_code LIKE ?`,
-      prefix + '%'
+    // 查询该前缀的最大有效编码（只匹配 P00000001 格式）
+    const maxCode = await prisma.$queryRawUnsafe<{ maxNum: bigint | null }[]>(
+      `SELECT MAX(CAST(REGEXP_REPLACE(internal_code, '[^0-9]', '') AS UNSIGNED)) as maxNum
+       FROM material
+       WHERE internal_code LIKE ? AND internal_code REGEXP ?`,
+      `${prefix}%`,
+      `^${prefix}[0-9]+$`
     );
 
     let nextNum = 1;
-    if (maxCode[0]?.maxCode) {
-      const numStr = maxCode[0].maxCode.slice(prefix.length);
-      nextNum = parseInt(numStr) + 1;
+    if (maxCode[0]?.maxNum != null) {
+      nextNum = Number(maxCode[0].maxNum) + 1;
     }
 
     const internalCode = `${prefix}${String(nextNum).padStart(8, '0')}`;

@@ -106,11 +106,29 @@ export async function GET(request: NextRequest) {
       }),
     ]);
 
+    // LEFT JOIN: 客户群组名
+    const groupNameMap: Record<number, string> = {};
+    if (list.length > 0) {
+      const groupIds = [...new Set(list.map((m: any) => m.groupId).filter(Boolean))];
+      if (groupIds.length > 0) {
+        const groups = await prisma.$queryRawUnsafe<any[]>(
+          'SELECT id, group_name FROM customer_group WHERE id IN (?) AND is_delete = 0',
+          [groupIds]
+        );
+        groups.forEach((g: any) => { groupNameMap[g.id] = g.group_name; });
+      }
+    }
+
+    const enrichedList = list.map((m: any) => ({
+      ...m,
+      customerGroupName: m.groupId ? (groupNameMap[m.groupId] || `群组${m.groupId}`) : null,
+    }));
+
     return successResponse({
       total,
       page,
       pageSize,
-      list,
+      list: enrichedList,
     });
   } catch (error: any) {
     console.error('获取物料列表失败:', error);

@@ -290,8 +290,11 @@ export default function BOMManagementPage() {
           body: JSON.stringify({ materialType: payload.materialType }),
         });
         const codeData = await codeRes.json();
-        if (codeData.code === 200) {
+        if (codeData.code === 200 && codeData.data && !codeData.data.includes('NaN')) {
           payload.internalCode = codeData.data;
+        } else {
+          // 编码生成失败，使用临时编码
+          payload.internalCode = `${MATERIAL_TYPE_PREFIX[payload.materialType] || 'X'}TEMP_${Date.now()}`;
         }
       } catch {
         // 忽略，继续使用空编码
@@ -648,7 +651,7 @@ export default function BOMManagementPage() {
                   <th className="px-3 py-2 text-left">物料类型</th>
                   <th className="px-3 py-2 text-left">图纸编码</th>
                   <th className="px-3 py-2 text-left">图号</th>
-                  <th className="px-3 py-2 text-left">所属客户</th>
+                  <th className="px-3 py-2 text-left">所属客户群组</th>
                   <th className="px-3 py-2 text-left">备注</th>
                   <th className="px-3 py-2 text-left">操作</th>
                 </tr>
@@ -661,7 +664,7 @@ export default function BOMManagementPage() {
                     <td className="px-3 py-2">{typeLabelMap[m.materialType] || m.materialType}</td>
                     <td className="px-3 py-2 font-mono text-sm">{m.drawingCode || '-'}</td>
                     <td className="px-3 py-2 font-mono text-sm">{m.drawingNumber || '-'}</td>
-                    <td className="px-3 py-2 text-sm">{m.customerName || '-'}</td>
+                    <td className="px-3 py-2 text-sm">{m.customerGroupName || '-'}</td>
                     <td className="px-3 py-2 text-sm text-gray-500 truncate max-w-32">{m.remark || '-'}</td>
                     <td className="px-3 py-2">
                       <div className="flex items-center gap-1">
@@ -730,9 +733,10 @@ export default function BOMManagementPage() {
                   <input
                     type="text"
                     value={formData.internalCode}
-                    onChange={e => setFormData({ ...formData, internalCode: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg"
-                    placeholder="自动生成，可手动输入"
+                    readOnly
+                    disabled
+                    className="w-full px-3 py-2 border border-gray-200 rounded-lg bg-gray-50 text-gray-500 cursor-not-allowed"
+                    placeholder="自动生成"
                   />
                 </div>
               </div>
