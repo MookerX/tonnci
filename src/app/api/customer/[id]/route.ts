@@ -122,7 +122,14 @@ export async function PUT(
     const updateData: any = { modifiedBy: authResult.userId };
     if (body.customerName) updateData.customerName = body.customerName;
     if (body.customerType) updateData.customerType = customerTypeMap[body.customerType] || body.customerType;
-    if (body.groupId !== undefined) updateData.groupId = body.groupId || null;
+    if (body.groupId !== undefined) {
+      // 校验：如果要分配到群组，检查该客户是否已属于其他群组
+      const newGroupId = body.groupId || null;
+      if (newGroupId && existing.groupId && existing.groupId !== newGroupId) {
+        return badRequestResponse('该客户已属于其他群组，一个客户只能属于一个群组');
+      }
+      updateData.groupId = newGroupId;
+    }
     // 开票信息：优先从 invoiceInfo 嵌套对象取
     if (invoiceInfo.companyName !== undefined) updateData.invoiceName = invoiceInfo.companyName || null;
     else if (body.invoiceName !== undefined) updateData.invoiceName = body.invoiceName || null;

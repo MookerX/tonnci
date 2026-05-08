@@ -385,33 +385,37 @@ export default function CustomerGroupPage() {
                     filteredCustomers.map(c => {
                       const isSelected = selectedCustomerIds.includes(c.id);
                       const hasOtherGroup = c.groupId && c.groupId !== (editingGroup?.id || -1);
+                      const isDisabled = !!hasOtherGroup;
                       return (
                         <div
                           key={c.id}
-                          onClick={() => toggleCustomer(c.id)}
-                          className={`flex items-center px-3 py-2 cursor-pointer text-sm border-b border-gray-100 last:border-0 ${
-                            isSelected
-                              ? 'bg-blue-50 border-l-2 border-l-blue-500'
-                              : 'hover:bg-gray-50'
+                          onClick={() => !isDisabled && toggleCustomer(c.id)}
+                          className={`flex items-center px-3 py-2 text-sm border-b border-gray-100 last:border-0 ${
+                            isDisabled
+                              ? 'cursor-not-allowed bg-gray-50 opacity-60'
+                              : isSelected
+                                ? 'bg-blue-50 border-l-2 border-l-blue-500 cursor-pointer'
+                                : 'hover:bg-gray-50 cursor-pointer'
                           }`}
                         >
                           <input
                             type="checkbox"
                             checked={isSelected}
                             onChange={() => {}}
-                            className="mr-3 h-4 w-4 text-blue-600 rounded"
+                            disabled={isDisabled}
+                            className="mr-3 h-4 w-4 text-blue-600 rounded disabled:opacity-50"
                           />
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-2">
                               <span className="font-mono text-gray-500 text-xs">{c.customerCode}</span>
-                              <span className="font-medium text-gray-800 truncate">{c.customerName}</span>
+                              <span className={`font-medium truncate ${isDisabled ? 'text-gray-400' : 'text-gray-800'}`}>{c.customerName}</span>
                               <span className="text-xs px-1.5 py-0.5 rounded bg-gray-100 text-gray-500">
                                 {c.customerType === 'enterprise' ? '企业' : '个人'}
                               </span>
                             </div>
-                            {hasOtherGroup && !isSelected && (
+                            {hasOtherGroup && (
                               <div className="text-xs text-amber-600 mt-0.5">
-                                已属于：{c.groupName || `群组ID:${c.groupId}`}
+                                已属于：{c.groupName || `群组ID:${c.groupId}`}，一个客户只能属于一个群组
                               </div>
                             )}
                           </div>

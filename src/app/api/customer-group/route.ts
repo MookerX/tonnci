@@ -97,6 +97,17 @@ export async function POST(request: NextRequest) {
 
     // 将选中的客户加入群组
     if (Array.isArray(customerIds) && customerIds.length > 0) {
+      // 检查客户是否已属于其他群组
+      const alreadyGrouped = await prisma.customer.findMany({
+        where: { id: { in: customerIds }, isDelete: false, groupId: { not: null } },
+        select: { id: true, customerName: true, groupId: true },
+      });
+      if (alreadyGrouped.length > 0) {
+        // 删除刚创建的群组
+        await prisma.customerGroup.delete({ where: { id: group.id } });
+        const names = alreadyGrouped.map(c => c.customerName).join('、');
+        return badRequestResponse(`客户 ${names} 已属于其他群组，一个客户只能属于一个群组`);
+      }
       await prisma.customer.updateMany({
         where: { id: { in: customerIds }, isDelete: false },
         data: { groupId: group.id },
