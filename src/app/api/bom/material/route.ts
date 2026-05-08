@@ -112,9 +112,10 @@ export async function GET(request: NextRequest) {
     if (list.length > 0) {
       const groupIds = [...new Set(list.map((m: any) => m.groupId).filter(Boolean))];
       if (groupIds.length > 0) {
+        const placeholders = groupIds.map(() => '?').join(',');
         const groups = await prisma.$queryRawUnsafe<any[]>(
-          'SELECT id, group_name FROM customer_group WHERE id IN (?) AND is_delete = 0',
-          [groupIds]
+          `SELECT id, group_name FROM customer_group WHERE id IN (${placeholders}) AND is_delete = 0`,
+          ...groupIds
         );
         groups.forEach((g: any) => { groupNameMap[g.id] = g.group_name; });
       }
@@ -133,7 +134,7 @@ export async function GET(request: NextRequest) {
     });
   } catch (error: any) {
     console.error('获取物料列表失败:', error);
-    return serverErrorResponse(validation.error.message);
+    return serverErrorResponse(error.message || '获取物料列表失败');
   }
 }
 
@@ -191,6 +192,6 @@ export async function POST(request: NextRequest) {
     return successResponse(material, '物料创建成功');
   } catch (error: any) {
     console.error('创建物料失败:', error);
-    return serverErrorResponse(validation.error.message);
+    return serverErrorResponse(error.message || '创建物料失败');
   }
 }

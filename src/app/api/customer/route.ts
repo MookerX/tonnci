@@ -135,7 +135,7 @@ export async function GET(request: NextRequest) {
     return successResponse({ list: listWithTypeName, total, page, pageSize });
   } catch (error: any) {
     console.error('获取客户列表失败:', error);
-    return serverErrorResponse(validation.error.message);
+    return serverErrorResponse(error.message || '获取客户列表失败');
   }
 }
 
@@ -197,7 +197,7 @@ export async function POST(request: NextRequest) {
     return successResponse(customer, '客户创建成功');
   } catch (error: any) {
     console.error('创建客户失败:', error);
-    return serverErrorResponse(validation.error.message);
+    return serverErrorResponse(error.message || '创建客户失败');
   }
 }
 
