@@ -489,6 +489,11 @@ export default function BOMManagementPage() {
           groupId: parentNode.groupId ?? 0,
           groupName: parentNode.customerGroupName || '',
         });
+        // 同时设置 parentMaterial，用于弹窗标题显示
+        setParentMaterial({
+          drawingCode: parentNode.drawingCode || '',
+          materialName: parentNode.materialName || '',
+        });
         // 子物料：客户群组与父物料一致，使用父物料的groupId
         setFormData({
           materialName: node.materialName,
@@ -504,6 +509,7 @@ export default function BOMManagementPage() {
       } else {
         // 子物料但找不到父节点
         setEditingParentInfo(null);
+        setParentMaterial(null);
         setFormData({
           materialName: node.materialName,
           internalCode: node.internalCode || '',
@@ -522,6 +528,7 @@ export default function BOMManagementPage() {
       // 顶层物料：客户群组可修改，无单层用量
       setEditingParentInfo(null);
       setEditingBOMItemId(null);
+      setParentMaterial(null);
       setFormData({
         materialName: node.materialName,
         internalCode: node.internalCode || '',
@@ -602,7 +609,14 @@ export default function BOMManagementPage() {
         await handleAddBOMRelation(parentMaterialId, res.data.id, formData.quantity || 1, formData.bomRemark || '');
       }
       
+      // 重置弹窗状态
       setShowMaterialModal(false);
+      setEditingBOMItemId(null);
+      setEditingParentInfo(null);
+      setParentMaterialId(null);
+      setParentMaterial(null);
+      setEditingMaterial(null);
+      
       success(editingMaterial ? '物料更新成功' : '物料创建成功');
       // 刷新 BOM 树（始终刷新所有数据）
       fetchBOMTree();
@@ -1134,32 +1148,58 @@ export default function BOMManagementPage() {
             <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200">
               <h3 className="font-semibold">
                 {editingMaterial ? (
-                  editingParentInfo ? 
-                    `编辑子物料（${editingMaterial.drawingCode || '-'}_${editingMaterial.materialName || '-'})` : 
-                    `编辑物料（${editingMaterial.drawingCode || '-'}_${editingMaterial.materialName || '-'})`
+                  editingParentInfo ? (
+                    <span>编辑子物料 - 父物料：<span className="text-blue-600">{parentMaterial?.drawingCode || '-'}_{parentMaterial?.materialName || '-'}</span></span>
+                  ) : (
+                    <span>编辑物料</span>
+                  )
                 ) : parentMaterialId ? (
-                  <span>
-                    为：(<span className="text-blue-600">{parentMaterial?.drawingCode || '-'}_{parentMaterial?.materialName || '-'}</span>) 新增子物料
-                  </span>
-                ) : '新增物料'}
+                  <span>为父物料 <span className="text-blue-600">{parentMaterial?.drawingCode || '-'}_{parentMaterial?.materialName || '-'}</span> 新增子物料</span>
+                ) : '新增顶层物料'}
               </h3>
-              <button onClick={() => { setShowMaterialModal(false); setEditingBOMItemId(null); }} className="p-1 hover:bg-gray-100 rounded">
+              <button 
+                onClick={() => { 
+                  setShowMaterialModal(false); 
+                  setEditingBOMItemId(null); 
+                  setEditingParentInfo(null);
+                  setParentMaterialId(null);
+                  setParentMaterial(null);
+                  setEditingMaterial(null);
+                }} 
+                className="p-1 hover:bg-gray-100 rounded"
+              >
                 <X className="w-5 h-5" />
               </button>
             </div>
             <div className="p-4 space-y-4">
+              {/* 弹窗标题 */}
+              <div className="text-sm text-gray-600 mb-2">
+                {editingMaterial ? (
+                  editingParentInfo ? (
+                    <span>编辑子物料 - 父物料：<span className="text-blue-600">{parentMaterial?.drawingCode || '-'}_{parentMaterial?.materialName || '-'}</span></span>
+                  ) : (
+                    <span>编辑物料</span>
+                  )
+                ) : parentMaterialId ? (
+                  <span>为父物料 <span className="text-blue-600">{parentMaterial?.drawingCode || '-'}_{parentMaterial?.materialName || '-'}</span> 新增子物料</span>
+                ) : (
+                  <span>新增顶层物料</span>
+                )}
+              </div>
+
               {/* 客户群组 */}
               {(() => {
-                // 新增顶层物料：可选择
+                // 新增顶层物料：可选择（必填）
                 // 编辑顶层物料：不可选择
                 // 新增子物料：不可选择（继承父物料）
                 // 编辑子物料：不可选择（继承父物料）
-                const disabled = !!editingMaterial || !!parentMaterialId || !!editingParentInfo;
+                const isChildMaterial = !!parentMaterialId || !!editingParentInfo;
+                const disabled = !!editingMaterial || isChildMaterial;
                 return (
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
                       客户群组 {!disabled && <span className="text-red-500">*</span>}
-                      {disabled && <span className="text-gray-400 text-xs ml-1">(不可修改)</span>}
+                      {disabled && <span className="text-gray-400 text-xs ml-1">(不可修改{isChildMaterial ? '，继承自父物料' : ''})</span>}
                     </label>
                     <select
                       value={formData.groupId || ''}
@@ -1257,23 +1297,36 @@ export default function BOMManagementPage() {
                   onChange={e => setFormData({ ...formData, remark: e.target.value })}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg"
                   rows={3}
+                  placeholder="物料本身的备注信息"
                 />
               </div>
-              {editingParentInfo && (
+              {/* BOM备注：仅子物料（新增/编辑）显示 */}
+              {(parentMaterialId || editingParentInfo) && (
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">BOM备注</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    BOM备注
+                    <span className="text-gray-400 text-xs font-normal ml-1">(该物料在父级BOM中的备注)</span>
+                  </label>
                   <textarea
                     value={formData.bomRemark || ''}
                     onChange={e => setFormData({ ...formData, bomRemark: e.target.value })}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg"
                     rows={3}
+                    placeholder="BOM关系中的备注，如工艺要求、供应商说明等"
                   />
                 </div>
               )}
             </div>
             <div className="flex justify-end gap-2 px-4 py-3 border-t border-gray-200">
               <button
-                onClick={() => setShowMaterialModal(false)}
+                onClick={() => {
+                  setShowMaterialModal(false);
+                  setEditingBOMItemId(null);
+                  setEditingParentInfo(null);
+                  setParentMaterialId(null);
+                  setParentMaterial(null);
+                  setEditingMaterial(null);
+                }}
                 className="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-lg"
               >
                 取消
