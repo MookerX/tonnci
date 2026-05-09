@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import {
   Search, Plus, Upload, Download, ChevronRight, ChevronDown, FileText, Edit2, Trash2,
   X, Save, AlertCircle, CheckCircle, RefreshCw, FolderTree, Eye, DownloadCloud, Settings2, Layers
@@ -100,6 +100,9 @@ export default function BOMManagementPage() {
   // 使用唯一键标识展开状态：parentId_bomItemId，确保同一物料在不同位置可独立展开
   const [expandedKeys, setExpandedKeys] = useState<Set<string>>(new Set());
   const [selectedMaterialId, setSelectedMaterialId] = useState<number | null>(null);
+  
+  // 用于滚动到指定物料行的ref
+  const itemRefs = useRef<Record<string, HTMLDivElement | null>>({});
   
   // 辅助函数：在树中查找指定ID的节点
   const findNodeById = (nodes: TreeNode[], id: number): TreeNode | null => {
@@ -604,9 +607,15 @@ export default function BOMManagementPage() {
     });
 
     if (res.code === 200) {
-      // 如果是新增子物料，需要建立BOM关系
-      if (!editingMaterial && parentMaterialId && res.data?.id) {
-        await handleAddBOMRelation(parentMaterialId, res.data.id, formData.quantity || 1, formData.bomRemark || '');
+      // 获取保存的物料ID
+      const savedMaterialId = editingMaterial ? editingMaterial.id : res.data?.id;
+      // 获取父物料ID（新增子物料或编辑子物料时）
+      const parentId = parentMaterialId || editingParentInfo?.id;
+      
+      // 如果是子物料，展开父节点
+      if (parentId) {
+        const parentKey = `${parentId}_`;
+        setExpandedKeys(prev => new Set([...prev, parentKey]));
       }
       
       // 重置弹窗状态
@@ -618,9 +627,40 @@ export default function BOMManagementPage() {
       setEditingMaterial(null);
       
       success(editingMaterial ? '物料更新成功' : '物料创建成功');
-      // 刷新 BOM 树（始终刷新所有数据）
+      
+      // 刷新 BOM 树后滚动到该行
       fetchBOMTree();
       fetchMaterials();
+      
+      // 等待数据刷新后滚动到该行
+      setTimeout(() => {
+        if (savedMaterialId) {
+          // 找到该物料在树中的完整键（需要遍历树找到它的父键）
+          const findNodePath = (nodes: TreeNode[], targetId: number, parentKey: string = ''): string | null => {
+            for (const node of nodes) {
+              const currentKey = parentKey ? `${parentKey}_${node.id}` : `${node.id}_`;
+              if (node.id === targetId) {
+                return currentKey;
+              }
+              if (node.children && node.children.length > 0) {
+                const found = findNodePath(node.children, targetId, currentKey);
+                if (found) return found;
+              }
+            }
+            return null;
+          };
+          
+          const nodeKey = findNodePath(treeData, savedMaterialId);
+          if (nodeKey && itemRefs.current[nodeKey]) {
+            itemRefs.current[nodeKey]?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            // 高亮显示一下
+            itemRefs.current[nodeKey]?.classList.add('ring-2', 'ring-blue-400');
+            setTimeout(() => {
+              itemRefs.current[nodeKey]?.classList.remove('ring-2', 'ring-blue-400');
+            }, 2000);
+          }
+        }
+      }, 100);
     } else {
       error(res.message || '保存失败');
     }
@@ -840,6 +880,7 @@ export default function BOMManagementPage() {
     return (
       <div key={fullKey}>
         <div
+          ref={(el) => { itemRefs.current[fullKey] = el; }}
           className={`flex items-center border-b border-gray-200 hover:brightness-95 transition-all ${bgColor}`}
           style={{ paddingLeft: `${level * 20 + 8}px` }}
         >
