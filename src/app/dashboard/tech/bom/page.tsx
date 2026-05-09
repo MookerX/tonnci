@@ -239,12 +239,14 @@ export default function BOMManagementPage() {
     }
   };
 
-  const fetchBOMTree = async (targetGroupId?: number | null) => {
+  const fetchBOMTree = async (targetGroupId?: number | null): Promise<TreeNode[]> => {
     const res = await fetchApi(`/api/bom${targetGroupId ? `?groupId=${targetGroupId}` : ''}`);
     if (res.code === 200) {
-      setTreeData(res.data || []);
-      // 默认全部折叠，不自动展开
+      const newData = res.data || [];
+      setTreeData(newData);
+      return newData;
     }
+    return [];
   };
 
   // 递归查找匹配的节点及其所有祖先节点ID
@@ -636,8 +638,8 @@ export default function BOMManagementPage() {
       
       success(editingMaterial ? '物料更新成功' : '物料创建成功');
       
-      // 等待数据刷新后滚动到该行并展开所有父节点
-      await fetchBOMTree();
+      // 等待数据刷新后获取新数据
+      const newTreeData = await fetchBOMTree();
       fetchMaterials();
       
       if (savedMaterialId) {
@@ -656,7 +658,7 @@ export default function BOMManagementPage() {
           return { nodeKey: null, parentKeys };
         };
         
-        const { nodeKey, parentKeys } = findNodeInfo(treeData, savedMaterialId);
+        const { nodeKey, parentKeys } = findNodeInfo(newTreeData, savedMaterialId);
         
         // 展开所有父节点
         if (parentKeys.length > 0) {
@@ -677,7 +679,7 @@ export default function BOMManagementPage() {
               itemRefs.current[nodeKey]?.classList.remove('ring-2', 'ring-blue-400');
             }, 2000);
           }
-        }, 50);
+        }, 100);
       }
     } else {
       error(res.message || '保存失败');
