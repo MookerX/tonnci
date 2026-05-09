@@ -87,10 +87,25 @@ export async function PUT(
       }
     }
 
+    // 更新物料基本信息
     const updateData: any = {
       modifiedBy: user.id,
       ...data,
     };
+
+    // 如果传入了 bomItemId，更新 BOM 关系（quantity 和 remark）
+    if (body.bomItemId !== undefined) {
+      const bomUpdateData: any = {};
+      if (body.quantity !== undefined) bomUpdateData.quantity = body.quantity;
+      if (body.remark !== undefined) bomUpdateData.remark = body.remark;
+      
+      if (Object.keys(bomUpdateData).length > 0) {
+        await prisma.bomItem.update({
+          where: { id: body.bomItemId },
+          data: bomUpdateData,
+        });
+      }
+    }
 
     const material = await prisma.material.update({
       where: { id: parseInt(id) },

@@ -130,6 +130,8 @@ export default function BOMManagementPage() {
   const [parentMaterial, setParentMaterial] = useState<{ drawingCode: string; materialName: string } | null>(null);
   // 编辑时存储父物料信息（用于子物料编辑时的客户群组锁定）
   const [editingParentInfo, setEditingParentInfo] = useState<{ id: number; groupId: number; groupName: string } | null>(null);
+  // 编辑子物料时存储 BOM 关系 ID
+  const [editingBOMItemId, setEditingBOMItemId] = useState<number | null>(null);
   
   // 表单状态
   const [formData, setFormData] = useState({
@@ -507,9 +509,12 @@ export default function BOMManagementPage() {
           remark: node.remark || '',
         });
       }
+      // 设置 BOM 关系 ID
+      setEditingBOMItemId(node.bomItemId ?? null);
     } else {
       // 顶层物料：客户群组可修改，无单层用量
       setEditingParentInfo(null);
+      setEditingBOMItemId(null);
       setFormData({
         materialName: node.materialName,
         internalCode: node.internalCode || '',
@@ -544,10 +549,16 @@ export default function BOMManagementPage() {
     // 判断是否是编辑子物料
     const isEditingChildMaterial = !!editingMaterial && !!editingParentInfo;
 
-    // 新增时，如果内部编码为空则通过API自动生成
-    // 编辑子物料时：更新物料信息 + 单层用量 + 备注
+    // 编辑子物料时：更新物料信息 + 单层用量 + 备注 + BOM关系ID
     let payload: any = isEditingChildMaterial
-      ? { materialName: formData.materialName, drawingCode: formData.drawingCode, drawingNo: formData.drawingNo, quantity: formData.quantity, remark: formData.remark }
+      ? { 
+          materialName: formData.materialName, 
+          drawingCode: formData.drawingCode, 
+          drawingNo: formData.drawingNo, 
+          quantity: formData.quantity, 
+          remark: formData.remark,
+          bomItemId: editingBOMItemId
+        }
       : { ...formData };
     
     if (!editingMaterial && !payload.internalCode) {
@@ -1119,7 +1130,7 @@ export default function BOMManagementPage() {
                   </span>
                 ) : '新增物料'}
               </h3>
-              <button onClick={() => setShowMaterialModal(false)} className="p-1 hover:bg-gray-100 rounded">
+              <button onClick={() => { setShowMaterialModal(false); setEditingBOMItemId(null); }} className="p-1 hover:bg-gray-100 rounded">
                 <X className="w-5 h-5" />
               </button>
             </div>
