@@ -1116,7 +1116,7 @@ export default function BOMManagementPage() {
             <p className="text-sm">点击"新增顶层物料"或"Excel导入"添加</p>
           </div>
         ) : (
-          <>
+          <div className="min-w-0">
             {/* 表头 */}
             <div className="sticky top-0 bg-gray-100 border-b border-gray-300 z-10">
               <div className="flex items-center text-xs font-semibold text-gray-700 py-2.5 px-2">
@@ -1138,7 +1138,7 @@ export default function BOMManagementPage() {
             </div>
             {/* 树内容 */}
             {filteredTreeData.map(node => renderTreeNode(node))}
-          </>
+          </div>
         )}
       </div>
 
