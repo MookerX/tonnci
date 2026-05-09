@@ -643,15 +643,15 @@ export default function BOMManagementPage() {
       fetchMaterials();
       
       if (savedMaterialId) {
-        // 找到该物料在树中的完整键和所有父节点键
-        const findNodeInfo = (nodes: TreeNode[], targetId: number, parentKey: string = '', parentKeys: string[] = []): { nodeKey: string | null; parentKeys: string[] } => {
+        // 找到该物料在树中的完整键和所有父节点键（键格式与expandedKeys一致）
+        const findNodeInfo = (nodes: TreeNode[], targetId: number, parentKeys: string[] = []): { nodeKey: string | null; parentKeys: string[] } => {
           for (const node of nodes) {
-            const currentKey = parentKey ? `${parentKey}_${node.id}` : `${node.id}_`;
+            const currentKey = `node_${node.id}`;
             if (node.id === targetId) {
               return { nodeKey: currentKey, parentKeys };
             }
             if (node.children && node.children.length > 0) {
-              const result = findNodeInfo(node.children, targetId, currentKey, [...parentKeys, currentKey]);
+              const result = findNodeInfo(node.children, targetId, [...parentKeys, currentKey]);
               if (result.nodeKey) return result;
             }
           }
