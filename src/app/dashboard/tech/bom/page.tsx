@@ -578,14 +578,15 @@ export default function BOMManagementPage() {
       setShowMaterialModal(false);
       success(editingMaterial ? '物料更新成功' : '物料创建成功');
       // 刷新 BOM 树
-      if (editingMaterial && editingParentInfo?.id) {
-        // 编辑子物料时，使用父物料的 groupId 刷新
-        fetchBOMTree(editingParentInfo.groupId);
-      } else if (formData.groupId) {
-        // 新增或编辑顶层物料时，使用当前 groupId 刷新
-        fetchBOMTree(formData.groupId);
+      // 获取正确的 groupId（避免 0 值传给 API）
+      const refreshGroupId = editingMaterial && editingParentInfo?.id
+        ? (editingParentInfo.groupId || null)
+        : (formData.groupId || null);
+      
+      if (refreshGroupId) {
+        fetchBOMTree(refreshGroupId);
       } else {
-        // 兼容：刷新所有 BOM 数据
+        // 没有 groupId 或 groupId 为 0，刷新所有 BOM 数据
         fetchBOMTree();
       }
       fetchMaterials();
