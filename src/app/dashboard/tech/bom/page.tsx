@@ -545,9 +545,9 @@ export default function BOMManagementPage() {
     const isEditingChildMaterial = !!editingMaterial && !!editingParentInfo;
 
     // 新增时，如果内部编码为空则通过API自动生成
-    // 编辑子物料时，不更新 quantity（单层用量在 BOM 关系中）
+    // 编辑子物料时：更新物料信息 + 单层用量 + 备注
     let payload: any = isEditingChildMaterial
-      ? { materialName: formData.materialName, drawingCode: formData.drawingCode, drawingNo: formData.drawingNo, remark: formData.remark }
+      ? { materialName: formData.materialName, drawingCode: formData.drawingCode, drawingNo: formData.drawingNo, quantity: formData.quantity, remark: formData.remark }
       : { ...formData };
     
     if (!editingMaterial && !payload.internalCode) {
