@@ -18,6 +18,7 @@ interface TreeNode {
   materialType: string;
   quantity: number;
   remark: string | null;
+  bomRemark?: string | null; // BOM备注
   levelCode: string;
   children: TreeNode[];
   _count?: { children: number };
@@ -143,6 +144,7 @@ export default function BOMManagementPage() {
     groupId: null as number | null,
     quantity: 1,
     remark: '',
+    bomRemark: '', // BOM备注
   });
   
   // 导入时选择的客户群组
@@ -435,6 +437,7 @@ export default function BOMManagementPage() {
       groupId: null,
       quantity: 1,
       remark: '',
+      bomRemark: '',
     });
     setShowMaterialModal(true);
   };
@@ -452,6 +455,7 @@ export default function BOMManagementPage() {
       groupId: parentGroupId,
       quantity: 1,
       remark: '',
+      bomRemark: '',
     });
     setShowMaterialModal(true);
   };
@@ -495,8 +499,10 @@ export default function BOMManagementPage() {
           groupId: parentNode.groupId ?? 0, // 使用父物料的groupId
           quantity: node.quantity || 1, // 子物料有单层用量
           remark: node.remark || '',
+          bomRemark: node.bomRemark || '',
         });
       } else {
+        // 子物料但找不到父节点
         setEditingParentInfo(null);
         setFormData({
           materialName: node.materialName,
@@ -507,6 +513,7 @@ export default function BOMManagementPage() {
           groupId: node.groupId ?? 0,
           quantity: node.quantity || 1,
           remark: node.remark || '',
+          bomRemark: node.bomRemark || '',
         });
       }
       // 设置 BOM 关系 ID
@@ -524,6 +531,7 @@ export default function BOMManagementPage() {
         groupId: node.groupId ?? 0,
         quantity: 1, // 顶层物料无单层用量
         remark: node.remark || '',
+        bomRemark: '', // 顶层物料无BOM备注
       });
     }
     setShowMaterialModal(true);
@@ -556,7 +564,8 @@ export default function BOMManagementPage() {
           drawingCode: formData.drawingCode, 
           drawingNo: formData.drawingNo, 
           quantity: formData.quantity, 
-          bomRemark: formData.remark,
+          remark: formData.remark,
+          bomRemark: formData.bomRemark,
           bomItemId: editingBOMItemId
         }
       : { ...formData };
@@ -590,7 +599,7 @@ export default function BOMManagementPage() {
     if (res.code === 200) {
       // 如果是新增子物料，需要建立BOM关系
       if (!editingMaterial && parentMaterialId && res.data?.id) {
-        await handleAddBOMRelation(parentMaterialId, res.data.id, formData.quantity || 1, formData.remark || '');
+        await handleAddBOMRelation(parentMaterialId, res.data.id, formData.quantity || 1, formData.bomRemark || '');
       }
       
       setShowMaterialModal(false);
@@ -603,11 +612,11 @@ export default function BOMManagementPage() {
     }
   };
 
-  const handleAddBOMRelation = async (parentId: number, childId: number, quantity: number, remark: string = '') => {
+  const handleAddBOMRelation = async (parentId: number, childId: number, quantity: number, bomRemark: string = '') => {
     const res = await fetchApi('/api/bom', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ parentMaterialId: parentId, childMaterialId: childId, quantity, bomRemark: remark }),
+      body: JSON.stringify({ parentMaterialId: parentId, childMaterialId: childId, quantity, bomRemark }),
     });
 
     if (res.code === 200) {
@@ -866,7 +875,11 @@ export default function BOMManagementPage() {
             {/* 所属客户 */}
             <div className="col-span-1 text-gray-600 truncate px-1">{groupName}</div>
             {/* 备注 */}
-            <div className="col-span-1 text-gray-500 truncate px-1">{node.remark || '-'}</div>
+            <div className="col-span-1 text-gray-500 truncate px-1">
+              {node.remark ? `W:${node.remark}` : ''}
+              {node.bomRemark ? `${node.remark ? '||' : ''}B:${node.bomRemark}` : ''}
+              {!node.remark && !node.bomRemark ? '-' : ''}
+            </div>
           </div>
 
           {/* 操作列 */}
@@ -1238,7 +1251,7 @@ export default function BOMManagementPage() {
                 </div>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">备注</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">物料备注</label>
                 <textarea
                   value={formData.remark}
                   onChange={e => setFormData({ ...formData, remark: e.target.value })}
@@ -1246,6 +1259,17 @@ export default function BOMManagementPage() {
                   rows={3}
                 />
               </div>
+              {editingParentInfo && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">BOM备注</label>
+                  <textarea
+                    value={formData.bomRemark || ''}
+                    onChange={e => setFormData({ ...formData, bomRemark: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                    rows={3}
+                  />
+                </div>
+              )}
             </div>
             <div className="flex justify-end gap-2 px-4 py-3 border-t border-gray-200">
               <button
