@@ -556,7 +556,7 @@ export default function BOMManagementPage() {
           drawingCode: formData.drawingCode, 
           drawingNo: formData.drawingNo, 
           quantity: formData.quantity, 
-          remark: formData.remark,
+          bomRemark: formData.remark,
           bomItemId: editingBOMItemId
         }
       : { ...formData };

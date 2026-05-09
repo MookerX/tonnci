@@ -93,11 +93,11 @@ export async function PUT(
       ...data,
     };
 
-    // 如果传入了 bomItemId，更新 BOM 关系（quantity 和 remark）
+    // 如果传入了 bomItemId，更新 BOM 关系（quantity 和 bomRemark）
     if (body.bomItemId !== undefined) {
       const bomUpdateData: any = {};
       if (body.quantity !== undefined) bomUpdateData.quantity = body.quantity;
-      if (body.remark !== undefined) bomUpdateData.remark = body.remark;
+      if (body.bomRemark !== undefined) bomUpdateData.bomRemark = body.bomRemark;
       
       if (Object.keys(bomUpdateData).length > 0) {
         await prisma.bomItem.update({
