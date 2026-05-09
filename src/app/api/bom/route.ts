@@ -190,6 +190,7 @@ export async function GET(request: NextRequest) {
         spec: true,
         customerId: true,
         groupId: true,
+        remark: true,
       },
     });
     const childMap = new Map(childMaterials.map(m => [m.id, {
