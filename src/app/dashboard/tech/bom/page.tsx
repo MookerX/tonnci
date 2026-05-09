@@ -895,7 +895,7 @@ export default function BOMManagementPage() {
               {!node.remark && !node.bomRemark ? '-' : ''}
             </div>
             {/* 操作 */}
-            <div className="w-28 flex-shrink-0 flex items-center justify-center gap-0.5 px-1">
+            <div className="w-32 flex-shrink-0 flex items-center justify-center gap-0.5 px-1">
               {/* 编辑 */}
               <button
                 onClick={() => handleEditMaterial(node)}
