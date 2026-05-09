@@ -862,19 +862,19 @@ export default function BOMManagementPage() {
           </div>
 
           {/* 数据列 */}
-          <div className={`flex-1 grid grid-cols-8 gap-1 ${paddingY} ${fontSize} min-w-0`}>
+          <div style={{ display: 'grid', gridTemplateColumns: '100px 1fr 1fr 1fr 70px 80px 100px 1fr 60px', gap: '4px' }} className={`flex-1 ${paddingY} ${fontSize} min-w-0`}>
             {/* 内部编码 */}
-            <div className="col-span-1 font-mono text-gray-700 truncate px-1">{node.internalCode}</div>
+            <div className="font-mono text-gray-700 truncate px-1">{node.internalCode}</div>
             {/* 物料名称 */}
-            <div className="col-span-1 font-medium text-gray-800 truncate px-1">{node.materialName}</div>
+            <div className="font-medium text-gray-800 truncate px-1">{node.materialName}</div>
             {/* 图纸编码 */}
-            <div className="col-span-1 text-gray-600 truncate px-1">{node.drawingCode || '-'}</div>
+            <div className="text-gray-600 truncate px-1">{node.drawingCode || '-'}</div>
             {/* 图号 */}
-            <div className="col-span-1 text-gray-600 truncate px-1">{node.drawingNo || '-'}</div>
+            <div className="text-gray-600 truncate px-1">{node.drawingNo || '-'}</div>
             {/* 单层用量 */}
-            <div className="col-span-1 text-center text-gray-700 truncate px-1">{node.quantity}</div>
+            <div className="text-center text-gray-700 truncate px-1">{node.quantity}</div>
             {/* 物料类型 */}
-            <div className="col-span-1 text-center truncate px-1">
+            <div className="text-center truncate px-1">
               <span className={`px-1.5 py-0.5 rounded text-xs ${
                 node.materialType === 'component' ? 'bg-blue-100 text-blue-700' :
                 node.materialType === 'part' ? 'bg-green-100 text-green-700' :
@@ -886,14 +886,16 @@ export default function BOMManagementPage() {
                 {typeLabelMap[node.materialType] || node.materialType}
               </span>
             </div>
+            {/* 所属客户 */}
+            <div className="text-gray-600 truncate px-1">{groupName}</div>
             {/* 备注 */}
-            <div className="col-span-1 text-gray-500 truncate px-1">
+            <div className="text-gray-500 truncate px-1">
               {node.remark ? `W:${node.remark}` : ''}
               {node.bomRemark ? `${node.remark ? '||' : ''}B:${node.bomRemark}` : ''}
               {!node.remark && !node.bomRemark ? '-' : ''}
             </div>
             {/* 操作 */}
-            <div className="col-span-1 flex items-center justify-center gap-0.5 px-1">
+            <div className="flex items-center justify-center gap-0.5 px-1">
               {/* 编辑 */}
               <button
                 onClick={() => handleEditMaterial(node)}
