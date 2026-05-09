@@ -541,8 +541,15 @@ export default function BOMManagementPage() {
 
     const method = editingMaterial ? 'PUT' : 'POST';
 
+    // 判断是否是编辑子物料
+    const isEditingChildMaterial = !!editingMaterial && !!editingParentInfo;
+
     // 新增时，如果内部编码为空则通过API自动生成
-    let payload: any = { ...formData };
+    // 编辑子物料时，不更新 quantity（单层用量在 BOM 关系中）
+    let payload: any = isEditingChildMaterial
+      ? { materialName: formData.materialName, drawingCode: formData.drawingCode, drawingNo: formData.drawingNo, remark: formData.remark }
+      : { ...formData };
+    
     if (!editingMaterial && !payload.internalCode) {
       try {
         const codeRes = await fetch('/api/bom/material/next-code', {
@@ -1103,7 +1110,9 @@ export default function BOMManagementPage() {
             <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200">
               <h3 className="font-semibold">
                 {editingMaterial ? (
-                  parentMaterialId || editingParentInfo ? '编辑子物料' : '编辑物料'
+                  editingParentInfo ? 
+                    `编辑子物料（${editingMaterial.drawingCode || '-'}_${editingMaterial.materialName || '-'})` : 
+                    `编辑物料（${editingMaterial.drawingCode || '-'}_${editingMaterial.materialName || '-'})`
                 ) : parentMaterialId ? (
                   <span>
                     为：(<span className="text-blue-600">{parentMaterial?.drawingCode || '-'}_{parentMaterial?.materialName || '-'}</span>) 新增子物料
