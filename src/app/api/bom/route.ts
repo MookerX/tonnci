@@ -129,6 +129,7 @@ export async function GET(request: NextRequest) {
         parentMaterialId: true,
         childMaterialId: true,
         quantity: true,
+        bomRemark: true,
       },
     });
 
@@ -169,6 +170,7 @@ export async function GET(request: NextRequest) {
           bomItemId: item.id,
           quantity: item.quantity,
           parentId: item.parentMaterialId,
+          bomRemark: item.bomRemark || '',
         });
       }
     }
@@ -215,6 +217,7 @@ export async function GET(request: NextRequest) {
             groupId: detail.groupId || null,
             customerGroupName: detail.customerGroupName || null,
             remark: detail.remark || '',
+            bomRemark: child.bomRemark || '',
             quantity: child.quantity,
             children: [],
           };
