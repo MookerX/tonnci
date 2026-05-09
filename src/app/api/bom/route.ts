@@ -214,6 +214,7 @@ export async function GET(request: NextRequest) {
             spec: detail.spec || '',
             groupId: detail.groupId || null,
             customerGroupName: detail.customerGroupName || null,
+            remark: detail.remark || '',
             quantity: child.quantity,
             children: [],
           };
@@ -239,6 +240,7 @@ export async function GET(request: NextRequest) {
           spec: detail.spec || '',
           groupId: detail.groupId || null,
           customerGroupName: detail.customerGroupName || null,
+          remark: detail.remark || '',
           quantity: child.quantity,
           children: [],
         };
