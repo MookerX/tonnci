@@ -590,7 +590,7 @@ export default function BOMManagementPage() {
     if (res.code === 200) {
       // 如果是新增子物料，需要建立BOM关系
       if (!editingMaterial && parentMaterialId && res.data?.id) {
-        await handleAddBOMRelation(parentMaterialId, res.data.id, formData.quantity || 1);
+        await handleAddBOMRelation(parentMaterialId, res.data.id, formData.quantity || 1, formData.remark || '');
       }
       
       setShowMaterialModal(false);
@@ -603,11 +603,11 @@ export default function BOMManagementPage() {
     }
   };
 
-  const handleAddBOMRelation = async (parentId: number, childId: number, quantity: number) => {
+  const handleAddBOMRelation = async (parentId: number, childId: number, quantity: number, remark: string = '') => {
     const res = await fetchApi('/api/bom', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ parentMaterialId: parentId, childMaterialId: childId, quantity }),
+      body: JSON.stringify({ parentMaterialId: parentId, childMaterialId: childId, quantity, bomRemark: remark }),
     });
 
     if (res.code === 200) {
@@ -1135,23 +1135,33 @@ export default function BOMManagementPage() {
               </button>
             </div>
             <div className="p-4 space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  客户群组 <span className="text-red-500">*</span>
-                  {(parentMaterialId || editingParentInfo) && <span className="text-gray-400 text-xs ml-1">(继承自父物料，不可修改)</span>}
-                </label>
-                <select
-                  value={formData.groupId || ''}
-                  onChange={e => setFormData({ ...formData, groupId: e.target.value ? parseInt(e.target.value) : null })}
-                  disabled={!!(parentMaterialId || editingParentInfo)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50"
-                >
-                  <option value="">请选择客户群组</option>
-                  {customerGroups.map(g => (
-                    <option key={g.id} value={g.id}>{g.groupName}</option>
-                  ))}
-                </select>
-              </div>
+              {/* 客户群组 */}
+              {(() => {
+                // 新增顶层物料：可选择
+                // 编辑顶层物料：不可选择
+                // 新增子物料：不可选择（继承父物料）
+                // 编辑子物料：不可选择（继承父物料）
+                const disabled = !!editingMaterial || !!parentMaterialId || !!editingParentInfo;
+                return (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      客户群组 {!disabled && <span className="text-red-500">*</span>}
+                      {disabled && <span className="text-gray-400 text-xs ml-1">(不可修改)</span>}
+                    </label>
+                    <select
+                      value={formData.groupId || ''}
+                      onChange={e => setFormData({ ...formData, groupId: e.target.value ? parseInt(e.target.value) : null })}
+                      disabled={disabled}
+                      className={`w-full px-3 py-2 border rounded-lg ${disabled ? 'border-gray-200 bg-gray-50 text-gray-500 cursor-not-allowed' : 'border-gray-300'}`}
+                    >
+                      <option value="">请选择客户群组</option>
+                      {customerGroups.map(g => (
+                        <option key={g.id} value={g.id}>{g.groupName}</option>
+                      ))}
+                    </select>
+                  </div>
+                );
+              })()}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   物料名称 <span className="text-red-500">*</span>
@@ -1167,13 +1177,14 @@ export default function BOMManagementPage() {
               <div className="grid grid-cols-3 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    物料类型
-                    {(parentMaterialId || editingParentInfo) && <span className="text-gray-400 text-xs ml-1">(不可修改)</span>}
+                    物料类型 {!editingMaterial && <span className="text-red-500">*</span>}
+                    {editingMaterial && <span className="text-gray-400 text-xs ml-1">(不可修改)</span>}
                   </label>
                   <select
                     value={formData.materialType}
-                    disabled
-                    className="w-full px-3 py-2 border border-gray-200 rounded-lg bg-gray-50 text-gray-500 cursor-not-allowed"
+                    onChange={e => setFormData({ ...formData, materialType: e.target.value })}
+                    disabled={!!editingMaterial}
+                    className={`w-full px-3 py-2 border rounded-lg ${editingMaterial ? 'border-gray-200 bg-gray-50 text-gray-500 cursor-not-allowed' : 'border-gray-300'}`}
                   >
                     {materialTypeOptions.map(t => (
                       <option key={t.value} value={t.value}>{t.label}</option>
