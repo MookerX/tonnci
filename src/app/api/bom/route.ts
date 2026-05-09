@@ -82,7 +82,6 @@ export async function GET(request: NextRequest) {
     const bomItemWhere: any = {
       isDelete: false,
     };
-    console.log('[DEBUG] rootMaterialId:', rootMaterialId);
     // 如果指定了rootMaterialId，只获取该BOM树的根物料及其所有层级子物料
     if (rootMaterialId) {
       console.log('[DEBUG] in rootMaterialId block, value:', rootMaterialId);
@@ -132,6 +131,31 @@ export async function GET(request: NextRequest) {
         quantity: true,
       },
     });
+
+    // 如果有BOM关系但父物料不在materialMap中，补充获取父物料
+    const parentIds = [...new Set(bomItems.map(item => item.parentMaterialId).filter(id => id !== null && !materialMap.has(id)))];
+    if (parentIds.length > 0) {
+      const parentMaterials = await prisma.material.findMany({
+        where: { id: { in: parentIds }, isDelete: false },
+        select: {
+          id: true,
+          materialName: true,
+          internalCode: true,
+          drawingCode: true,
+          drawingNo: true,
+          materialType: true,
+          unit: true,
+          spec: true,
+          customerId: true,
+          groupId: true,
+          remark: true,
+        },
+      });
+      for (const m of parentMaterials) {
+        const groupName = m.groupId ? groupNameMap.get(m.groupId) || null : null;
+        materialMap.set(m.id, { ...m, customerGroupName: groupName, children: [] as any[] });
+      }
+    }
 
     // 构建树：BOM的parentMaterialId指向父物料
     const childrenMap = new Map<number, any[]>();
@@ -236,7 +260,44 @@ export async function GET(request: NextRequest) {
     // 获取所有子物料ID（用于确定真正的顶层物料）
     const childIdSet = new Set(bomItems.map(b => b.childMaterialId));
     // 真正的顶层物料：作为子物料出现的物料不再作为顶层显示
-    const topMaterials = allMaterials.filter(m => !childIdSet.has(m.id));
+    // 但如果搜索关键词命中了子物料，需要把它的父物料也加入
+    const hitMaterialIds = new Set(allMaterials.map(m => m.id));
+    let topMaterials = allMaterials.filter(m => !childIdSet.has(m.id));
+
+    // 如果有BOM关系，补充获取父物料链（用于搜索命中的子物料）
+    if (keyword && bomItems.length > 0) {
+      const parentMaterialIds = [...new Set(bomItems.map(b => b.parentMaterialId).filter(id => id !== null))];
+      // 获取不在topMaterials中但与命中的子物料相关的父物料
+      const relatedParentIds = parentMaterialIds.filter(pid => !hitMaterialIds.has(pid));
+      if (relatedParentIds.length > 0) {
+        const relatedParents = await prisma.material.findMany({
+          where: { id: { in: relatedParentIds }, isDelete: false },
+          select: {
+            id: true,
+            materialName: true,
+            internalCode: true,
+            drawingCode: true,
+            drawingNo: true,
+            materialType: true,
+            unit: true,
+            spec: true,
+            customerId: true,
+            groupId: true,
+            remark: true,
+          },
+        });
+        // 添加父物料到列表和materialMap
+        for (const m of relatedParents) {
+          if (!materialMap.has(m.id)) {
+            const groupName = m.groupId ? groupNameMap.get(m.groupId) || null : null;
+            materialMap.set(m.id, { ...m, customerGroupName: groupName, children: [] as any[] });
+          }
+        }
+        // 将父物料加入顶层列表（去除已经是子物料的）
+        const newTops = relatedParents.filter(p => !childIdSet.has(p.id));
+        topMaterials = [...topMaterials, ...newTops];
+      }
+    }
 
     // 返回顶层物料（包含完整树形结构，递归填充所有层级）
     const bomTree = topMaterials.map(m => {
