@@ -636,39 +636,39 @@ export default function BOMManagementPage() {
       
       success(editingMaterial ? '物料更新成功' : '物料创建成功');
       
-      // 刷新 BOM 树后滚动到该行
-      fetchBOMTree();
+      // 等待数据刷新后滚动到该行并展开所有父节点
+      await fetchBOMTree();
       fetchMaterials();
       
-      // 等待数据刷新后滚动到该行并展开所有父节点
-      setTimeout(() => {
-        if (savedMaterialId) {
-          // 找到该物料在树中的完整键和所有父节点键
-          const findNodeInfo = (nodes: TreeNode[], targetId: number, parentKey: string = '', parentKeys: string[] = []): { nodeKey: string | null; parentKeys: string[] } => {
-            for (const node of nodes) {
-              const currentKey = parentKey ? `${parentKey}_${node.id}` : `${node.id}_`;
-              if (node.id === targetId) {
-                return { nodeKey: currentKey, parentKeys };
-              }
-              if (node.children && node.children.length > 0) {
-                const result = findNodeInfo(node.children, targetId, currentKey, [...parentKeys, currentKey]);
-                if (result.nodeKey) return result;
-              }
+      if (savedMaterialId) {
+        // 找到该物料在树中的完整键和所有父节点键
+        const findNodeInfo = (nodes: TreeNode[], targetId: number, parentKey: string = '', parentKeys: string[] = []): { nodeKey: string | null; parentKeys: string[] } => {
+          for (const node of nodes) {
+            const currentKey = parentKey ? `${parentKey}_${node.id}` : `${node.id}_`;
+            if (node.id === targetId) {
+              return { nodeKey: currentKey, parentKeys };
             }
-            return { nodeKey: null, parentKeys };
-          };
-          
-          const { nodeKey, parentKeys } = findNodeInfo(treeData, savedMaterialId);
-          
-          // 展开所有父节点
-          if (parentKeys.length > 0) {
-            setExpandedKeys(prev => {
-              const newSet = new Set(prev);
-              parentKeys.forEach(key => newSet.add(key));
-              return newSet;
-            });
+            if (node.children && node.children.length > 0) {
+              const result = findNodeInfo(node.children, targetId, currentKey, [...parentKeys, currentKey]);
+              if (result.nodeKey) return result;
+            }
           }
-          
+          return { nodeKey: null, parentKeys };
+        };
+        
+        const { nodeKey, parentKeys } = findNodeInfo(treeData, savedMaterialId);
+        
+        // 展开所有父节点
+        if (parentKeys.length > 0) {
+          setExpandedKeys(prev => {
+            const newSet = new Set(prev);
+            parentKeys.forEach(key => newSet.add(key));
+            return newSet;
+          });
+        }
+        
+        // 延迟滚动，等待展开完成
+        setTimeout(() => {
           if (nodeKey && itemRefs.current[nodeKey]) {
             itemRefs.current[nodeKey]?.scrollIntoView({ behavior: 'smooth', block: 'center' });
             // 高亮显示一下
@@ -677,8 +677,8 @@ export default function BOMManagementPage() {
               itemRefs.current[nodeKey]?.classList.remove('ring-2', 'ring-blue-400');
             }, 2000);
           }
-        }
-      }, 100);
+        }, 50);
+      }
     } else {
       error(res.message || '保存失败');
     }
