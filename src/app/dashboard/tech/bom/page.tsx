@@ -612,6 +612,20 @@ export default function BOMManagementPage() {
       // 获取父物料ID（新增子物料或编辑子物料时）
       const parentId = parentMaterialId || editingParentInfo?.id;
       
+      // 新增子物料时：创建物料后还需要创建BOM关系
+      if (!editingMaterial && parentId && savedMaterialId) {
+        await fetchApi('/api/bom', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            parentMaterialId: parentId,
+            childMaterialId: savedMaterialId,
+            quantity: formData.quantity || 1,
+            bomRemark: formData.bomRemark || '',
+          }),
+        });
+      }
+      
       // 如果是子物料，展开父节点
       if (parentId) {
         const parentKey = `${parentId}_`;
