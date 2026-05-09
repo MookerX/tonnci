@@ -241,6 +241,7 @@ export async function GET(request: NextRequest) {
           groupId: detail.groupId || null,
           customerGroupName: detail.customerGroupName || null,
           remark: detail.remark || '',
+          bomRemark: child.bomRemark || detail.bomRemark || '',
           quantity: child.quantity,
           children: [],
         };
@@ -324,7 +325,7 @@ export async function POST(request: NextRequest) {
     const userId = authResult?.id || 1; // 如果未认证，使用默认值1
 
     const body = await request.json();
-    const { parentMaterialId, childMaterialId, quantity, remark } = body;
+    const { parentMaterialId, childMaterialId, quantity, bomRemark } = body;
 
     if (!parentMaterialId || !childMaterialId) {
       return badRequestResponse('父物料和子物料不能为空');
@@ -372,7 +373,7 @@ export async function POST(request: NextRequest) {
         childMaterialId,
         rootMaterialId,
         quantity: quantity || 1,
-        bomRemark: remark,
+        bomRemark: body.bomRemark || '',
         levelIndex: Date.now().toString(36),
         createdBy: userId,
       },
