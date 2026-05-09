@@ -626,12 +626,6 @@ export default function BOMManagementPage() {
         });
       }
       
-      // 如果是子物料，展开父节点
-      if (parentId) {
-        const parentKey = `${parentId}_`;
-        setExpandedKeys(prev => new Set([...prev, parentKey]));
-      }
-      
       // 重置弹窗状态
       setShowMaterialModal(false);
       setEditingBOMItemId(null);
@@ -646,25 +640,35 @@ export default function BOMManagementPage() {
       fetchBOMTree();
       fetchMaterials();
       
-      // 等待数据刷新后滚动到该行
+      // 等待数据刷新后滚动到该行并展开所有父节点
       setTimeout(() => {
         if (savedMaterialId) {
-          // 找到该物料在树中的完整键（需要遍历树找到它的父键）
-          const findNodePath = (nodes: TreeNode[], targetId: number, parentKey: string = ''): string | null => {
+          // 找到该物料在树中的完整键和所有父节点键
+          const findNodeInfo = (nodes: TreeNode[], targetId: number, parentKey: string = '', parentKeys: string[] = []): { nodeKey: string | null; parentKeys: string[] } => {
             for (const node of nodes) {
               const currentKey = parentKey ? `${parentKey}_${node.id}` : `${node.id}_`;
               if (node.id === targetId) {
-                return currentKey;
+                return { nodeKey: currentKey, parentKeys };
               }
               if (node.children && node.children.length > 0) {
-                const found = findNodePath(node.children, targetId, currentKey);
-                if (found) return found;
+                const result = findNodeInfo(node.children, targetId, currentKey, [...parentKeys, currentKey]);
+                if (result.nodeKey) return result;
               }
             }
-            return null;
+            return { nodeKey: null, parentKeys };
           };
           
-          const nodeKey = findNodePath(treeData, savedMaterialId);
+          const { nodeKey, parentKeys } = findNodeInfo(treeData, savedMaterialId);
+          
+          // 展开所有父节点
+          if (parentKeys.length > 0) {
+            setExpandedKeys(prev => {
+              const newSet = new Set(prev);
+              parentKeys.forEach(key => newSet.add(key));
+              return newSet;
+            });
+          }
+          
           if (nodeKey && itemRefs.current[nodeKey]) {
             itemRefs.current[nodeKey]?.scrollIntoView({ behavior: 'smooth', block: 'center' });
             // 高亮显示一下
