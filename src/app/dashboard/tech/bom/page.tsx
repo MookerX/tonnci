@@ -577,18 +577,8 @@ export default function BOMManagementPage() {
       
       setShowMaterialModal(false);
       success(editingMaterial ? '物料更新成功' : '物料创建成功');
-      // 刷新 BOM 树
-      // 获取正确的 groupId（避免 0 值传给 API）
-      const refreshGroupId = editingMaterial && editingParentInfo?.id
-        ? (editingParentInfo.groupId || null)
-        : (formData.groupId || null);
-      
-      if (refreshGroupId) {
-        fetchBOMTree(refreshGroupId);
-      } else {
-        // 没有 groupId 或 groupId 为 0，刷新所有 BOM 数据
-        fetchBOMTree();
-      }
+      // 刷新 BOM 树（始终刷新所有数据）
+      fetchBOMTree();
       fetchMaterials();
     } else {
       error(res.message || '保存失败');
