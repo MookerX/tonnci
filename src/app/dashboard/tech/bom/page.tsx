@@ -1172,21 +1172,6 @@ export default function BOMManagementPage() {
               </button>
             </div>
             <div className="p-4 space-y-4">
-              {/* 弹窗标题 */}
-              <div className="text-sm text-gray-600 mb-2">
-                {editingMaterial ? (
-                  editingParentInfo ? (
-                    <span>编辑子物料 - 父物料：<span className="text-blue-600">{parentMaterial?.drawingCode || '-'}_{parentMaterial?.materialName || '-'}</span></span>
-                  ) : (
-                    <span>编辑物料</span>
-                  )
-                ) : parentMaterialId ? (
-                  <span>为父物料 <span className="text-blue-600">{parentMaterial?.drawingCode || '-'}_{parentMaterial?.materialName || '-'}</span> 新增子物料</span>
-                ) : (
-                  <span>新增顶层物料</span>
-                )}
-              </div>
-
               {/* 客户群组 */}
               {(() => {
                 // 新增顶层物料：可选择（必填）
