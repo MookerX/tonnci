@@ -678,12 +678,13 @@ export default function BOMManagementPage() {
             const nodeKey = `node_${node.id}`;
             const fullKey = parentKey ? `${parentKey}_${nodeKey}` : nodeKey;
             if (node.id === targetId) {
-              return { fullKey, parentKeys: parentKey ? [parentKey] : [] };
+              // 找到目标节点，返回空列表（目标节点本身不需要展开）
+              return { fullKey, parentKeys: [] };
             }
             if (node.children && node.children.length > 0) {
               const result = findNodeInfo(node.children, targetId, fullKey);
               if (result.fullKey) {
-                // 将当前节点的 fullKey 加入父节点列表
+                // 将当前节点加入父节点列表（当前节点需要展开才能显示子节点）
                 return { 
                   fullKey: result.fullKey, 
                   parentKeys: [fullKey, ...result.parentKeys] 
