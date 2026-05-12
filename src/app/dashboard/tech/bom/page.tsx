@@ -365,7 +365,10 @@ export default function BOMManagementPage() {
     const hasExpandFilter = filterType || filterName;
     if (!hasExpandFilter) {
       // 类型筛选和名称筛选都为空时，折叠所有节点
-      setExpandedKeys(new Set());
+      // 但如果刚新增了子物料（skipAutoCollapse），则跳过
+      if (!skipAutoCollapse.current) {
+        setExpandedKeys(new Set());
+      }
       return;
     }
 
@@ -703,6 +706,8 @@ export default function BOMManagementPage() {
               itemRefs.current[fullKey]?.classList.remove('ring-2', 'ring-blue-400');
             }, 2000);
           }
+          // 重置跳过自动折叠标记
+          skipAutoCollapse.current = false;
         }, 500);
       }
     } else {
