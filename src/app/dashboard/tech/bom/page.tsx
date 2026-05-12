@@ -430,6 +430,11 @@ export default function BOMManagementPage() {
     });
   };
 
+  // 调试：监听 expandedKeys 变化
+  useEffect(() => {
+    console.log('DEBUG - expandedKeys changed:', [...expandedKeys]);
+  }, [expandedKeys]);
+
   const handleAddRootMaterial = () => {
     setEditingMaterial(null);
     setParentMaterialId(null);
