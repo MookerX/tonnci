@@ -1374,32 +1374,35 @@ export default function BOMManagementPage() {
                   />
                 </div>
               </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">物料备注</label>
-                <textarea
-                  value={formData.remark}
-                  onChange={e => setFormData({ ...formData, remark: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg"
-                  rows={3}
-                  placeholder="物料本身的备注信息"
-                />
-              </div>
-              {/* BOM备注：仅子物料（新增/编辑）显示 */}
-              {(parentMaterialId || editingParentInfo) && (
+              {/* 备注区域：物料备注和BOM备注并排显示 */}
+              <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    BOM备注
-                    <span className="text-gray-400 text-xs font-normal ml-1">(该物料在父级BOM中的备注)</span>
-                  </label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">物料备注</label>
                   <textarea
-                    value={formData.bomRemark || ''}
-                    onChange={e => setFormData({ ...formData, bomRemark: e.target.value })}
+                    value={formData.remark}
+                    onChange={e => setFormData({ ...formData, remark: e.target.value })}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg"
-                    rows={3}
-                    placeholder="BOM关系中的备注，如工艺要求、供应商说明等"
+                    rows={2}
+                    placeholder="物料本身的备注信息"
                   />
                 </div>
-              )}
+                {/* BOM备注：仅子物料（新增/编辑）显示 */}
+                {(parentMaterialId || editingParentInfo) && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      BOM备注
+                      <span className="text-gray-400 text-xs font-normal ml-1">(父级BOM中)</span>
+                    </label>
+                    <textarea
+                      value={formData.bomRemark || ''}
+                      onChange={e => setFormData({ ...formData, bomRemark: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                      rows={2}
+                      placeholder="BOM关系备注"
+                    />
+                  </div>
+                )}
+              </div>
             </div>
             <div className="flex justify-end gap-2 px-4 py-3 border-t border-gray-200">
               <button
