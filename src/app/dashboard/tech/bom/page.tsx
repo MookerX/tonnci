@@ -698,15 +698,15 @@ export default function BOMManagementPage() {
         console.log('===== DEBUG RESULT =====');
         console.log('DEBUG - fullKey:', fullKey);
         console.log('DEBUG - parentKeys:', JSON.stringify(parentKeys));
+        alert(`DEBUG: fullKey=${fullKey}, parentKeys=${JSON.stringify(parentKeys)}`);
         
         // 展开所有父节点
         if (parentKeys.length > 0) {
-          setExpandedKeys(prev => {
-            const newSet = new Set(prev);
-            parentKeys.forEach(key => newSet.add(key));
-            console.log('DEBUG - new expandedKeys:', Array.from(newSet));
-            return newSet;
-          });
+          const newExpandedKeys = new Set(expandedKeys);
+          parentKeys.forEach(key => newExpandedKeys.add(key));
+          console.log('DEBUG - new expandedKeys:', Array.from(newExpandedKeys));
+          alert(`DEBUG: Setting expandedKeys to ${JSON.stringify(Array.from(newExpandedKeys))}`);
+          setExpandedKeys(newExpandedKeys);
         }
         
         // 延迟滚动，等待展开完成
