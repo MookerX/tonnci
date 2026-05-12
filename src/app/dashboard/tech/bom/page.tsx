@@ -1091,7 +1091,14 @@ export default function BOMManagementPage() {
               type="text"
               placeholder="输入关键词搜索..."
               value={globalSearch}
-              onChange={e => setGlobalSearch(e.target.value)}
+              onChange={e => {
+                const value = e.target.value;
+                setGlobalSearch(value);
+                // 当搜索框为空时，折叠所有节点
+                if (!value.trim()) {
+                  setExpandedKeys(new Set());
+                }
+              }}
               className="px-3 py-1.5 border border-gray-300 rounded-lg text-sm w-56"
             />
           </div>
