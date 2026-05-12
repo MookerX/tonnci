@@ -653,6 +653,25 @@ export default function BOMManagementPage() {
         console.log('savedMaterialId:', savedMaterialId);
         console.log('newTreeData:', JSON.stringify(newTreeData, null, 2));
         
+        // 先找父物料是否存在
+        const findNodeById = (nodes: TreeNode[], id: number): TreeNode | null => {
+          for (const node of nodes) {
+            if (node.id === id) return node;
+            if (node.children && node.children.length > 0) {
+              const found = findNodeById(node.children, id);
+              if (found) return found;
+            }
+          }
+          return null;
+        };
+        
+        const parentNode = findNodeById(newTreeData, parentId);
+        const newMaterialNode = findNodeById(newTreeData, savedMaterialId);
+        console.log('DEBUG - parentId:', parentId);
+        console.log('DEBUG - parentNode found:', !!parentNode);
+        console.log('DEBUG - savedMaterialId:', savedMaterialId);
+        console.log('DEBUG - newMaterialNode found:', !!newMaterialNode);
+        
         // 找到该物料在树中的完整键和所有父节点键（键格式与expandedKeys一致）
         const findNodeInfo = (nodes: TreeNode[], targetId: number, parentKeys: string[] = []): { nodeKey: string | null; parentKeys: string[] } => {
           for (const node of nodes) {
@@ -670,18 +689,20 @@ export default function BOMManagementPage() {
         
         const { nodeKey, parentKeys } = findNodeInfo(newTreeData, savedMaterialId);
         // DEBUG
-        console.log('nodeKey:', nodeKey);
-        console.log('parentKeys:', parentKeys);
+        console.log('DEBUG - nodeKey:', nodeKey);
+        console.log('DEBUG - parentKeys:', parentKeys);
         
         // 展开所有父节点
         if (parentKeys.length > 0) {
-          console.log('Expanding parent nodes...');
+          console.log('DEBUG - Expanding parent nodes...');
           setExpandedKeys(prev => {
             const newSet = new Set(prev);
             parentKeys.forEach(key => newSet.add(key));
-            console.log('new expandedKeys:', Array.from(newSet));
+            console.log('DEBUG - new expandedKeys:', Array.from(newSet));
             return newSet;
           });
+        } else {
+          console.log('DEBUG - parentKeys is empty, cannot expand');
         }
         
         // 延迟滚动，等待展开完成
