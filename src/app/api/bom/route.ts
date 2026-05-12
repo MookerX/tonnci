@@ -57,6 +57,8 @@ export async function GET(request: NextRequest) {
         customerId: true,
         groupId: true,
         remark: true,
+        createdBy: true,
+        modifiedBy: true,
       },
     });
 
@@ -72,9 +74,29 @@ export async function GET(request: NextRequest) {
       groupNameMap = new Map(groups.map(g => [g.id, g.groupName]));
     }
 
+    // 获取用户信息映射
+    const userIds = [...new Set([
+      ...allMaterials.map(m => m.createdBy).filter((id): id is number => id !== null),
+      ...allMaterials.map(m => m.modifiedBy).filter((id): id is number => id !== null),
+    ])];
+    let userNameMap = new Map<number, string>();
+    if (userIds.length > 0) {
+      const users = await prisma.user.findMany({
+        where: { id: { in: userIds } },
+        select: { id: true, username: true },
+      });
+      userNameMap = new Map(users.map(u => [u.id, u.username]));
+    }
+
     const materialMap = new Map(allMaterials.map(m => {
       const groupName = m.groupId ? groupNameMap.get(m.groupId) || null : null;
-      return [m.id, { ...m, customerGroupName: groupName, children: [] as any[] }];
+      return [m.id, {
+        ...m,
+        customerGroupName: groupName,
+        materialCreatorName: m.createdBy ? userNameMap.get(m.createdBy) || null : null,
+        materialModifierName: m.modifiedBy ? userNameMap.get(m.modifiedBy) || null : null,
+        children: [] as any[],
+      }];
     }));
     const materialIds = allMaterials.map(m => m.id);
 
@@ -130,8 +152,27 @@ export async function GET(request: NextRequest) {
         childMaterialId: true,
         quantity: true,
         bomRemark: true,
+        createdBy: true,
+        modifiedBy: true,
       },
     });
+
+    // 补充获取 BOM 关系的用户信息
+    const bomUserIds = [...new Set([
+      ...bomItems.map(item => item.createdBy).filter((id): id is number => id !== null),
+      ...bomItems.map(item => item.modifiedBy).filter((id): id is number => id !== null),
+    ])];
+    if (bomUserIds.length > 0) {
+      const bomUsers = await prisma.user.findMany({
+        where: { id: { in: bomUserIds } },
+        select: { id: true, username: true },
+      });
+      for (const u of bomUsers) {
+        if (!userNameMap.has(u.id)) {
+          userNameMap.set(u.id, u.username);
+        }
+      }
+    }
 
     // 如果有BOM关系但父物料不在materialMap中，补充获取父物料
     const parentIds = [...new Set(bomItems.map(item => item.parentMaterialId).filter(id => id !== null && !materialMap.has(id)))];
@@ -171,6 +212,8 @@ export async function GET(request: NextRequest) {
           quantity: item.quantity,
           parentId: item.parentMaterialId,
           bomRemark: item.bomRemark || '',
+          bomCreatedBy: item.createdBy,
+          bomModifiedBy: item.modifiedBy,
         });
       }
     }
@@ -191,11 +234,15 @@ export async function GET(request: NextRequest) {
         customerId: true,
         groupId: true,
         remark: true,
+        createdBy: true,
+        modifiedBy: true,
       },
     });
     const childMap = new Map(childMaterials.map(m => [m.id, {
       ...m,
       customerGroupName: m.groupId ? groupNameMap.get(m.groupId) || null : null,
+      materialCreatorName: m.createdBy ? userNameMap.get(m.createdBy) || null : null,
+      materialModifierName: m.modifiedBy ? userNameMap.get(m.modifiedBy) || null : null,
     }]));
 
     // 填充树节点
@@ -221,6 +268,10 @@ export async function GET(request: NextRequest) {
             bomRemark: child.bomRemark || '',
             quantity: child.quantity,
             children: [],
+            materialCreatorName: detail.materialCreatorName || null,
+            materialModifierName: detail.materialModifierName || null,
+            bomCreatorName: child.bomCreatedBy ? userNameMap.get(child.bomCreatedBy) || null : null,
+            bomModifierName: child.bomModifiedBy ? userNameMap.get(child.bomModifiedBy) || null : null,
           };
         });
       }
@@ -248,6 +299,10 @@ export async function GET(request: NextRequest) {
           bomRemark: child.bomRemark || detail.bomRemark || '',
           quantity: child.quantity,
           children: [],
+          materialCreatorName: detail.materialCreatorName || null,
+          materialModifierName: detail.materialModifierName || null,
+          bomCreatorName: child.bomCreatedBy ? userNameMap.get(child.bomCreatedBy) || null : null,
+          bomModifierName: child.bomModifiedBy ? userNameMap.get(child.bomModifiedBy) || null : null,
         };
         fillChildrenRecursively(childNode);
         return childNode;

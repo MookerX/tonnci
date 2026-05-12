@@ -29,6 +29,11 @@ interface TreeNode {
   customerGroupName?: string | null;
   unit?: string | null;
   spec?: string | null;
+  // 创建者和修改者
+  bomCreatorName?: string | null;
+  bomModifierName?: string | null;
+  materialCreatorName?: string | null;
+  materialModifierName?: string | null;
 }
 
 interface Material {
@@ -955,17 +960,17 @@ export default function BOMManagementPage() {
           {/* 数据列 */}
           <div className={`flex-1 flex items-center ${paddingY} ${fontSize} min-w-0`}>
             {/* 内部编码 */}
-            <div className="w-24 flex-shrink-0 font-mono text-gray-700 truncate px-1">{node.internalCode}</div>
+            <div className="w-20 flex-shrink-0 font-mono text-gray-700 truncate px-1">{node.internalCode}</div>
             {/* 物料名称 */}
-            <div className="w-32 flex-shrink-0 font-medium text-gray-800 truncate px-1">{node.materialName}</div>
+            <div className="w-28 flex-shrink-0 font-medium text-gray-800 truncate px-1">{node.materialName}</div>
             {/* 图纸编码 */}
-            <div className="w-24 flex-shrink-0 text-gray-600 truncate px-1">{node.drawingCode || '-'}</div>
+            <div className="w-20 flex-shrink-0 text-gray-600 truncate px-1">{node.drawingCode || '-'}</div>
             {/* 图号 */}
-            <div className="w-20 flex-shrink-0 text-gray-600 truncate px-1">{node.drawingNo || '-'}</div>
+            <div className="w-16 flex-shrink-0 text-gray-600 truncate px-1">{node.drawingNo || '-'}</div>
             {/* 单层用量 */}
-            <div className="w-16 flex-shrink-0 text-center text-gray-700 truncate px-1">{node.quantity}</div>
+            <div className="w-14 flex-shrink-0 text-center text-gray-700 truncate px-1">{node.quantity}</div>
             {/* 物料类型 */}
-            <div className="w-20 flex-shrink-0 text-center truncate px-1">
+            <div className="w-16 flex-shrink-0 text-center truncate px-1">
               <span className={`px-1.5 py-0.5 rounded text-xs ${
                 node.materialType === 'component' ? 'bg-blue-100 text-blue-700' :
                 node.materialType === 'part' ? 'bg-green-100 text-green-700' :
@@ -978,7 +983,15 @@ export default function BOMManagementPage() {
               </span>
             </div>
             {/* 所属客户 */}
-            <div className="w-24 flex-shrink-0 text-gray-600 truncate px-1">{groupName}</div>
+            <div className="w-20 flex-shrink-0 text-gray-600 truncate px-1">{groupName}</div>
+            {/* BOM创建者 */}
+            <div className="w-16 flex-shrink-0 text-gray-500 truncate px-1">{node.bomCreatorName || '-'}</div>
+            {/* BOM修改者 */}
+            <div className="w-16 flex-shrink-0 text-gray-500 truncate px-1">{node.bomModifierName || '-'}</div>
+            {/* 物料创建者 */}
+            <div className="w-16 flex-shrink-0 text-gray-500 truncate px-1">{node.materialCreatorName || '-'}</div>
+            {/* 物料修改者 */}
+            <div className="w-16 flex-shrink-0 text-gray-500 truncate px-1">{node.materialModifierName || '-'}</div>
             {/* 备注 */}
             <div className="flex-1 text-gray-500 truncate px-1">
               {node.remark ? `W:${node.remark}` : ''}
@@ -1221,15 +1234,19 @@ export default function BOMManagementPage() {
                 <div className="w-8 flex-shrink-0" />
                 {/* 数据列 - 固定宽度分配 */}
                 <div className="flex-1 flex items-center min-w-0">
-                  <div className="w-24 flex-shrink-0 truncate px-1">内部编码</div>
-                  <div className="w-32 flex-shrink-0 truncate px-1">物料名称</div>
-                  <div className="w-24 flex-shrink-0 truncate px-1">图纸编码</div>
-                  <div className="w-20 flex-shrink-0 truncate px-1">图号</div>
-                  <div className="w-16 flex-shrink-0 text-center truncate px-1">单层用量</div>
-                  <div className="w-20 flex-shrink-0 text-center truncate px-1">物料类型</div>
-                  <div className="w-24 flex-shrink-0 truncate px-1">所属客户</div>
+                  <div className="w-20 flex-shrink-0 truncate px-1">内部编码</div>
+                  <div className="w-28 flex-shrink-0 truncate px-1">名称</div>
+                  <div className="w-20 flex-shrink-0 truncate px-1">图纸编码</div>
+                  <div className="w-16 flex-shrink-0 truncate px-1">图号</div>
+                  <div className="w-14 flex-shrink-0 text-center truncate px-1">单层用量</div>
+                  <div className="w-16 flex-shrink-0 text-center truncate px-1">物料类型</div>
+                  <div className="w-20 flex-shrink-0 truncate px-1">所属客户</div>
+                  <div className="w-16 flex-shrink-0 truncate px-1">BOM创建者</div>
+                  <div className="w-16 flex-shrink-0 truncate px-1">BOM修改者</div>
+                  <div className="w-16 flex-shrink-0 truncate px-1">物料创建者</div>
+                  <div className="w-16 flex-shrink-0 truncate px-1">物料修改者</div>
                   <div className="flex-1 truncate px-1">备注</div>
-                  <div className="w-16 flex-shrink-0 text-center px-1">操作</div>
+                  <div className="w-32 flex-shrink-0 text-center px-1">操作</div>
                 </div>
               </div>
             </div>
