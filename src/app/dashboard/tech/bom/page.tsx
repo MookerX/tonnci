@@ -951,6 +951,11 @@ export default function BOMManagementPage() {
     const fullKey = parentKey ? `${parentKey}_${nodeKey}` : nodeKey;
     const hasChildren = node.children && node.children.length > 0;
     const isExpanded = expandedKeys.has(fullKey);
+    
+    // 调试：打印有子节点的节点的展开状态
+    if (hasChildren) {
+      console.log(`DEBUG render - fullKey: ${fullKey}, isExpanded: ${isExpanded}, expandedKeys:`, [...expandedKeys]);
+    }
     const levelIndex = Math.min(level, levelColors.length - 1);
     const bgColor = levelColors[levelIndex];
     const fontSize = levelFontSizes[levelIndex];
