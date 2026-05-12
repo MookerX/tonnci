@@ -1086,8 +1086,7 @@ export default function BOMManagementPage() {
 
       {/* 全局搜索和列筛选 */}
       <div className="border-b border-gray-200 px-4 py-3 bg-gray-50">
-        {/* 第一行：全局搜索 + 列筛选 */}
-        <div className="flex items-center gap-6 flex-wrap mb-2">
+        <div className="flex items-center gap-6 flex-wrap">
           {/* 全局搜索 */}
           <div className="flex items-center gap-2">
             <span className="text-sm font-medium text-gray-700">全局搜索：</span>
@@ -1105,6 +1104,47 @@ export default function BOMManagementPage() {
               }}
               className="px-3 py-1.5 border border-gray-300 rounded-lg text-sm w-56"
             />
+          </div>
+          
+          {/* 搜索字段勾选 */}
+          <div className="flex items-center gap-3">
+            <span className="text-sm text-gray-500">检索字段：</span>
+            <label className="flex items-center gap-1 text-sm cursor-pointer">
+              <input
+                type="checkbox"
+                checked={searchFields.materialName}
+                onChange={() => toggleSearchField('materialName')}
+                className="w-4 h-4 text-blue-600 rounded border-gray-300"
+              />
+              物料名称
+            </label>
+            <label className="flex items-center gap-1 text-sm cursor-pointer">
+              <input
+                type="checkbox"
+                checked={searchFields.drawingCode}
+                onChange={() => toggleSearchField('drawingCode')}
+                className="w-4 h-4 text-blue-600 rounded border-gray-300"
+              />
+              图纸编码
+            </label>
+            <label className="flex items-center gap-1 text-sm cursor-pointer">
+              <input
+                type="checkbox"
+                checked={searchFields.internalCode}
+                onChange={() => toggleSearchField('internalCode')}
+                className="w-4 h-4 text-blue-600 rounded border-gray-300"
+              />
+              内部编码
+            </label>
+            <label className="flex items-center gap-1 text-sm cursor-pointer">
+              <input
+                type="checkbox"
+                checked={searchFields.drawingNo}
+                onChange={() => toggleSearchField('drawingNo')}
+                className="w-4 h-4 text-blue-600 rounded border-gray-300"
+              />
+              图号
+            </label>
           </div>
 
           {/* 列筛选 */}
@@ -1157,47 +1197,6 @@ export default function BOMManagementPage() {
               清空筛选
             </button>
           )}
-        </div>
-
-        {/* 第二行：检索字段勾选 */}
-        <div className="flex items-center gap-3">
-          <span className="text-sm text-gray-500">检索字段：</span>
-          <label className="flex items-center gap-1 text-sm cursor-pointer">
-            <input
-              type="checkbox"
-              checked={searchFields.materialName}
-              onChange={() => toggleSearchField('materialName')}
-              className="w-4 h-4 text-blue-600 rounded border-gray-300"
-            />
-            物料名称
-          </label>
-          <label className="flex items-center gap-1 text-sm cursor-pointer">
-            <input
-              type="checkbox"
-              checked={searchFields.drawingCode}
-              onChange={() => toggleSearchField('drawingCode')}
-              className="w-4 h-4 text-blue-600 rounded border-gray-300"
-            />
-            图纸编码
-          </label>
-          <label className="flex items-center gap-1 text-sm cursor-pointer">
-            <input
-              type="checkbox"
-              checked={searchFields.internalCode}
-              onChange={() => toggleSearchField('internalCode')}
-              className="w-4 h-4 text-blue-600 rounded border-gray-300"
-            />
-            内部编码
-          </label>
-          <label className="flex items-center gap-1 text-sm cursor-pointer">
-            <input
-              type="checkbox"
-              checked={searchFields.drawingNo}
-              onChange={() => toggleSearchField('drawingNo')}
-              className="w-4 h-4 text-blue-600 rounded border-gray-300"
-            />
-            图号
-          </label>
         </div>
       </div>
 
