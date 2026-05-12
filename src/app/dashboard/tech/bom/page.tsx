@@ -302,7 +302,6 @@ export default function BOMManagementPage() {
     }
 
     const keyword = globalSearch.toLowerCase();
-    console.log('[搜索展开] 关键词:', keyword, 'searchFields:', searchFields);
 
     // 收集所有需要展开的键
     const keysToExpand = new Set<string>();
@@ -335,7 +334,6 @@ export default function BOMManagementPage() {
           const prefixPath = newPath.slice(0, i + 1).join('_');
           keysToExpand.add(prefixPath);
         }
-        console.log('[搜索展开] 匹配到节点:', node.internalCode, '展开键:', Array.from(keysToExpand).slice(-3));
       }
 
       // 递归检查所有子节点
@@ -351,7 +349,6 @@ export default function BOMManagementPage() {
       collectMatchPaths(node, []);
     }
 
-    console.log('[搜索展开] 最终需要展开的键:', Array.from(keysToExpand));
     setExpandedKeys(keysToExpand);
   }, [globalSearch, treeData, searchFields]);
 
@@ -387,7 +384,6 @@ export default function BOMManagementPage() {
           const prefixPath = newPath.slice(0, i + 1).join('_');
           keysToExpand.add(prefixPath);
         }
-        console.log('[筛选展开] 匹配到节点:', node.internalCode, '展开键:', Array.from(keysToExpand).slice(-3));
       }
 
       // 递归检查所有子节点
@@ -402,7 +398,6 @@ export default function BOMManagementPage() {
       collectMatchPaths(node, []);
     }
 
-    console.log('[筛选展开] 最终需要展开的键:', Array.from(keysToExpand));
     setExpandedKeys(keysToExpand);
   }, [filterType, filterGroupId, filterName, treeData]);
 
@@ -427,11 +422,6 @@ export default function BOMManagementPage() {
       return next;
     });
   };
-
-  // 调试：监听 expandedKeys 变化
-  useEffect(() => {
-    console.log('DEBUG - expandedKeys changed:', [...expandedKeys]);
-  }, [expandedKeys]);
 
   const handleAddRootMaterial = () => {
     setEditingMaterial(null);
@@ -619,7 +609,6 @@ export default function BOMManagementPage() {
       
       // 新增子物料时：创建物料后还需要创建BOM关系
       if (!editingMaterial && parentId && savedMaterialId) {
-        console.log('Creating BOM relation:', { parentId, savedMaterialId, quantity: formData.quantity, bomRemark: formData.bomRemark });
         const bomRes = await fetchApi('/api/bom', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -630,7 +619,6 @@ export default function BOMManagementPage() {
             bomRemark: formData.bomRemark || '',
           }),
         });
-        console.log('BOM relation result:', bomRes);
         if (bomRes.code !== 200) {
           error('BOM关系创建失败: ' + (bomRes.message || '未知错误'));
           return;
@@ -652,10 +640,6 @@ export default function BOMManagementPage() {
       fetchMaterials();
       
       if (savedMaterialId) {
-        // DEBUG
-        console.log('savedMaterialId:', savedMaterialId);
-        console.log('newTreeData:', JSON.stringify(newTreeData, null, 2));
-        
         // 先找父物料是否存在
         const findNodeById = (nodes: TreeNode[], id: number): TreeNode | null => {
           for (const node of nodes) {
@@ -670,10 +654,6 @@ export default function BOMManagementPage() {
         
         const parentNode = findNodeById(newTreeData, parentId);
         const newMaterialNode = findNodeById(newTreeData, savedMaterialId);
-        console.log('DEBUG - parentId:', parentId);
-        console.log('DEBUG - parentNode found:', !!parentNode);
-        console.log('DEBUG - savedMaterialId:', savedMaterialId);
-        console.log('DEBUG - newMaterialNode found:', !!newMaterialNode);
         
         // 找到该物料在树中的完整键和所有父节点键（键格式与expandedKeys一致）
         const findNodeInfo = (nodes: TreeNode[], targetId: number, parentKey: string = ''): { fullKey: string | null; parentKeys: string[] } => {
@@ -699,9 +679,6 @@ export default function BOMManagementPage() {
         };
         
         const { fullKey, parentKeys } = findNodeInfo(newTreeData, savedMaterialId);
-        console.log('===== DEBUG RESULT =====');
-        console.log('DEBUG - fullKey:', fullKey);
-        console.log('DEBUG - parentKeys:', JSON.stringify(parentKeys));
         
         // 展开所有父节点
         if (parentKeys.length > 0) {
@@ -709,15 +686,12 @@ export default function BOMManagementPage() {
           setExpandedKeys(prev => {
             const newKeys = new Set(prev);
             parentKeys.forEach(key => newKeys.add(key));
-            console.log('DEBUG - 新的 expandedKeys:', [...newKeys]);
             return newKeys;
           });
         }
         
         // 延迟滚动，等待展开渲染完成
         setTimeout(() => {
-          console.log('DEBUG - 尝试滚动, fullKey:', fullKey);
-          console.log('DEBUG - itemRefs keys:', Object.keys(itemRefs.current));
           if (fullKey && itemRefs.current[fullKey]) {
             itemRefs.current[fullKey]?.scrollIntoView({ behavior: 'smooth', block: 'center' });
             // 高亮显示一下
@@ -725,8 +699,6 @@ export default function BOMManagementPage() {
             setTimeout(() => {
               itemRefs.current[fullKey]?.classList.remove('ring-2', 'ring-blue-400');
             }, 2000);
-          } else {
-            console.log('DEBUG - Cannot scroll, fullKey:', fullKey, 'ref exists:', !!itemRefs.current[fullKey || '']);
           }
         }, 500);
       }
@@ -941,10 +913,6 @@ export default function BOMManagementPage() {
     const hasChildren = node.children && node.children.length > 0;
     const isExpanded = expandedKeys.has(fullKey);
     
-    // 调试：打印有子节点的节点的展开状态
-    if (hasChildren) {
-      console.log(`DEBUG render - fullKey: ${fullKey}, isExpanded: ${isExpanded}, expandedKeys:`, [...expandedKeys]);
-    }
     const levelIndex = Math.min(level, levelColors.length - 1);
     const bgColor = levelColors[levelIndex];
     const fontSize = levelFontSizes[levelIndex];
