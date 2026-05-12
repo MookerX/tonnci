@@ -83,9 +83,9 @@ export async function GET(request: NextRequest) {
     if (userIds.length > 0) {
       const users = await prisma.user.findMany({
         where: { id: { in: userIds } },
-        select: { id: true, username: true },
+        select: { id: true, username: true, realName: true },
       });
-      userNameMap = new Map(users.map(u => [u.id, u.username]));
+      userNameMap = new Map(users.map(u => [u.id, u.realName || u.username]));
     }
 
     const materialMap = new Map(allMaterials.map(m => {
@@ -167,11 +167,11 @@ export async function GET(request: NextRequest) {
     if (bomUserIds.length > 0) {
       const bomUsers = await prisma.user.findMany({
         where: { id: { in: bomUserIds } },
-        select: { id: true, username: true },
+        select: { id: true, username: true, realName: true },
       });
       for (const u of bomUsers) {
         if (!userNameMap.has(u.id)) {
-          userNameMap.set(u.id, u.username);
+          userNameMap.set(u.id, u.realName || u.username);
         }
       }
     }
