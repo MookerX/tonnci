@@ -699,21 +699,17 @@ export default function BOMManagementPage() {
         console.log('DEBUG - fullKey:', fullKey);
         console.log('DEBUG - parentKeys:', JSON.stringify(parentKeys));
         
-        // 延迟执行，让弹窗有时间显示
-        setTimeout(() => {
-          alert(`Step 1: fullKey=${fullKey}, parentKeys=${JSON.stringify(parentKeys)}`);
-        }, 100);
-        
         // 展开所有父节点
         if (parentKeys.length > 0) {
-          setTimeout(() => {
-            const newExpandedKeys = new Set(expandedKeys);
-            parentKeys.forEach(key => newExpandedKeys.add(key));
-            const keysArray = Array.from(newExpandedKeys);
-            console.log('DEBUG - new expandedKeys:', keysArray);
-            alert(`Step 2: Setting expandedKeys to ${JSON.stringify(keysArray)}`);
-            setExpandedKeys(newExpandedKeys);
-          }, 2000);
+          const newExpandedKeys = new Set(expandedKeys);
+          parentKeys.forEach(key => newExpandedKeys.add(key));
+          const keysArray = Array.from(newExpandedKeys);
+          console.log('DEBUG - new expandedKeys:', keysArray);
+          
+          // 显示弹窗，用户点击确定后再执行展开
+          alert(`fullKey: ${fullKey}\n\nparentKeys: ${JSON.stringify(parentKeys, null, 2)}\n\n将设置 expandedKeys: ${JSON.stringify(keysArray, null, 2)}`);
+          
+          setExpandedKeys(newExpandedKeys);
         }
         
         // 延迟滚动，等待展开完成
