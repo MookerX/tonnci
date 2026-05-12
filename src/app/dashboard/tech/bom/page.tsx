@@ -673,52 +673,55 @@ export default function BOMManagementPage() {
         console.log('DEBUG - newMaterialNode found:', !!newMaterialNode);
         
         // 找到该物料在树中的完整键和所有父节点键（键格式与expandedKeys一致）
-        const findNodeInfo = (nodes: TreeNode[], targetId: number, parentKeys: string[] = []): { nodeKey: string | null; parentKeys: string[] } => {
+        const findNodeInfo = (nodes: TreeNode[], targetId: number, parentKey: string = ''): { fullKey: string | null; parentKeys: string[] } => {
           for (const node of nodes) {
-            const currentKey = `node_${node.id}`;
+            const nodeKey = `node_${node.id}`;
+            const fullKey = parentKey ? `${parentKey}_${nodeKey}` : nodeKey;
             if (node.id === targetId) {
-              return { nodeKey: currentKey, parentKeys };
+              return { fullKey, parentKeys: parentKey ? [parentKey] : [] };
             }
             if (node.children && node.children.length > 0) {
-              const result = findNodeInfo(node.children, targetId, [...parentKeys, currentKey]);
-              if (result.nodeKey) return result;
+              const result = findNodeInfo(node.children, targetId, fullKey);
+              if (result.fullKey) {
+                // 将当前节点的 fullKey 加入父节点列表
+                return { 
+                  fullKey: result.fullKey, 
+                  parentKeys: [fullKey, ...result.parentKeys] 
+                };
+              }
             }
           }
-          return { nodeKey: null, parentKeys };
+          return { fullKey: null, parentKeys: [] };
         };
         
-        const { nodeKey, parentKeys } = findNodeInfo(newTreeData, savedMaterialId);
-        // DEBUG - 使用 alert 确认
+        const { fullKey, parentKeys } = findNodeInfo(newTreeData, savedMaterialId);
         console.log('===== DEBUG RESULT =====');
-        console.log('DEBUG - nodeKey:', nodeKey);
+        console.log('DEBUG - fullKey:', fullKey);
         console.log('DEBUG - parentKeys:', JSON.stringify(parentKeys));
-        console.log('DEBUG - parentKeys.length:', parentKeys.length);
-        alert(`DEBUG: nodeKey=${nodeKey}, parentKeys=${JSON.stringify(parentKeys)}`);
         
         // 展开所有父节点
         if (parentKeys.length > 0) {
-          console.log('DEBUG - Expanding parent nodes...');
           setExpandedKeys(prev => {
             const newSet = new Set(prev);
             parentKeys.forEach(key => newSet.add(key));
             console.log('DEBUG - new expandedKeys:', Array.from(newSet));
             return newSet;
           });
-        } else {
-          console.log('DEBUG - parentKeys is empty, cannot expand');
         }
         
         // 延迟滚动，等待展开完成
         setTimeout(() => {
-          if (nodeKey && itemRefs.current[nodeKey]) {
-            itemRefs.current[nodeKey]?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          if (fullKey && itemRefs.current[fullKey]) {
+            itemRefs.current[fullKey]?.scrollIntoView({ behavior: 'smooth', block: 'center' });
             // 高亮显示一下
-            itemRefs.current[nodeKey]?.classList.add('ring-2', 'ring-blue-400');
+            itemRefs.current[fullKey]?.classList.add('ring-2', 'ring-blue-400');
             setTimeout(() => {
-              itemRefs.current[nodeKey]?.classList.remove('ring-2', 'ring-blue-400');
+              itemRefs.current[fullKey]?.classList.remove('ring-2', 'ring-blue-400');
             }, 2000);
+          } else {
+            console.log('DEBUG - Cannot scroll, fullKey:', fullKey, 'ref exists:', !!itemRefs.current[fullKey || '']);
           }
-        }, 100);
+        }, 300);
       }
     } else {
       error(res.message || '保存失败');
