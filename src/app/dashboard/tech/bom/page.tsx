@@ -293,18 +293,12 @@ export default function BOMManagementPage() {
   // 搜索时自动展开到匹配的子物料
   useEffect(() => {
     if (treeData.length === 0) {
-      setExpandedKeys(new Set());
-      return;
+      return; // 不再自动重置 expandedKeys
     }
 
-    // 搜索为空时，全部折叠（除非跳过自动折叠）
+    // 搜索为空时，不自动折叠（让其他逻辑控制）
     if (!globalSearch) {
-      if (skipAutoCollapse.current) {
-        skipAutoCollapse.current = false; // 重置标记
-        return;
-      }
-      setExpandedKeys(new Set());
-      return;
+      return; // 不再自动重置 expandedKeys
     }
 
     const keyword = globalSearch.toLowerCase();
@@ -370,12 +364,7 @@ export default function BOMManagementPage() {
     }
 
     if (!hasFilter) {
-      // 清空筛选时折叠所有（除非跳过自动折叠）
-      if (skipAutoCollapse.current) {
-        skipAutoCollapse.current = false; // 重置标记
-        return;
-      }
-      setExpandedKeys(new Set());
+      // 清空筛选时不自动折叠（让其他逻辑控制）
       return;
     }
 
