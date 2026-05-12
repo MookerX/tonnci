@@ -360,8 +360,10 @@ export default function BOMManagementPage() {
       return;
     }
 
-    if (!hasFilter) {
-      // 清空筛选时不自动折叠（让其他逻辑控制）
+    // 只在类型筛选或名称筛选有值时才自动展开匹配节点
+    // 客户筛选（filterGroupId）不影响展开状态
+    const hasExpandFilter = filterType || filterName;
+    if (!hasExpandFilter) {
       return;
     }
 
@@ -372,10 +374,9 @@ export default function BOMManagementPage() {
       const nodeKey = `node_${node.id}`;
       const newPath = [...currentPath, nodeKey];
 
-      // 检查当前节点是否匹配筛选条件
+      // 只检查类型筛选和名称筛选（客户筛选不影响展开）
       let selfMatch = true;
       if (filterType && node.materialType !== filterType) selfMatch = false;
-      if (filterGroupId && node.groupId !== filterGroupId) selfMatch = false;
       if (filterName && !node.materialName.toLowerCase().includes(filterName.toLowerCase())) selfMatch = false;
 
       // 匹配则收集所有祖先节点
@@ -399,7 +400,7 @@ export default function BOMManagementPage() {
     }
 
     setExpandedKeys(keysToExpand);
-  }, [filterType, filterGroupId, filterName, treeData]);
+  }, [filterType, filterName, treeData]);
 
   const fetchMaterials = async () => {
     let url = `/api/bom/material?pageSize=1000`;
