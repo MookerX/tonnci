@@ -702,19 +702,18 @@ export default function BOMManagementPage() {
         
         // 展开所有父节点
         if (parentKeys.length > 0) {
-          const newExpandedKeys = new Set(expandedKeys);
-          parentKeys.forEach(key => newExpandedKeys.add(key));
-          const keysArray = Array.from(newExpandedKeys);
-          console.log('DEBUG - new expandedKeys:', keysArray);
-          
-          // 显示弹窗，用户点击确定后再执行展开
-          alert(`fullKey: ${fullKey}\n\nparentKeys: ${JSON.stringify(parentKeys, null, 2)}\n\n将设置 expandedKeys: ${JSON.stringify(keysArray, null, 2)}`);
-          
-          setExpandedKeys(newExpandedKeys);
+          setExpandedKeys(prev => {
+            const newKeys = new Set(prev);
+            parentKeys.forEach(key => newKeys.add(key));
+            console.log('DEBUG - 新的 expandedKeys:', [...newKeys]);
+            return newKeys;
+          });
         }
         
-        // 延迟滚动，等待展开完成
+        // 延迟滚动，等待展开渲染完成
         setTimeout(() => {
+          console.log('DEBUG - 尝试滚动, fullKey:', fullKey);
+          console.log('DEBUG - itemRefs keys:', Object.keys(itemRefs.current));
           if (fullKey && itemRefs.current[fullKey]) {
             itemRefs.current[fullKey]?.scrollIntoView({ behavior: 'smooth', block: 'center' });
             // 高亮显示一下
@@ -725,7 +724,7 @@ export default function BOMManagementPage() {
           } else {
             console.log('DEBUG - Cannot scroll, fullKey:', fullKey, 'ref exists:', !!itemRefs.current[fullKey || '']);
           }
-        }, 300);
+        }, 500);
       }
     } else {
       error(res.message || '保存失败');
