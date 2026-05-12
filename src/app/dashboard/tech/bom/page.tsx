@@ -688,9 +688,12 @@ export default function BOMManagementPage() {
         };
         
         const { nodeKey, parentKeys } = findNodeInfo(newTreeData, savedMaterialId);
-        // DEBUG
+        // DEBUG - 使用 alert 确认
+        console.log('===== DEBUG RESULT =====');
         console.log('DEBUG - nodeKey:', nodeKey);
-        console.log('DEBUG - parentKeys:', parentKeys);
+        console.log('DEBUG - parentKeys:', JSON.stringify(parentKeys));
+        console.log('DEBUG - parentKeys.length:', parentKeys.length);
+        alert(`DEBUG: nodeKey=${nodeKey}, parentKeys=${JSON.stringify(parentKeys)}`);
         
         // 展开所有父节点
         if (parentKeys.length > 0) {
