@@ -34,6 +34,11 @@ interface TreeNode {
   bomModifierName?: string | null;
   materialCreatorName?: string | null;
   materialModifierName?: string | null;
+  // 创建者和修改者 ID
+  bomCreatorId?: number | null;
+  bomModifierId?: number | null;
+  materialCreatorId?: number | null;
+  materialModifierId?: number | null;
 }
 
 interface Material {
@@ -85,6 +90,92 @@ const typeLabelMap: Record<string, string> = {
   auxiliary: '辅材',
 };
 
+// 用户详情弹窗组件
+function UserDetailModal({ userId, userName, onClose }: { userId: number; userName: string; onClose: () => void }) {
+  const [userDetail, setUserDetail] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchUserDetail = async () => {
+      try {
+        const token = localStorage.getItem('token');
+        const res = await fetch(`/api/system/user/${userId}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        const data = await res.json();
+        if (data.code === 200) {
+          setUserDetail(data.data);
+        }
+      } catch (e) {
+        console.error('获取用户详情失败', e);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchUserDetail();
+  }, [userId]);
+
+  return (
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+      <div className="bg-white rounded-lg shadow-xl w-[400px] max-h-[80vh] overflow-auto">
+        <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200">
+          <h3 className="font-semibold">用户详情</h3>
+          <button onClick={onClose} className="p-1 hover:bg-gray-100 rounded">
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+        <div className="p-4">
+          {loading ? (
+            <div className="text-center py-8 text-gray-500">加载中...</div>
+          ) : userDetail ? (
+            <div className="space-y-3">
+              <div className="flex justify-between py-2 border-b border-gray-100">
+                <span className="text-gray-500">用户名</span>
+                <span className="font-medium">{userDetail.username || '-'}</span>
+              </div>
+              <div className="flex justify-between py-2 border-b border-gray-100">
+                <span className="text-gray-500">姓名</span>
+                <span className="font-medium">{userDetail.realName || '-'}</span>
+              </div>
+              <div className="flex justify-between py-2 border-b border-gray-100">
+                <span className="text-gray-500">邮箱</span>
+                <span className="font-medium">{userDetail.email || '-'}</span>
+              </div>
+              <div className="flex justify-between py-2 border-b border-gray-100">
+                <span className="text-gray-500">电话</span>
+                <span className="font-medium">{userDetail.phone || '-'}</span>
+              </div>
+              <div className="flex justify-between py-2 border-b border-gray-100">
+                <span className="text-gray-500">部门</span>
+                <span className="font-medium">{userDetail.deptName || '-'}</span>
+              </div>
+              <div className="flex justify-between py-2 border-b border-gray-100">
+                <span className="text-gray-500">状态</span>
+                <span className="font-medium">
+                  {userDetail.status === 'active' ? '正常' : 
+                   userDetail.status === 'disabled' ? '禁用' : 
+                   userDetail.status === 'locked' ? '锁定' : '-'}
+                </span>
+              </div>
+              <div className="flex justify-between py-2 border-b border-gray-100">
+                <span className="text-gray-500">创建时间</span>
+                <span className="font-medium">{userDetail.createdAt ? new Date(userDetail.createdAt).toLocaleString() : '-'}</span>
+              </div>
+            </div>
+          ) : (
+            <div className="text-center py-8 text-gray-500">未找到用户信息</div>
+          )}
+        </div>
+        <div className="flex justify-end px-4 py-3 border-t border-gray-200">
+          <button onClick={onClose} className="px-4 py-2 text-sm bg-gray-100 hover:bg-gray-200 rounded-lg">
+            关闭
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function BOMManagementPage() {
   const { success, error, warning } = useToast();
   const [token, setToken] = useState<string>('');
@@ -109,6 +200,20 @@ export default function BOMManagementPage() {
   // 用于滚动到指定物料行的ref
   const itemRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const skipAutoCollapse = useRef(false); // 跳过自动折叠标记
+  
+  // 用户详情弹窗状态
+  const [showUserModal, setShowUserModal] = useState(false);
+  const [selectedUserId, setSelectedUserId] = useState<number | null>(null);
+  const [selectedUserName, setSelectedUserName] = useState('');
+  
+  // 打开用户详情弹窗
+  const handleShowUserDetail = (userId: number | null, userName: string) => {
+    if (userId) {
+      setSelectedUserId(userId);
+      setSelectedUserName(userName);
+      setShowUserModal(true);
+    }
+  };
   
   // 辅助函数：在树中查找指定ID的节点
   const findNodeById = (nodes: TreeNode[], id: number): TreeNode | null => {
@@ -984,14 +1089,36 @@ export default function BOMManagementPage() {
             </div>
             {/* 所属客户 */}
             <div className="w-20 flex-shrink-0 text-gray-600 truncate px-1">{groupName}</div>
-            {/* BOM创建者 */}
-            <div className="w-16 flex-shrink-0 text-gray-500 truncate px-1">{node.bomCreatorName || '-'}</div>
-            {/* BOM修改者 */}
-            <div className="w-16 flex-shrink-0 text-gray-500 truncate px-1">{node.bomModifierName || '-'}</div>
-            {/* 物料创建者 */}
-            <div className="w-16 flex-shrink-0 text-gray-500 truncate px-1">{node.materialCreatorName || '-'}</div>
-            {/* 物料修改者 */}
-            <div className="w-16 flex-shrink-0 text-gray-500 truncate px-1">{node.materialModifierName || '-'}</div>
+            {/* BOM所有者 */}
+            <div className="w-16 flex-shrink-0 text-gray-500 truncate px-1">
+              {(() => {
+                const name = node.bomModifierName || node.bomCreatorName;
+                const id = node.bomModifierId || node.bomCreatorId;
+                return name ? (
+                  <button
+                    onClick={() => handleShowUserDetail(id, name)}
+                    className="text-blue-600 hover:text-blue-800 hover:underline cursor-pointer truncate"
+                  >
+                    {name}
+                  </button>
+                ) : '-';
+              })()}
+            </div>
+            {/* 物料所有者 */}
+            <div className="w-16 flex-shrink-0 text-gray-500 truncate px-1">
+              {(() => {
+                const name = node.materialModifierName || node.materialCreatorName;
+                const id = node.materialModifierId || node.materialCreatorId;
+                return name ? (
+                  <button
+                    onClick={() => handleShowUserDetail(id, name)}
+                    className="text-blue-600 hover:text-blue-800 hover:underline cursor-pointer truncate"
+                  >
+                    {name}
+                  </button>
+                ) : '-';
+              })()}
+            </div>
             {/* 备注 */}
             <div className="flex-1 text-gray-500 truncate px-1">
               {node.remark ? `W:${node.remark}` : ''}
@@ -1241,10 +1368,8 @@ export default function BOMManagementPage() {
                   <div className="w-14 flex-shrink-0 text-center truncate px-1">单层用量</div>
                   <div className="w-16 flex-shrink-0 text-center truncate px-1">物料类型</div>
                   <div className="w-20 flex-shrink-0 truncate px-1">所属客户</div>
-                  <div className="w-16 flex-shrink-0 truncate px-1">BOM创建者</div>
-                  <div className="w-16 flex-shrink-0 truncate px-1">BOM修改者</div>
-                  <div className="w-16 flex-shrink-0 truncate px-1">物料创建者</div>
-                  <div className="w-16 flex-shrink-0 truncate px-1">物料修改者</div>
+                  <div className="w-16 flex-shrink-0 truncate px-1">BOM所有者</div>
+                  <div className="w-16 flex-shrink-0 truncate px-1">物料所有者</div>
                   <div className="flex-1 truncate px-1">备注</div>
                   <div className="w-32 flex-shrink-0 text-center px-1">操作</div>
                 </div>
@@ -1613,6 +1738,19 @@ export default function BOMManagementPage() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* 用户详情弹窗 */}
+      {showUserModal && selectedUserId && (
+        <UserDetailModal
+          userId={selectedUserId}
+          userName={selectedUserName}
+          onClose={() => {
+            setShowUserModal(false);
+            setSelectedUserId(null);
+            setSelectedUserName('');
+          }}
+        />
       )}
 
       {/* 删除确认对话框 */}

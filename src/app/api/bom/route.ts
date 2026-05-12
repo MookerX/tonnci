@@ -95,6 +95,8 @@ export async function GET(request: NextRequest) {
         customerGroupName: groupName,
         materialCreatorName: m.createdBy ? userNameMap.get(m.createdBy) || null : null,
         materialModifierName: m.modifiedBy ? userNameMap.get(m.modifiedBy) || null : null,
+        materialCreatorId: m.createdBy || null,
+        materialModifierId: m.modifiedBy || null,
         children: [] as any[],
       }];
     }));
@@ -301,8 +303,12 @@ export async function GET(request: NextRequest) {
           children: [],
           materialCreatorName: detail.materialCreatorName || null,
           materialModifierName: detail.materialModifierName || null,
+          materialCreatorId: detail.createdBy || null,
+          materialModifierId: detail.modifiedBy || null,
           bomCreatorName: child.bomCreatedBy ? userNameMap.get(child.bomCreatedBy) || null : null,
           bomModifierName: child.bomModifiedBy ? userNameMap.get(child.bomModifiedBy) || null : null,
+          bomCreatorId: child.bomCreatedBy || null,
+          bomModifierId: child.bomModifiedBy || null,
         };
         fillChildrenRecursively(childNode);
         return childNode;
