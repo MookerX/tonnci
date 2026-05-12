@@ -103,6 +103,7 @@ export default function BOMManagementPage() {
   
   // 用于滚动到指定物料行的ref
   const itemRefs = useRef<Record<string, HTMLDivElement | null>>({});
+  const skipAutoCollapse = useRef(false); // 跳过自动折叠标记
   
   // 辅助函数：在树中查找指定ID的节点
   const findNodeById = (nodes: TreeNode[], id: number): TreeNode | null => {
@@ -296,8 +297,12 @@ export default function BOMManagementPage() {
       return;
     }
 
-    // 搜索为空时，全部折叠
+    // 搜索为空时，全部折叠（除非跳过自动折叠）
     if (!globalSearch) {
+      if (skipAutoCollapse.current) {
+        skipAutoCollapse.current = false; // 重置标记
+        return;
+      }
       setExpandedKeys(new Set());
       return;
     }
@@ -365,7 +370,11 @@ export default function BOMManagementPage() {
     }
 
     if (!hasFilter) {
-      // 清空筛选时折叠所有
+      // 清空筛选时折叠所有（除非跳过自动折叠）
+      if (skipAutoCollapse.current) {
+        skipAutoCollapse.current = false; // 重置标记
+        return;
+      }
       setExpandedKeys(new Set());
       return;
     }
@@ -707,6 +716,7 @@ export default function BOMManagementPage() {
         
         // 展开所有父节点
         if (parentKeys.length > 0) {
+          skipAutoCollapse.current = true; // 设置跳过自动折叠标记
           setExpandedKeys(prev => {
             const newKeys = new Set(prev);
             parentKeys.forEach(key => newKeys.add(key));
