@@ -87,36 +87,73 @@ export async function PUT(
       }
     }
 
-    // 判断是否有物料数据变更（排除 BOM 专用字段）
-    const materialFields = ['materialName', 'internalCode', 'drawingCode', 'drawingNo', 'materialType', 'unit', 'spec', 'groupId', 'remark'];
-    const hasMaterialChanges = Object.keys(data).some(key => materialFields.includes(key) && data[key as keyof typeof data] !== undefined);
+    // 判断物料数据是否真正改变（与原始数据比较）
+    const materialFields = ['materialName', 'internalCode', 'drawingCode', 'drawingNo', 'materialType', 'unit', 'spec', 'groupId', 'remark'] as const;
+    const materialChanges: Record<string, any> = {};
+    
+    for (const key of materialFields) {
+      if (data[key] !== undefined) {
+        const oldValue = exists[key];
+        const newValue = data[key];
+        // 比较值是否改变（注意 null 和空字符串的处理）
+        const oldNormalized = oldValue ?? '';
+        const newNormalized = newValue ?? '';
+        if (oldNormalized !== newNormalized) {
+          materialChanges[key] = newValue;
+        }
+      }
+    }
+    
+    const hasMaterialChanges = Object.keys(materialChanges).length > 0;
 
-    // 如果传入了 bomItemId，更新 BOM 关系（quantity 和 bomRemark）
+    // 如果传入了 bomItemId，检查 BOM 数据是否真正改变
     if (body.bomItemId !== undefined) {
-      const bomUpdateData: any = {};
-      if (body.quantity !== undefined) bomUpdateData.quantity = body.quantity;
-      if (body.bomRemark !== undefined) bomUpdateData.bomRemark = body.bomRemark;
+      // 获取原始 BOM 数据
+      const existingBom = await prisma.bomItem.findUnique({
+        where: { id: body.bomItemId },
+      });
       
-      // BOM 数据变更时，设置 BOM 修改者
-      if (Object.keys(bomUpdateData).length > 0) {
-        bomUpdateData.modifiedBy = user.id;
-        await prisma.bomItem.update({
-          where: { id: body.bomItemId },
-          data: bomUpdateData,
-        });
+      if (existingBom) {
+        const bomChanges: Record<string, any> = {};
+        
+        // 比较 quantity
+        if (body.quantity !== undefined) {
+          const oldQty = existingBom.quantity?.toString() || '';
+          const newQty = body.quantity?.toString() || '';
+          if (oldQty !== newQty) {
+            bomChanges.quantity = body.quantity;
+          }
+        }
+        
+        // 比较 bomRemark
+        if (body.bomRemark !== undefined) {
+          const oldRemark = existingBom.bomRemark || '';
+          const newRemark = body.bomRemark || '';
+          if (oldRemark !== newRemark) {
+            bomChanges.bomRemark = body.bomRemark;
+          }
+        }
+        
+        // 只有 BOM 数据真正改变时才更新
+        if (Object.keys(bomChanges).length > 0) {
+          bomChanges.modifiedBy = user.id;
+          await prisma.bomItem.update({
+            where: { id: body.bomItemId },
+            data: bomChanges,
+          });
+        }
       }
     }
 
-    // 只有物料数据有变更时才更新物料表和修改者
+    // 只有物料数据真正改变时才更新物料表和修改者
     let material = exists;
     if (hasMaterialChanges) {
-      const updateData: any = {
-        modifiedBy: user.id,
-        ...data,
-      };
       material = await prisma.material.update({
         where: { id: parseInt(id) },
-        data: updateData,
+        data: {
+          ...materialChanges,
+          modifiedBy: user.id,
+        },
       });
     }
 
