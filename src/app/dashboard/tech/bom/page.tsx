@@ -616,7 +616,8 @@ export default function BOMManagementPage() {
       
       // 新增子物料时：创建物料后还需要创建BOM关系
       if (!editingMaterial && parentId && savedMaterialId) {
-        await fetchApi('/api/bom', {
+        console.log('Creating BOM relation:', { parentId, savedMaterialId, quantity: formData.quantity, bomRemark: formData.bomRemark });
+        const bomRes = await fetchApi('/api/bom', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -626,6 +627,11 @@ export default function BOMManagementPage() {
             bomRemark: formData.bomRemark || '',
           }),
         });
+        console.log('BOM relation result:', bomRes);
+        if (bomRes.code !== 200) {
+          error('BOM关系创建失败: ' + (bomRes.message || '未知错误'));
+          return;
+        }
       }
       
       // 重置弹窗状态
@@ -643,6 +649,10 @@ export default function BOMManagementPage() {
       fetchMaterials();
       
       if (savedMaterialId) {
+        // DEBUG
+        console.log('savedMaterialId:', savedMaterialId);
+        console.log('newTreeData:', JSON.stringify(newTreeData, null, 2));
+        
         // 找到该物料在树中的完整键和所有父节点键（键格式与expandedKeys一致）
         const findNodeInfo = (nodes: TreeNode[], targetId: number, parentKeys: string[] = []): { nodeKey: string | null; parentKeys: string[] } => {
           for (const node of nodes) {
@@ -659,12 +669,17 @@ export default function BOMManagementPage() {
         };
         
         const { nodeKey, parentKeys } = findNodeInfo(newTreeData, savedMaterialId);
+        // DEBUG
+        console.log('nodeKey:', nodeKey);
+        console.log('parentKeys:', parentKeys);
         
         // 展开所有父节点
         if (parentKeys.length > 0) {
+          console.log('Expanding parent nodes...');
           setExpandedKeys(prev => {
             const newSet = new Set(prev);
             parentKeys.forEach(key => newSet.add(key));
+            console.log('new expandedKeys:', Array.from(newSet));
             return newSet;
           });
         }
