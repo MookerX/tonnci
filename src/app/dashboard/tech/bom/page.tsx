@@ -364,6 +364,8 @@ export default function BOMManagementPage() {
     // 客户筛选（filterGroupId）不影响展开状态
     const hasExpandFilter = filterType || filterName;
     if (!hasExpandFilter) {
+      // 类型筛选和名称筛选都为空时，折叠所有节点
+      setExpandedKeys(new Set());
       return;
     }
 
