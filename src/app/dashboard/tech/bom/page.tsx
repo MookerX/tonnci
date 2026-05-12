@@ -176,6 +176,105 @@ function UserDetailModal({ userId, userName, onClose }: { userId: number; userNa
   );
 }
 
+// 物料详情弹窗组件
+function MaterialDetailModal({ node, onClose }: { node: TreeNode; onClose: () => void }) {
+  const materialTypeMap: Record<string, string> = {
+    part: '零件',
+    component: '组件',
+    assembly: '装配件',
+    material: '原材料',
+    consumable: '耗材',
+    product: '产品',
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+      <div className="bg-white rounded-lg shadow-xl w-[600px] max-h-[85vh] overflow-auto">
+        <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200 sticky top-0 bg-white">
+          <h3 className="font-semibold text-lg">物料详情</h3>
+          <button onClick={onClose} className="p-1 hover:bg-gray-100 rounded">
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+        <div className="p-4">
+          {/* 物料基本信息 */}
+          <div className="mb-6">
+            <h4 className="font-medium text-gray-700 mb-3 pb-2 border-b border-gray-200">物料基本信息</h4>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="flex justify-between py-2 border-b border-gray-100">
+                <span className="text-gray-500">内部编码</span>
+                <span className="font-medium font-mono">{node.internalCode || '-'}</span>
+              </div>
+              <div className="flex justify-between py-2 border-b border-gray-100">
+                <span className="text-gray-500">物料名称</span>
+                <span className="font-medium">{node.materialName || '-'}</span>
+              </div>
+              <div className="flex justify-between py-2 border-b border-gray-100">
+                <span className="text-gray-500">图纸编码</span>
+                <span className="font-medium">{node.drawingCode || '-'}</span>
+              </div>
+              <div className="flex justify-between py-2 border-b border-gray-100">
+                <span className="text-gray-500">图号</span>
+                <span className="font-medium">{node.drawingNo || '-'}</span>
+              </div>
+              <div className="flex justify-between py-2 border-b border-gray-100">
+                <span className="text-gray-500">物料类型</span>
+                <span className="font-medium">{materialTypeMap[node.materialType] || node.materialType || '-'}</span>
+              </div>
+              <div className="flex justify-between py-2 border-b border-gray-100">
+                <span className="text-gray-500">单位</span>
+                <span className="font-medium">{node.unit || '-'}</span>
+              </div>
+              <div className="flex justify-between py-2 border-b border-gray-100">
+                <span className="text-gray-500">规格</span>
+                <span className="font-medium">{node.spec || '-'}</span>
+              </div>
+              <div className="flex justify-between py-2 border-b border-gray-100">
+                <span className="text-gray-500">所属客户</span>
+                <span className="font-medium">{node.customerGroupName || '-'}</span>
+              </div>
+              <div className="col-span-2 flex justify-between py-2 border-b border-gray-100">
+                <span className="text-gray-500">物料备注</span>
+                <span className="font-medium text-right max-w-[300px] break-all">{node.remark || '-'}</span>
+              </div>
+              <div className="flex justify-between py-2 border-b border-gray-100">
+                <span className="text-gray-500">物料所有者</span>
+                <span className="font-medium">{node.materialOwnerName || '-'}</span>
+              </div>
+            </div>
+          </div>
+          
+          {/* BOM 信息（子物料才有） */}
+          {node.bomItemId && (
+            <div className="mb-4">
+              <h4 className="font-medium text-gray-700 mb-3 pb-2 border-b border-gray-200">BOM 关系信息</h4>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="flex justify-between py-2 border-b border-gray-100">
+                  <span className="text-gray-500">单层用量</span>
+                  <span className="font-medium">{node.quantity || '-'}</span>
+                </div>
+                <div className="flex justify-between py-2 border-b border-gray-100">
+                  <span className="text-gray-500">BOM 备注</span>
+                  <span className="font-medium text-right max-w-[150px] break-all">{node.bomRemark || '-'}</span>
+                </div>
+                <div className="flex justify-between py-2 border-b border-gray-100">
+                  <span className="text-gray-500">BOM 所有者</span>
+                  <span className="font-medium">{node.bomOwnerName || '-'}</span>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+        <div className="flex justify-end px-4 py-3 border-t border-gray-200 sticky bottom-0 bg-white">
+          <button onClick={onClose} className="px-4 py-2 text-sm bg-gray-100 hover:bg-gray-200 rounded-lg">
+            关闭
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function BOMManagementPage() {
   const { success, error, warning } = useToast();
   const [token, setToken] = useState<string>('');
@@ -206,6 +305,10 @@ export default function BOMManagementPage() {
   const [selectedUserId, setSelectedUserId] = useState<number | null>(null);
   const [selectedUserName, setSelectedUserName] = useState('');
   
+  // 物料详情弹窗状态
+  const [showMaterialDetailModal, setShowMaterialDetailModal] = useState(false);
+  const [selectedMaterialNode, setSelectedMaterialNode] = useState<TreeNode | null>(null);
+  
   // 打开用户详情弹窗
   const handleShowUserDetail = (userId: number | null, userName: string) => {
     if (userId) {
@@ -213,6 +316,12 @@ export default function BOMManagementPage() {
       setSelectedUserName(userName);
       setShowUserModal(true);
     }
+  };
+  
+  // 打开物料详情弹窗
+  const handleShowMaterialDetail = (node: TreeNode) => {
+    setSelectedMaterialNode(node);
+    setShowMaterialDetailModal(true);
   };
   
   // 辅助函数：在树中查找指定ID的节点
@@ -1065,7 +1174,14 @@ export default function BOMManagementPage() {
           {/* 数据列 */}
           <div className={`flex-1 flex items-center ${paddingY} ${fontSize} min-w-0`}>
             {/* 内部编码 */}
-            <div className="w-20 flex-shrink-0 font-mono text-gray-700 truncate px-1">{node.internalCode}</div>
+            <div className="w-20 flex-shrink-0 font-mono px-1">
+              <button
+                onClick={() => handleShowMaterialDetail(node)}
+                className="text-blue-600 hover:text-blue-800 hover:underline truncate block text-left"
+              >
+                {node.internalCode}
+              </button>
+            </div>
             {/* 物料名称 */}
             <div className="w-28 flex-shrink-0 font-medium text-gray-800 truncate px-1">{node.materialName}</div>
             {/* 图纸编码 */}
@@ -1749,6 +1865,17 @@ export default function BOMManagementPage() {
             setShowUserModal(false);
             setSelectedUserId(null);
             setSelectedUserName('');
+          }}
+        />
+      )}
+
+      {/* 物料详情弹窗 */}
+      {showMaterialDetailModal && selectedMaterialNode && (
+        <MaterialDetailModal
+          node={selectedMaterialNode}
+          onClose={() => {
+            setShowMaterialDetailModal(false);
+            setSelectedMaterialNode(null);
           }}
         />
       )}
