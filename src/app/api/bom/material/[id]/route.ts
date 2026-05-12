@@ -99,7 +99,7 @@ export async function PUT(
       
       // BOM 数据变更时，设置 BOM 修改者
       if (Object.keys(bomUpdateData).length > 0) {
-        bomUpdateData.updatedBy = user.id;
+        bomUpdateData.modifiedBy = user.id;
         await prisma.bomItem.update({
           where: { id: body.bomItemId },
           data: bomUpdateData,
