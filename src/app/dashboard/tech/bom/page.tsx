@@ -1107,13 +1107,12 @@ export default function BOMManagementPage() {
                   setExpandedKeys(new Set());
                 }
               }}
-              className="px-3 py-1.5 border border-gray-300 rounded-lg text-sm w-56"
+              className="px-3 py-1.5 border border-gray-300 rounded-lg text-sm w-44"
             />
           </div>
           
           {/* 搜索字段勾选 */}
           <div className="flex items-center gap-3">
-            <span className="text-sm text-gray-500">检索字段：</span>
             <label className="flex items-center gap-1 text-sm cursor-pointer">
               <input
                 type="checkbox"
@@ -1121,7 +1120,7 @@ export default function BOMManagementPage() {
                 onChange={() => toggleSearchField('materialName')}
                 className="w-4 h-4 text-blue-600 rounded border-gray-300"
               />
-              物料名称
+              名称
             </label>
             <label className="flex items-center gap-1 text-sm cursor-pointer">
               <input
