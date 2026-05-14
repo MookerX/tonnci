@@ -241,6 +241,23 @@ model User {
   @@map("user")
 }
 
+// 用户列配置表（存储用户自定义的列表配置）
+model UserColumnConfig {
+  id        Int      @id @default(autoincrement())
+  userId    Int?     @map("user_id") // null 表示默认配置
+  pageKey   String   @map("page_key") @db.VarChar(100) // 页面标识，如 'bom_list'
+  config    String   @db.Text // JSON格式的列配置
+  isDefault Boolean  @default(false) @map("is_default") // 是否为默认配置
+  isDelete  Boolean  @default(false)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@unique([userId, pageKey], name: "unique_user_page")
+  @@index([userId], name: "idx_user")
+  @@index([pageKey], name: "idx_page")
+  @@map("user_column_config")
+}
+
 // 部门表
 model Dept {
   id           Int       @id @default(autoincrement())

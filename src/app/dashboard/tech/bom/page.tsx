@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import {
   Search, Plus, Upload, Download, ChevronRight, ChevronDown, FileText, Edit2, Trash2,
-  X, Save, AlertCircle, CheckCircle, RefreshCw, FolderTree, Eye, DownloadCloud, Settings2, Layers
+  X, Save, AlertCircle, CheckCircle, RefreshCw, FolderTree, Eye, DownloadCloud, Settings2, Layers, Settings
 } from 'lucide-react';
 import { useToast } from '@/components/ToastProvider';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
@@ -39,6 +39,9 @@ interface TreeNode {
   bomModifierId?: number | null;
   materialCreatorId?: number | null;
   materialModifierId?: number | null;
+  // 派生的所有者名称字段
+  bomOwnerName?: string | null;
+  materialOwnerName?: string | null;
 }
 
 interface Material {
@@ -79,6 +82,33 @@ const materialTypeOptions = [
   { label: '外购件', value: 'purchased' },
   { label: '标准件', value: 'standard' },
   { label: '辅材', value: 'auxiliary' },
+];
+
+// 列配置接口
+interface ColumnConfig {
+  key: string;
+  label: string;
+  width: number;
+  visible: boolean;
+  order: number;
+  canHide?: boolean; // 有些列不能隐藏，如操作列
+  textAlign?: 'left' | 'center' | 'right'; // 文本对齐方式
+}
+
+// 默认列配置
+const DEFAULT_COLUMNS: ColumnConfig[] = [
+  { key: 'expand', label: '', width: 32, visible: true, order: 0, canHide: false },
+  { key: 'internalCode', label: '内部编码', width: 100, visible: true, order: 1, canHide: true },
+  { key: 'materialName', label: '物料名称', width: 150, visible: true, order: 2, canHide: true },
+  { key: 'drawingCode', label: '图纸编码', width: 100, visible: true, order: 3, canHide: true },
+  { key: 'drawingNo', label: '图号', width: 80, visible: true, order: 4, canHide: true },
+  { key: 'quantity', label: '单层用量', width: 70, visible: true, order: 5, canHide: true },
+  { key: 'materialType', label: '物料类型', width: 80, visible: true, order: 6, canHide: true },
+  { key: 'customerGroupName', label: '所属客户', width: 100, visible: true, order: 7, canHide: true },
+  { key: 'remark', label: '备注', width: 150, visible: true, order: 8, canHide: true },
+  { key: 'bomOwnerName', label: 'BOM所有者', width: 90, visible: true, order: 9, canHide: true },
+  { key: 'materialOwnerName', label: '物料所有者', width: 90, visible: true, order: 10, canHide: true },
+  { key: 'actions', label: '操作', width: 128, visible: true, order: 11, canHide: false },
 ];
 
 const typeLabelMap: Record<string, string> = {
@@ -309,6 +339,174 @@ export default function BOMManagementPage() {
   const [showMaterialDetailModal, setShowMaterialDetailModal] = useState(false);
   const [selectedMaterialNode, setSelectedMaterialNode] = useState<TreeNode | null>(null);
   
+  // 列配置状态
+  const [columns, setColumns] = useState<ColumnConfig[]>(DEFAULT_COLUMNS);
+  const [showColumnSettings, setShowColumnSettings] = useState(false);
+  const [columnConfigLoading, setColumnConfigLoading] = useState(false);
+  const resizingColumn = useRef<string | null>(null);
+  const startX = useRef<number>(0);
+  const startWidth = useRef<number>(0);
+  
+  // 弹窗中的列配置状态（编辑副本）
+  const [columnsConfig, setColumnsConfig] = useState<ColumnConfig[]>([]);
+  
+  // 打开列设置弹窗时，复制当前配置
+  const openColumnSettings = () => {
+    setColumnsConfig([...columns]);
+    setShowColumnSettings(true);
+  };
+  
+  // 弹窗中修改列配置
+  const handleColumnConfigChange = (newColumns: ColumnConfig[]) => {
+    setColumnsConfig(newColumns);
+  };
+  
+  // 保存弹窗中的列配置
+  const saveColumnConfigFromModal = async () => {
+    setColumns(columnsConfig);
+    await saveColumnConfig(columnsConfig);
+    setShowColumnSettings(false);
+  };
+  
+  // 获取排序后的可见列（用于表格渲染）
+  const visibleColumns = useMemo(() => {
+    return [...columns]
+      .filter(col => col.visible && col.key !== 'expand' && col.key !== 'actions')
+      .sort((a, b) => a.order - b.order);
+  }, [columns]);
+  
+  // 拖拽移动列
+  const moveColumn = (fromKey: string, toKey: string) => {
+    const newColumns = [...columns];
+    const fromIndex = newColumns.findIndex(c => c.key === fromKey);
+    const toIndex = newColumns.findIndex(c => c.key === toKey);
+    if (fromIndex === -1 || toIndex === -1) return;
+    const [removed] = newColumns.splice(fromIndex, 1);
+    newColumns.splice(toIndex, 0, removed);
+    // 更新 order
+    newColumns.forEach((col, index) => col.order = index);
+    setColumns(newColumns);
+    saveColumnConfig(newColumns);
+  };
+  
+  // 加载列配置
+  const loadColumnConfig = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch('/api/system/column-config?pageKey=bom_list', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const data = await res.json();
+      if (data.code === 200 && data.data) {
+        // API 返回的是数组，直接作为 columns
+        const savedColumns = Array.isArray(data.data) ? data.data : (data.data.columns as ColumnConfig[]);
+        // 合并配置：保留默认配置中存在但数据库中不存在的列
+        const mergedColumns = DEFAULT_COLUMNS.map(defaultCol => {
+          const savedCol = savedColumns.find(c => c.key === defaultCol.key);
+          return savedCol || defaultCol;
+        });
+        setColumns(mergedColumns);
+      }
+    } catch (error) {
+      console.error('加载列配置失败:', error);
+    }
+  };
+  
+  // 保存列配置
+  const saveColumnConfig = async (newColumns: ColumnConfig[]) => {
+    try {
+      setColumnConfigLoading(true);
+      const token = localStorage.getItem('token');
+      const res = await fetch('/api/system/column-config', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          pageCode: 'bom_list',
+          columns: newColumns
+        })
+      });
+      const data = await res.json();
+      if (data.code !== 200) {
+        alert('保存列配置失败: ' + data.message);
+      }
+    } catch (error) {
+      console.error('保存列配置失败:', error);
+      alert('保存列配置失败');
+    } finally {
+      setColumnConfigLoading(false);
+    }
+  };
+  
+  // 重置列配置
+  const resetColumnConfig = async () => {
+    if (!confirm('确定要重置列配置为默认设置吗？')) return;
+    setColumns(DEFAULT_COLUMNS);
+    setColumnsConfig(DEFAULT_COLUMNS);
+    try {
+      const token = localStorage.getItem('token');
+      await fetch('/api/system/column-config?pageCode=bom_list', {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+    } catch (error) {
+      console.error('重置列配置失败:', error);
+    }
+  };
+  
+  // 列宽调整
+  const handleColumnResizeStart = (e: React.MouseEvent, columnKey: string) => {
+    e.preventDefault();
+    resizingColumn.current = columnKey;
+    const column = columns.find(c => c.key === columnKey);
+    if (column) {
+      startX.current = e.clientX;
+      startWidth.current = column.width;
+      document.addEventListener('mousemove', handleColumnResizeMove);
+      document.addEventListener('mouseup', handleColumnResizeEnd);
+    }
+  };
+  
+  const handleColumnResizeMove = (e: MouseEvent) => {
+    if (!resizingColumn.current) return;
+    const diff = e.clientX - startX.current;
+    const newWidth = Math.max(50, startWidth.current + diff);
+    setColumns(prev => prev.map(col => 
+      col.key === resizingColumn.current ? { ...col, width: newWidth } : col
+    ));
+  };
+  
+  const handleColumnResizeEnd = () => {
+    if (resizingColumn.current) {
+      saveColumnConfig(columns);
+    }
+    resizingColumn.current = null;
+    document.removeEventListener('mousemove', handleColumnResizeMove);
+    document.removeEventListener('mouseup', handleColumnResizeEnd);
+  };
+  
+  // 拖拽排序
+  const handleColumnReorder = (fromIndex: number, toIndex: number) => {
+    const newColumns = [...columns];
+    const [removed] = newColumns.splice(fromIndex, 1);
+    newColumns.splice(toIndex, 0, removed);
+    // 更新 order
+    newColumns.forEach((col, index) => col.order = index);
+    setColumns(newColumns);
+    saveColumnConfig(newColumns);
+  };
+  
+  // 列显示/隐藏
+  const handleColumnVisibilityChange = (columnKey: string, visible: boolean) => {
+    const newColumns = columns.map(col =>
+      col.key === columnKey ? { ...col, visible } : col
+    );
+    setColumns(newColumns);
+    saveColumnConfig(newColumns);
+  };
+  
   // 打开用户详情弹窗
   const handleShowUserDetail = (userId: number | null, userName: string) => {
     if (userId) {
@@ -396,6 +594,7 @@ export default function BOMManagementPage() {
     if (token) {
       fetchBOMTree();
       fetchGroupCustomers();
+      loadColumnConfig();
     } else {
       setTreeData([]);
       setCustomers([]);
@@ -1133,6 +1332,82 @@ export default function BOMManagementPage() {
     'py-1',          // 5级：最小
   ];
 
+  // 渲染单元格内容
+  const renderCellContent = (key: string, node: TreeNode) => {
+    const groupName = node.customerGroupName || (node.groupId ? '未知' : '-');
+    
+    switch (key) {
+      case 'internalCode':
+        return (
+          <button
+            onClick={() => handleShowMaterialDetail(node)}
+            className="text-blue-600 hover:text-blue-800 hover:underline truncate block text-left font-mono"
+          >
+            {node.internalCode}
+          </button>
+        );
+      case 'materialName':
+        return <span className="font-medium text-gray-800 truncate">{node.materialName}</span>;
+      case 'drawingCode':
+        return <span className="text-gray-600 truncate">{node.drawingCode || '-'}</span>;
+      case 'drawingNo':
+        return <span className="text-gray-600 truncate">{node.drawingNo || '-'}</span>;
+      case 'quantity':
+        return <span className="text-center text-gray-700 truncate">{node.quantity || '-'}</span>;
+      case 'materialType':
+        return (
+          <span className={`px-1.5 py-0.5 rounded text-xs ${
+            node.materialType === 'component' ? 'bg-blue-100 text-blue-700' :
+            node.materialType === 'part' ? 'bg-green-100 text-green-700' :
+            node.materialType === 'material' ? 'bg-orange-100 text-orange-700' :
+            node.materialType === 'purchased' ? 'bg-purple-100 text-purple-700' :
+            node.materialType === 'standard' ? 'bg-cyan-100 text-cyan-700' :
+            'bg-gray-100 text-gray-700'
+          }`}>
+            {typeLabelMap[node.materialType] || node.materialType}
+          </span>
+        );
+      case 'customerGroupName':
+        return <span className="text-gray-600 truncate">{groupName}</span>;
+      case 'bomOwner':
+        return (() => {
+          const name = node.bomModifierName || node.bomCreatorName;
+          const id = node.bomModifierId || node.bomCreatorId;
+          return name ? (
+            <button
+              onClick={() => handleShowUserDetail(id, name)}
+              className="text-blue-600 hover:text-blue-800 hover:underline cursor-pointer truncate"
+            >
+              {name}
+            </button>
+          ) : '-';
+        })();
+      case 'materialOwner':
+        return (() => {
+          const name = node.materialModifierName || node.materialCreatorName;
+          const id = node.materialModifierId || node.materialCreatorId;
+          return name ? (
+            <button
+              onClick={() => handleShowUserDetail(id, name)}
+              className="text-blue-600 hover:text-blue-800 hover:underline cursor-pointer truncate"
+            >
+              {name}
+            </button>
+          ) : '-';
+        })();
+      case 'remark':
+        return (
+          <span className="text-gray-500 truncate">
+            {node.remark ? `W:${node.remark}` : ''}
+            {node.bomRemark ? `${node.remark ? '||' : ''}B:${node.bomRemark}` : ''}
+            {!node.remark && !node.bomRemark ? '-' : ''}
+          </span>
+        );
+      default:
+        return '-';
+    }
+  };
+
   const renderTreeNode = (node: TreeNode, level: number = 0, parentKey: string = '') => {
     // 生成唯一键：使用父路径+当前节点ID，确保同一物料在不同位置有唯一键
     const nodeKey = `node_${node.id}`;
@@ -1173,74 +1448,22 @@ export default function BOMManagementPage() {
 
           {/* 数据列 */}
           <div className={`flex-1 flex items-center ${paddingY} ${fontSize} min-w-0`}>
-            {/* 内部编码 */}
-            <div className="w-20 flex-shrink-0 font-mono px-1">
-              <button
-                onClick={() => handleShowMaterialDetail(node)}
-                className="text-blue-600 hover:text-blue-800 hover:underline truncate block text-left"
-              >
-                {node.internalCode}
-              </button>
-            </div>
-            {/* 物料名称 */}
-            <div className="w-28 flex-shrink-0 font-medium text-gray-800 truncate px-1">{node.materialName}</div>
-            {/* 图纸编码 */}
-            <div className="w-20 flex-shrink-0 text-gray-600 truncate px-1">{node.drawingCode || '-'}</div>
-            {/* 图号 */}
-            <div className="w-16 flex-shrink-0 text-gray-600 truncate px-1">{node.drawingNo || '-'}</div>
-            {/* 单层用量 */}
-            <div className="w-14 flex-shrink-0 text-center text-gray-700 truncate px-1">{node.quantity}</div>
-            {/* 物料类型 */}
-            <div className="w-16 flex-shrink-0 text-center truncate px-1">
-              <span className={`px-1.5 py-0.5 rounded text-xs ${
-                node.materialType === 'component' ? 'bg-blue-100 text-blue-700' :
-                node.materialType === 'part' ? 'bg-green-100 text-green-700' :
-                node.materialType === 'material' ? 'bg-orange-100 text-orange-700' :
-                node.materialType === 'purchased' ? 'bg-purple-100 text-purple-700' :
-                node.materialType === 'standard' ? 'bg-cyan-100 text-cyan-700' :
-                'bg-gray-100 text-gray-700'
-              }`}>
-                {typeLabelMap[node.materialType] || node.materialType}
-              </span>
-            </div>
-            {/* 所属客户 */}
-            <div className="w-20 flex-shrink-0 text-gray-600 truncate px-1">{groupName}</div>
-            {/* BOM所有者 */}
-            <div className="w-16 flex-shrink-0 text-gray-500 truncate px-1">
-              {(() => {
-                const name = node.bomModifierName || node.bomCreatorName;
-                const id = node.bomModifierId || node.bomCreatorId;
-                return name ? (
-                  <button
-                    onClick={() => handleShowUserDetail(id, name)}
-                    className="text-blue-600 hover:text-blue-800 hover:underline cursor-pointer truncate"
-                  >
-                    {name}
-                  </button>
-                ) : '-';
-              })()}
-            </div>
-            {/* 物料所有者 */}
-            <div className="w-16 flex-shrink-0 text-gray-500 truncate px-1">
-              {(() => {
-                const name = node.materialModifierName || node.materialCreatorName;
-                const id = node.materialModifierId || node.materialCreatorId;
-                return name ? (
-                  <button
-                    onClick={() => handleShowUserDetail(id, name)}
-                    className="text-blue-600 hover:text-blue-800 hover:underline cursor-pointer truncate"
-                  >
-                    {name}
-                  </button>
-                ) : '-';
-              })()}
-            </div>
-            {/* 备注 */}
-            <div className="flex-1 text-gray-500 truncate px-1">
-              {node.remark ? `W:${node.remark}` : ''}
-              {node.bomRemark ? `${node.remark ? '||' : ''}B:${node.bomRemark}` : ''}
-              {!node.remark && !node.bomRemark ? '-' : ''}
-            </div>
+            {visibleColumns.map((col) => {
+              const column = DEFAULT_COLUMNS.find(c => c.key === col.key);
+              if (!column) return null;
+              
+              const width = col.width || column.width;
+              
+              return (
+                <div
+                  key={col.key}
+                  className="flex-shrink-0 truncate px-1"
+                  style={{ width: `${width}px` }}
+                >
+                  {renderCellContent(col.key, node)}
+                </div>
+              );
+            })}
             {/* 操作 */}
             <div className="w-32 flex-shrink-0 flex items-center justify-center gap-0.5 px-1">
               {/* 编辑 */}
@@ -1457,6 +1680,18 @@ export default function BOMManagementPage() {
               清空筛选
             </button>
           )}
+
+          {/* 列设置 */}
+          <button
+            onClick={openColumnSettings}
+            className="px-3 py-1 text-sm text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded flex items-center gap-1"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+            </svg>
+            列设置
+          </button>
         </div>
       </div>
 
@@ -1475,20 +1710,56 @@ export default function BOMManagementPage() {
               <div className="flex items-center text-xs font-semibold text-gray-700 py-2.5 px-2">
                 {/* 展开列 */}
                 <div className="w-8 flex-shrink-0" />
-                {/* 数据列 - 固定宽度分配 */}
+                {/* 数据列 - 动态渲染 */}
                 <div className="flex-1 flex items-center min-w-0">
-                  <div className="w-20 flex-shrink-0 truncate px-1">内部编码</div>
-                  <div className="w-28 flex-shrink-0 truncate px-1">名称</div>
-                  <div className="w-20 flex-shrink-0 truncate px-1">图纸编码</div>
-                  <div className="w-16 flex-shrink-0 truncate px-1">图号</div>
-                  <div className="w-14 flex-shrink-0 text-center truncate px-1">单层用量</div>
-                  <div className="w-16 flex-shrink-0 text-center truncate px-1">物料类型</div>
-                  <div className="w-20 flex-shrink-0 truncate px-1">所属客户</div>
-                  <div className="w-16 flex-shrink-0 truncate px-1">BOM所有者</div>
-                  <div className="w-16 flex-shrink-0 truncate px-1">物料所有者</div>
-                  <div className="flex-1 truncate px-1">备注</div>
-                  <div className="w-32 flex-shrink-0 text-center px-1">操作</div>
+                  {visibleColumns.map((col, index) => {
+                    const column = DEFAULT_COLUMNS.find(c => c.key === col.key);
+                    if (!column) return null;
+                    
+                    const width = col.width || column.width;
+                    return (
+                      <div
+                        key={col.key}
+                        data-column-key={col.key}
+                        className="flex-shrink-0 truncate px-1 relative group"
+                        style={{ width: `${width}px` }}
+                        draggable
+                        onDragStart={(e) => {
+                          e.dataTransfer.setData('columnKey', col.key);
+                          e.dataTransfer.effectAllowed = 'move';
+                        }}
+                        onDragOver={(e) => {
+                          e.preventDefault();
+                          e.dataTransfer.dropEffect = 'move';
+                        }}
+                        onDrop={(e) => {
+                          e.preventDefault();
+                          const dragKey = e.dataTransfer.getData('columnKey');
+                          if (dragKey && dragKey !== col.key) {
+                            moveColumn(dragKey, col.key);
+                          }
+                        }}
+                      >
+                        <span className={column.textAlign === 'center' ? 'block text-center' : ''}>
+                          {column.label}
+                        </span>
+                        {/* 列宽调整手柄 */}
+                        <div
+                          className="absolute right-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-blue-400 transition-colors"
+                          onMouseDown={(e) => handleColumnResizeStart(e, col.key)}
+                        />
+                      </div>
+                    );
+                  })}
                 </div>
+                {/* 列配置按钮 */}
+                <button
+                  onClick={openColumnSettings}
+                  className="ml-2 p-1 hover:bg-gray-200 rounded"
+                  title="列配置"
+                >
+                  <Settings className="w-4 h-4 text-gray-500" />
+                </button>
               </div>
             </div>
             {/* 树内容 */}
@@ -1890,6 +2161,103 @@ export default function BOMManagementPage() {
         variant="destructive"
         onConfirm={confirmDeleteMaterial}
       />
+
+      {/* 列设置弹窗 */}
+      {showColumnSettings && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-xl w-[600px] max-h-[80vh] overflow-hidden">
+            <div className="p-4 border-b flex justify-between items-center">
+              <h3 className="text-lg font-semibold">列设置</h3>
+              <button
+                onClick={() => setShowColumnSettings(false)}
+                className="text-gray-500 hover:text-gray-700"
+              >
+                ✕
+              </button>
+            </div>
+            <div className="p-4 overflow-y-auto max-h-[60vh]">
+              <div className="mb-4">
+                <p className="text-sm text-gray-600 mb-2">拖动调整列顺序，勾选控制列显示，点击宽度数值可调整宽度</p>
+              </div>
+              <div className="space-y-2">
+                {columnsConfig.map((col, index) => (
+                  <div
+                    key={col.key}
+                    draggable
+                    onDragStart={(e) => {
+                      e.dataTransfer.setData('text/plain', index.toString());
+                    }}
+                    onDragOver={(e) => e.preventDefault()}
+                    onDrop={(e) => {
+                      e.preventDefault();
+                      const dragIndex = parseInt(e.dataTransfer.getData('text/plain'));
+                      if (dragIndex !== index) {
+                        const newColumns = [...columnsConfig];
+                        const [removed] = newColumns.splice(dragIndex, 1);
+                        newColumns.splice(index, 0, removed);
+                        handleColumnConfigChange(newColumns);
+                      }
+                    }}
+                    className="flex items-center gap-3 p-2 bg-gray-50 rounded hover:bg-gray-100 cursor-move"
+                  >
+                    <span className="text-gray-400">⋮⋮</span>
+                    <input
+                      type="checkbox"
+                      checked={col.visible}
+                      onChange={(e) => {
+                        const newColumns = [...columnsConfig];
+                        newColumns[index] = { ...col, visible: e.target.checked };
+                        handleColumnConfigChange(newColumns);
+                      }}
+                      className="w-4 h-4"
+                    />
+                    <span className="flex-1">{col.label}</span>
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm text-gray-500">宽度:</span>
+                      <input
+                        type="number"
+                        value={col.width}
+                        onChange={(e) => {
+                          const newWidth = parseInt(e.target.value) || 80;
+                          const newColumns = [...columnsConfig];
+                          newColumns[index] = { ...col, width: Math.max(60, Math.min(400, newWidth)) };
+                          handleColumnConfigChange(newColumns);
+                        }}
+                        className="w-16 px-2 py-1 text-sm border rounded text-right"
+                        min={60}
+                        max={400}
+                      />
+                      <span className="text-sm text-gray-500">px</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div className="p-4 border-t flex justify-between">
+              <button
+                onClick={resetColumnConfig}
+                className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded"
+              >
+                恢复默认
+              </button>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setShowColumnSettings(false)}
+                  className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded"
+                >
+                  取消
+                </button>
+                <button
+                  onClick={saveColumnConfigFromModal}
+                  className="px-4 py-2 text-sm text-white bg-blue-600 hover:bg-blue-700 rounded"
+                >
+                  保存
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
