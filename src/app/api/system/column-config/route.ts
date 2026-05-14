@@ -49,9 +49,11 @@ function getUserIdFromRequest(request: NextRequest): number {
   }
   const token = authHeader.substring(7);
   try {
-    const secret = process.env.JWT_SECRET || 'default-secret-key';
-    const decoded = jwt.verify(token, secret) as { userId?: number; id?: number };
-    return decoded.userId || decoded.id || 0;
+    // 使用与系统其他部分一致的默认密钥
+    const secret = process.env.JWT_SECRET || 'tengxi-production-system-secret-key-2024';
+    const decoded = jwt.verify(token, secret) as { userId?: number; id?: number; sub?: string };
+    // 支持多种格式: userId, id, 或 sub
+    return decoded.userId || decoded.id || (decoded.sub ? parseInt(decoded.sub) : 0);
   } catch {
     return 0;
   }

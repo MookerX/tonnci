@@ -424,7 +424,7 @@ export default function BOMManagementPage() {
           'Authorization': `Bearer ${token}`
         },
         body: JSON.stringify({
-          pageCode: 'bom_list',
+          pageKey: 'bom_list',
           columns: newColumns
         })
       });
@@ -447,7 +447,7 @@ export default function BOMManagementPage() {
     setColumnsConfig(DEFAULT_COLUMNS);
     try {
       const token = localStorage.getItem('token');
-      await fetch('/api/system/column-config?pageCode=bom_list', {
+      await fetch('/api/system/column-config?pageKey=bom_list', {
         method: 'DELETE',
         headers: { 'Authorization': `Bearer ${token}` }
       });
