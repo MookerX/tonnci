@@ -108,8 +108,8 @@ const DEFAULT_COLUMNS: ColumnConfig[] = [
   { key: 'materialType', label: '物料类型', width: 80, visible: true, order: 6, canHide: true, canResize: true, canReorder: true },
   { key: 'customerGroupName', label: '所属客户', width: 100, visible: true, order: 7, canHide: true, canResize: true, canReorder: true },
   { key: 'remark', label: '备注', width: 150, visible: true, order: 8, canHide: true, canResize: true, canReorder: true },
-  { key: 'bomOwnerName', label: 'BOM所有者', width: 90, visible: true, order: 9, canHide: true, canResize: true, canReorder: true },
-  { key: 'materialOwnerName', label: '物料所有者', width: 90, visible: true, order: 10, canHide: true, canResize: true, canReorder: true },
+  { key: 'bomOwner', label: 'BOM所有者', width: 90, visible: true, order: 9, canHide: true, canResize: true, canReorder: true },
+  { key: 'materialOwner', label: '物料所有者', width: 90, visible: true, order: 10, canHide: true, canResize: true, canReorder: true },
   { key: 'actions', label: '操作', width: 128, visible: true, order: 11, canHide: false, canResize: false, canReorder: false },
 ];
 
@@ -407,10 +407,19 @@ export default function BOMManagementPage() {
       if (data.code === 200 && data.data) {
         // API 返回的是数组，直接作为 columns
         const savedColumns = Array.isArray(data.data) ? data.data : (data.data.columns as ColumnConfig[]);
-        // 合并配置：保留默认配置中存在但数据库中不存在的列
+        // 合并配置：保留默认配置中的 canReorder/canResize/canHide 等固定属性
         const mergedColumns = DEFAULT_COLUMNS.map(defaultCol => {
           const savedCol = savedColumns.find(c => c.key === defaultCol.key);
-          return savedCol || defaultCol;
+          if (savedCol) {
+            // 合并：保留默认的 canReorder/canResize/canHide，其他从保存的配置获取
+            return {
+              ...savedCol,
+              canReorder: defaultCol.canReorder,
+              canResize: defaultCol.canResize,
+              canHide: defaultCol.canHide,
+            };
+          }
+          return defaultCol;
         });
         setColumns(mergedColumns);
       }
@@ -2194,9 +2203,9 @@ export default function BOMManagementPage() {
                 <p className="text-sm text-gray-600 mb-2">拖动调整列顺序，勾选控制列显示，点击宽度数值可调整宽度</p>
               </div>
               <div className="space-y-2">
-                {columnsConfig.filter(col => col.canReorder !== false || col.canHide !== false).map((col, index) => {
-                  // 计算过滤后的真实索引
-                  const realIndex = columnsConfig.findIndex(c => c.key === col.key);
+                {columnsConfig.map((col, index) => {
+                  // 展开列特殊处理：显示但不可拖动、不可隐藏、不可调整宽度
+                  const isExpandColumn = col.key === 'expand';
                   const canDrag = col.canReorder !== false;
                   const canHide = col.canHide !== false;
                   const canResize = col.canResize !== false;
@@ -2207,17 +2216,17 @@ export default function BOMManagementPage() {
                       draggable={canDrag}
                       onDragStart={(e) => {
                         if (!canDrag) return;
-                        e.dataTransfer.setData('text/plain', realIndex.toString());
+                        e.dataTransfer.setData('text/plain', index.toString());
                       }}
                       onDragOver={(e) => e.preventDefault()}
                       onDrop={(e) => {
                         e.preventDefault();
                         if (!canDrag) return;
                         const dragIndex = parseInt(e.dataTransfer.getData('text/plain'));
-                        if (dragIndex !== realIndex) {
+                        if (dragIndex !== index) {
                           const newColumns = [...columnsConfig];
                           const [removed] = newColumns.splice(dragIndex, 1);
-                          newColumns.splice(realIndex, 0, removed);
+                          newColumns.splice(index, 0, removed);
                           handleColumnConfigChange(newColumns);
                         }
                       }}
@@ -2230,7 +2239,7 @@ export default function BOMManagementPage() {
                           checked={col.visible}
                           onChange={(e) => {
                             const newColumns = [...columnsConfig];
-                            newColumns[realIndex] = { ...col, visible: e.target.checked };
+                            newColumns[index] = { ...col, visible: e.target.checked };
                             handleColumnConfigChange(newColumns);
                           }}
                           className="w-4 h-4"
@@ -2248,7 +2257,7 @@ export default function BOMManagementPage() {
                             onChange={(e) => {
                               const newWidth = parseInt(e.target.value) || 80;
                               const newColumns = [...columnsConfig];
-                              newColumns[realIndex] = { ...col, width: Math.max(60, Math.min(400, newWidth)) };
+                              newColumns[index] = { ...col, width: Math.max(60, Math.min(400, newWidth)) };
                               handleColumnConfigChange(newColumns);
                             }}
                             className="w-16 px-2 py-1 text-sm border rounded text-right"
