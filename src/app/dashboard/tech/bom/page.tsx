@@ -365,11 +365,17 @@ export default function BOMManagementPage() {
   
   // 保存弹窗中的列配置
   const saveColumnConfigFromModal = async () => {
-    // 确保 columnsConfig 包含所有必要的列（合并 DEFAULT_COLUMNS 中缺失的列）
-    const mergedColumns = DEFAULT_COLUMNS.map(defaultCol => {
-      const configCol = columnsConfig.find(c => c.key === defaultCol.key);
-      if (configCol) {
-        // 保留 DEFAULT_COLUMNS 中的 canReorder/canResize/canHide 属性
+    // 以 columnsConfig 为基础（保留用户修改的顺序和配置）
+    // 首先根据 columnsConfig 的数组顺序更新 order 属性
+    const orderedColumns = columnsConfig.map((col, index) => ({
+      ...col,
+      order: index
+    }));
+    
+    // 合并 DEFAULT_COLUMNS 中的 canReorder/canResize/canHide 属性
+    const mergedColumns = orderedColumns.map(configCol => {
+      const defaultCol = DEFAULT_COLUMNS.find(d => d.key === configCol.key);
+      if (defaultCol) {
         return {
           ...configCol,
           canReorder: defaultCol.canReorder,
@@ -377,13 +383,13 @@ export default function BOMManagementPage() {
           canHide: defaultCol.canHide,
         };
       }
-      return defaultCol;
+      return configCol;
     });
     
-    // 添加 columnsConfig 中新增的列（不在 DEFAULT_COLUMNS 中的）
-    columnsConfig.forEach(col => {
-      if (!mergedColumns.find(c => c.key === col.key)) {
-        mergedColumns.push(col);
+    // 添加 DEFAULT_COLUMNS 中有但 columnsConfig 中没有的列
+    DEFAULT_COLUMNS.forEach(defaultCol => {
+      if (!mergedColumns.find(c => c.key === defaultCol.key)) {
+        mergedColumns.push({ ...defaultCol, order: mergedColumns.length });
       }
     });
     
@@ -395,7 +401,7 @@ export default function BOMManagementPage() {
     saveColumnConfig(mergedColumns);
   };
   
-  // 获取排序后的可见列（用于表格渲染）
+  // 获取所有列（用于表格渲染，expand 和 actions 固定在首尾）
   const visibleColumns = useMemo(() => {
     return [...columns]
       .filter(col => col.visible && col.key !== 'expand' && col.key !== 'actions')
@@ -432,11 +438,11 @@ export default function BOMManagementPage() {
       if (data.code === 200 && data.data) {
         // API 返回的是数组，直接作为 columns
         const savedColumns = Array.isArray(data.data) ? data.data : (data.data.columns as ColumnConfig[]);
+        
         // 合并配置：保留默认配置中的 canReorder/canResize/canHide 等固定属性
-        const mergedColumns = DEFAULT_COLUMNS.map(defaultCol => {
-          const savedCol = savedColumns.find(c => c.key === defaultCol.key);
-          if (savedCol) {
-            // 合并：保留默认的 canReorder/canResize/canHide，其他从保存的配置获取
+        const mergedColumns = savedColumns.map((savedCol: ColumnConfig) => {
+          const defaultCol = DEFAULT_COLUMNS.find(c => c.key === savedCol.key);
+          if (defaultCol) {
             return {
               ...savedCol,
               canReorder: defaultCol.canReorder,
@@ -444,8 +450,19 @@ export default function BOMManagementPage() {
               canHide: defaultCol.canHide,
             };
           }
-          return defaultCol;
+          return savedCol;
         });
+        
+        // 添加 DEFAULT_COLUMNS 中有但 savedColumns 中没有的列
+        DEFAULT_COLUMNS.forEach(defaultCol => {
+          if (!mergedColumns.find((c: ColumnConfig) => c.key === defaultCol.key)) {
+            mergedColumns.push({ ...defaultCol });
+          }
+        });
+        
+        // 按 order 属性排序
+        mergedColumns.sort((a: ColumnConfig, b: ColumnConfig) => (a.order || 0) - (b.order || 0));
+        
         setColumns(mergedColumns);
       }
     } catch (error) {
@@ -1722,17 +1739,6 @@ export default function BOMManagementPage() {
             </button>
           )}
 
-          {/* 列设置 */}
-          <button
-            onClick={openColumnSettings}
-            className="px-3 py-1 text-sm text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded flex items-center gap-1"
-          >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-            </svg>
-            列设置
-          </button>
         </div>
       </div>
 
@@ -1800,13 +1806,13 @@ export default function BOMManagementPage() {
                     );
                   })}
                 </div>
-                {/* 列配置按钮 */}
+                {/* 列设置按钮 */}
                 <button
                   onClick={openColumnSettings}
-                  className="ml-2 p-1 hover:bg-gray-200 rounded"
-                  title="列配置"
+                  className="flex-shrink-0 ml-2 p-1.5 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors"
+                  title="列设置"
                 >
-                  <Settings className="w-4 h-4 text-gray-500" />
+                  <Settings size={16} />
                 </button>
               </div>
             </div>
@@ -2252,6 +2258,10 @@ export default function BOMManagementPage() {
                           const newColumns = [...columnsConfig];
                           const [removed] = newColumns.splice(dragIndex, 1);
                           newColumns.splice(index, 0, removed);
+                          // 更新 order 属性，确保顺序正确
+                          newColumns.forEach((col, idx) => {
+                            col.order = idx;
+                          });
                           handleColumnConfigChange(newColumns);
                         }
                       }}

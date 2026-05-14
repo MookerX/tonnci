@@ -45,19 +45,20 @@ async function ensureTableExists() {
   }
 }
 
-// 默认列配置
+// 默认列配置 - 与前端 page.tsx 保持一致
 const DEFAULT_COLUMNS = [
-  { key: 'internalCode', label: '内部编码', width: 120, visible: true, order: 0 },
-  { key: 'materialName', label: '名称', width: 150, visible: true, order: 1 },
-  { key: 'drawingCode', label: '图纸编码', width: 120, visible: true, order: 2 },
-  { key: 'drawingNo', label: '图号', width: 80, visible: true, order: 3 },
-  { key: 'quantity', label: '单层用量', width: 70, visible: true, order: 4 },
-  { key: 'materialType', label: '物料类型', width: 80, visible: true, order: 5 },
-  { key: 'customerGroupName', label: '所属客户', width: 100, visible: true, order: 6 },
-  { key: 'remark', label: '备注', width: 150, visible: true, order: 7 },
-  { key: 'bomOwner', label: 'BOM所有者', width: 100, visible: true, order: 8 },
-  { key: 'materialOwner', label: '物料所有者', width: 100, visible: true, order: 9 },
-  { key: 'actions', label: '操作', width: 130, visible: true, order: 10 },
+  { key: 'expand', label: '', width: 32, visible: true, order: 0 },
+  { key: 'internalCode', label: '内部编码', width: 100, visible: true, order: 1 },
+  { key: 'materialName', label: '物料名称', width: 150, visible: true, order: 2 },
+  { key: 'drawingCode', label: '图纸编码', width: 100, visible: true, order: 3 },
+  { key: 'drawingNo', label: '图号', width: 80, visible: true, order: 4 },
+  { key: 'quantity', label: '单层用量', width: 70, visible: true, order: 5 },
+  { key: 'materialType', label: '物料类型', width: 80, visible: true, order: 6 },
+  { key: 'customerGroupName', label: '所属客户', width: 100, visible: true, order: 7 },
+  { key: 'remark', label: '备注', width: 150, visible: true, order: 8 },
+  { key: 'bomOwner', label: 'BOM所有者', width: 90, visible: true, order: 9 },
+  { key: 'materialOwner', label: '物料所有者', width: 90, visible: true, order: 10 },
+  { key: 'actions', label: '操作', width: 128, visible: true, order: 11 },
 ];
 
 // 从请求头获取用户ID
