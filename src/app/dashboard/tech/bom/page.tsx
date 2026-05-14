@@ -365,9 +365,34 @@ export default function BOMManagementPage() {
   
   // 保存弹窗中的列配置
   const saveColumnConfigFromModal = async () => {
-    setColumns(columnsConfig);
-    await saveColumnConfig(columnsConfig);
+    // 确保 columnsConfig 包含所有必要的列（合并 DEFAULT_COLUMNS 中缺失的列）
+    const mergedColumns = DEFAULT_COLUMNS.map(defaultCol => {
+      const configCol = columnsConfig.find(c => c.key === defaultCol.key);
+      if (configCol) {
+        // 保留 DEFAULT_COLUMNS 中的 canReorder/canResize/canHide 属性
+        return {
+          ...configCol,
+          canReorder: defaultCol.canReorder,
+          canResize: defaultCol.canResize,
+          canHide: defaultCol.canHide,
+        };
+      }
+      return defaultCol;
+    });
+    
+    // 添加 columnsConfig 中新增的列（不在 DEFAULT_COLUMNS 中的）
+    columnsConfig.forEach(col => {
+      if (!mergedColumns.find(c => c.key === col.key)) {
+        mergedColumns.push(col);
+      }
+    });
+    
+    // 先更新本地状态，实现实时刷新
+    setColumns([...mergedColumns]);
     setShowColumnSettings(false);
+    
+    // 然后保存到服务器（异步，不阻塞UI更新）
+    saveColumnConfig(mergedColumns);
   };
   
   // 获取排序后的可见列（用于表格渲染）
