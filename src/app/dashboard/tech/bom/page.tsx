@@ -254,6 +254,16 @@ export default function BOMManagementPage() {
   const startX = useRef<number>(0);
   const startWidth = useRef<number>(0);
   
+  // 物料详情弹窗状态
+  const [showMaterialDetailModal, setShowMaterialDetailModal] = useState(false);
+  const [selectedMaterialNode, setSelectedMaterialNode] = useState<TreeNode | null>(null);
+  
+  // 打开物料详情弹窗
+  const handleShowMaterialDetail = (node: TreeNode) => {
+    setSelectedMaterialNode(node);
+    setShowMaterialDetailModal(true);
+  };
+  
   // 弹窗中的列配置状态（编辑副本）
   const [columnsConfig, setColumnsConfig] = useState<ColumnConfig[]>([]);
   
@@ -1320,7 +1330,14 @@ export default function BOMManagementPage() {
     
     switch (key) {
       case 'internalCode':
-        return <span className="text-gray-700 truncate font-mono">{node.internalCode}</span>;
+        return (
+          <span 
+            className="text-blue-600 hover:text-blue-800 cursor-pointer truncate font-mono underline"
+            onClick={() => handleShowMaterialDetail(node)}
+          >
+            {node.internalCode}
+          </span>
+        );
       case 'materialName':
         return <span className="font-medium text-gray-800 truncate">{node.materialName}</span>;
       case 'drawingCode':
@@ -2252,6 +2269,128 @@ export default function BOMManagementPage() {
                   保存
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+      
+      {/* 物料详情弹窗 */}
+      {showMaterialDetailModal && selectedMaterialNode && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full mx-4 max-h-[90vh] overflow-hidden">
+            <div className="px-6 py-4 border-b flex justify-between items-center">
+              <h3 className="text-lg font-semibold text-gray-800">物料详情</h3>
+              <button
+                onClick={() => setShowMaterialDetailModal(false)}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="p-6 overflow-y-auto max-h-[calc(90vh-120px)]">
+              {/* 物料基本信息 */}
+              <div className="mb-6">
+                <h4 className="text-sm font-semibold text-gray-600 mb-3 pb-2 border-b">物料信息</h4>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-xs text-gray-500">物料名称</label>
+                    <p className="text-sm text-gray-800">{selectedMaterialNode.materialName || '-'}</p>
+                  </div>
+                  <div>
+                    <label className="text-xs text-gray-500">内部编码</label>
+                    <p className="text-sm text-gray-800 font-mono">{selectedMaterialNode.internalCode || '-'}</p>
+                  </div>
+                  <div>
+                    <label className="text-xs text-gray-500">图纸编码</label>
+                    <p className="text-sm text-gray-800">{selectedMaterialNode.drawingCode || '-'}</p>
+                  </div>
+                  <div>
+                    <label className="text-xs text-gray-500">图号</label>
+                    <p className="text-sm text-gray-800">{selectedMaterialNode.drawingNo || '-'}</p>
+                  </div>
+                  <div>
+                    <label className="text-xs text-gray-500">物料类型</label>
+                    <p className="text-sm text-gray-800">{typeLabelMap[selectedMaterialNode.materialType] || selectedMaterialNode.materialType || '-'}</p>
+                  </div>
+                  <div>
+                    <label className="text-xs text-gray-500">所属客户</label>
+                    <p className="text-sm text-gray-800">{selectedMaterialNode.customerGroupName || '-'}</p>
+                  </div>
+                  <div>
+                    <label className="text-xs text-gray-500">单位</label>
+                    <p className="text-sm text-gray-800">{selectedMaterialNode.unit || '-'}</p>
+                  </div>
+                  <div>
+                    <label className="text-xs text-gray-500">规格</label>
+                    <p className="text-sm text-gray-800">{selectedMaterialNode.spec || '-'}</p>
+                  </div>
+                  <div className="col-span-2">
+                    <label className="text-xs text-gray-500">物料备注</label>
+                    <p className="text-sm text-gray-800 whitespace-pre-wrap">{selectedMaterialNode.remark || '-'}</p>
+                  </div>
+                  <div>
+                    <label className="text-xs text-gray-500">物料创建者</label>
+                    <p className="text-sm text-gray-800">{selectedMaterialNode.materialCreatorName || '-'}</p>
+                  </div>
+                  <div>
+                    <label className="text-xs text-gray-500">物料创建时间</label>
+                    <p className="text-sm text-gray-800">{selectedMaterialNode.materialCreatedAt ? new Date(selectedMaterialNode.materialCreatedAt).toLocaleString('zh-CN') : '-'}</p>
+                  </div>
+                  <div>
+                    <label className="text-xs text-gray-500">物料修改者</label>
+                    <p className="text-sm text-gray-800">{selectedMaterialNode.materialModifierName || '-'}</p>
+                  </div>
+                  <div>
+                    <label className="text-xs text-gray-500">物料修改时间</label>
+                    <p className="text-sm text-gray-800">{selectedMaterialNode.materialUpdatedAt ? new Date(selectedMaterialNode.materialUpdatedAt).toLocaleString('zh-CN') : '-'}</p>
+                  </div>
+                </div>
+              </div>
+              
+              {/* BOM相关信息 - 仅子层物料显示（有 bomItemId 表示是子层物料） */}
+              {selectedMaterialNode.bomItemId && (
+                <div className="mb-6">
+                  <h4 className="text-sm font-semibold text-gray-600 mb-3 pb-2 border-b">BOM信息</h4>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="text-xs text-gray-500">层级编码</label>
+                      <p className="text-sm text-gray-800 font-mono">{selectedMaterialNode.levelCode || '-'}</p>
+                    </div>
+                    <div>
+                      <label className="text-xs text-gray-500">单层用量</label>
+                      <p className="text-sm text-gray-800">{selectedMaterialNode.quantity || '-'}</p>
+                    </div>
+                    <div className="col-span-2">
+                      <label className="text-xs text-gray-500">BOM备注</label>
+                      <p className="text-sm text-gray-800 whitespace-pre-wrap">{selectedMaterialNode.bomRemark || '-'}</p>
+                    </div>
+                    <div>
+                      <label className="text-xs text-gray-500">BOM创建者</label>
+                      <p className="text-sm text-gray-800">{selectedMaterialNode.bomCreatorName || '-'}</p>
+                    </div>
+                    <div>
+                      <label className="text-xs text-gray-500">BOM创建时间</label>
+                      <p className="text-sm text-gray-800">{selectedMaterialNode.bomCreatedAt ? new Date(selectedMaterialNode.bomCreatedAt).toLocaleString('zh-CN') : '-'}</p>
+                    </div>
+                    <div>
+                      <label className="text-xs text-gray-500">BOM修改者</label>
+                      <p className="text-sm text-gray-800">{selectedMaterialNode.bomModifierName || '-'}</p>
+                    </div>
+                    <div>
+                      <label className="text-xs text-gray-500">BOM修改时间</label>
+                      <p className="text-sm text-gray-800">{selectedMaterialNode.bomUpdatedAt ? new Date(selectedMaterialNode.bomUpdatedAt).toLocaleString('zh-CN') : '-'}</p>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+            <div className="px-6 py-4 border-t flex justify-end">
+              <button
+                onClick={() => setShowMaterialDetailModal(false)}
+                className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded"
+              >
+                关闭
+              </button>
             </div>
           </div>
         </div>
