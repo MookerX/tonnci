@@ -530,6 +530,13 @@ export default function BOMManagementPage() {
   // 编辑子物料时存储 BOM 关系 ID
   const [editingBOMItemId, setEditingBOMItemId] = useState<number | null>(null);
   
+  // 物料搜索状态（新增子物料时使用）
+  const [materialSearchKey, setMaterialSearchKey] = useState('');
+  const [materialSearchResults, setMaterialSearchResults] = useState<Material[]>([]);
+  const [selectedExistingMaterial, setSelectedExistingMaterial] = useState<Material | null>(null);
+  const [isSearchingMaterial, setIsSearchingMaterial] = useState(false);
+  const [showMaterialDropdown, setShowMaterialDropdown] = useState(false);
+  
   // 表单状态
   const [formData, setFormData] = useState({
     materialName: '',
@@ -845,7 +852,7 @@ export default function BOMManagementPage() {
     setParentMaterial({ drawingCode: parentDrawingCode, materialName: parentMaterialName });
     setFormData({
       materialName: '',
-      internalCode: '',  // 空字符串，由保存时API自动生成
+      internalCode: '',  // 用于输入搜索
       drawingCode: '',
       drawingNo: '',
       materialType: 'part',
@@ -854,7 +861,55 @@ export default function BOMManagementPage() {
       remark: '',
       bomRemark: '',
     });
+    // 重置物料搜索状态
+    setMaterialSearchKey('');
+    setMaterialSearchResults([]);
+    setSelectedExistingMaterial(null);
+    setShowMaterialDropdown(false);
     setShowMaterialModal(true);
+  };
+
+  // 搜索物料（用于新增子物料时选择已有物料）
+  const searchMaterials = async (keyword: string) => {
+    if (keyword.length < 4) {
+      setMaterialSearchResults([]);
+      setShowMaterialDropdown(false);
+      return;
+    }
+    
+    setIsSearchingMaterial(true);
+    try {
+      const res = await fetchApi(`/api/bom/material/search?keyword=${encodeURIComponent(keyword)}`);
+      if (res.code === 200 && res.data) {
+        setMaterialSearchResults(res.data);
+        setShowMaterialDropdown(res.data.length > 0);
+      } else {
+        setMaterialSearchResults([]);
+        setShowMaterialDropdown(false);
+      }
+    } catch {
+      setMaterialSearchResults([]);
+      setShowMaterialDropdown(false);
+    } finally {
+      setIsSearchingMaterial(false);
+    }
+  };
+
+  // 选择已有物料填充表单
+  const selectExistingMaterial = (material: Material) => {
+    setSelectedExistingMaterial(material);
+    setFormData({
+      materialName: material.materialName,
+      internalCode: material.internalCode || '',
+      drawingCode: material.drawingCode || '',
+      drawingNo: material.drawingNo || '',
+      materialType: material.materialType,
+      groupId: material.groupId,
+      quantity: formData.quantity, // 保持当前用量
+      remark: material.remark || '',
+      bomRemark: formData.bomRemark || '', // 保持当前BOM备注
+    });
+    setShowMaterialDropdown(false);
   };
 
   const handleEditMaterial = (node: TreeNode) => {
@@ -942,6 +997,50 @@ export default function BOMManagementPage() {
   };
 
   const handleSaveMaterial = async () => {
+    // 新增子物料时，如果选择了已有物料，只创建BOM关系
+    if (!editingMaterial && parentMaterialId && selectedExistingMaterial) {
+      // 只创建BOM关系
+      const bomRes = await fetchApi('/api/bom', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          parentMaterialId: parentMaterialId,
+          childMaterialId: selectedExistingMaterial.id,
+          quantity: formData.quantity || 1,
+          bomRemark: formData.bomRemark || '',
+        }),
+      });
+      if (bomRes.code === 200) {
+        success('BOM关系创建成功');
+        setShowMaterialModal(false);
+        setParentMaterialId(null);
+        setParentMaterial(null);
+        setSelectedExistingMaterial(null);
+        setMaterialSearchKey('');
+        setMaterialSearchResults([]);
+        fetchBOMTree();
+      } else {
+        error('BOM关系创建失败: ' + (bomRes.message || '未知错误'));
+      }
+      return;
+    }
+
+    // 新增子物料时，如果没有选择已有物料，需要先创建物料再创建BOM关系
+    if (!editingMaterial && parentMaterialId && !selectedExistingMaterial) {
+      // 验证必须输入物料名称
+      if (!formData.materialName) {
+        warning('物料名称不能为空');
+        return;
+      }
+      // 验证必须输入内部编码（用于搜索后选择）
+      if (!formData.internalCode || formData.internalCode.length < 4) {
+        warning('请输入内部编码搜索并选择已有物料，或者输入新物料信息');
+        return;
+      }
+      warning('请从下拉列表中选择已有物料，或清空内部编码后创建新物料');
+      return;
+    }
+
     if (!formData.materialName) {
       warning('物料名称不能为空');
       return;
@@ -1862,16 +1961,99 @@ export default function BOMManagementPage() {
                     ))}
                   </select>
                 </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">内部编码</label>
-                  <input
-                    type="text"
-                    value={formData.internalCode}
-                    readOnly
-                    disabled
-                    className="w-full px-3 py-2 border border-gray-200 rounded-lg bg-gray-50 text-gray-500 cursor-not-allowed"
-                    placeholder="自动生成"
-                  />
+                <div className="relative">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    内部编码 {!editingMaterial && !parentMaterialId && <span className="text-gray-400 text-xs ml-1">(自动生成)</span>}
+                    {!editingMaterial && parentMaterialId && <span className="text-red-500">*</span>}
+                    {editingMaterial && <span className="text-gray-400 text-xs ml-1">(不可修改)</span>}
+                  </label>
+                  {editingMaterial ? (
+                    // 编辑模式：只读
+                    <input
+                      type="text"
+                      value={formData.internalCode}
+                      readOnly
+                      disabled
+                      className="w-full px-3 py-2 border border-gray-200 rounded-lg bg-gray-50 text-gray-500 cursor-not-allowed"
+                    />
+                  ) : parentMaterialId ? (
+                    // 新增子物料：可输入搜索
+                    <div className="relative">
+                      <input
+                        type="text"
+                        value={formData.internalCode}
+                        onChange={e => {
+                          const value = e.target.value;
+                          setFormData({ ...formData, internalCode: value });
+                          setMaterialSearchKey(value);
+                          setSelectedExistingMaterial(null);
+                          // 搜索物料
+                          searchMaterials(value);
+                        }}
+                        onFocus={() => {
+                          if (formData.internalCode?.length >= 4) {
+                            setShowMaterialDropdown(true);
+                          }
+                        }}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        placeholder="输入至少4个字符搜索物料"
+                      />
+                      {/* 已选择物料标识 */}
+                      {selectedExistingMaterial && (
+                        <div className="absolute right-2 top-2 flex items-center gap-1 text-green-600 text-xs">
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                          </svg>
+                          已选择
+                        </div>
+                      )}
+                      {/* 搜索下拉列表 */}
+                      {showMaterialDropdown && materialSearchResults.length > 0 && (
+                        <div className="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-auto">
+                          {materialSearchResults.map((material) => (
+                            <div
+                              key={material.id}
+                              onClick={() => selectExistingMaterial(material)}
+                              className="px-3 py-2 hover:bg-blue-50 cursor-pointer border-b border-gray-100 last:border-b-0"
+                            >
+                              <div className="flex items-center gap-2">
+                                <span className="font-medium text-gray-900">{material.internalCode}</span>
+                                <span className="text-gray-500">|</span>
+                                <span className="text-gray-700">{material.materialName}</span>
+                              </div>
+                              {material.drawingCode && (
+                                <div className="text-xs text-gray-500 mt-0.5">
+                                  图纸编码: {material.drawingCode} {material.drawingNo && `| 图号: ${material.drawingNo}`}
+                                </div>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                      {/* 搜索中提示 */}
+                      {isSearchingMaterial && (
+                        <div className="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg p-3 text-center text-gray-500">
+                          搜索中...
+                        </div>
+                      )}
+                      {/* 无结果提示 */}
+                      {!isSearchingMaterial && materialSearchKey.length >= 4 && materialSearchResults.length === 0 && !selectedExistingMaterial && (
+                        <div className="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg p-3 text-center text-gray-500">
+                          未找到匹配的物料
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    // 新增顶层物料：只读（自动生成）
+                    <input
+                      type="text"
+                      value={formData.internalCode}
+                      readOnly
+                      disabled
+                      className="w-full px-3 py-2 border border-gray-200 rounded-lg bg-gray-50 text-gray-500 cursor-not-allowed"
+                      placeholder="保存时自动生成"
+                    />
+                  )}
                 </div>
                 {(parentMaterialId || editingParentInfo) && (
                 <div>
