@@ -2,6 +2,49 @@ import { NextRequest, NextResponse } from 'next/server';
 import jwt from 'jsonwebtoken';
 import { prisma } from '@/lib/prisma';
 
+// 确保表存在
+async function ensureTableExists() {
+  try {
+    // 尝试查询表，如果表不存在会抛出错误
+    await prisma.$executeRaw`SELECT 1 FROM user_column_config LIMIT 1`;
+  } catch (error: any) {
+    // 检查是否是表不存在的错误
+    const isTableNotExist = 
+      error.code === 'P2010' || 
+      error.code === 'P2021' ||
+      error.message?.includes("doesn't exist") ||
+      error.message?.includes('does not exist');
+    
+    if (isTableNotExist) {
+      console.log('[ColumnConfig] 表不存在，正在创建 user_column_config 表...');
+      try {
+        await prisma.$executeRawUnsafe(`
+          CREATE TABLE IF NOT EXISTS user_column_config (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            user_id INT NULL,
+            page_key VARCHAR(100) NOT NULL,
+            config TEXT NOT NULL,
+            is_default BOOLEAN NOT NULL DEFAULT false,
+            isDelete BOOLEAN NOT NULL DEFAULT false,
+            created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+            updated_at DATETIME(3) NOT NULL,
+            INDEX idx_user (user_id),
+            INDEX idx_page (page_key),
+            UNIQUE INDEX user_column_config_user_id_page_key_key (user_id, page_key)
+          ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci
+        `);
+        console.log('[ColumnConfig] 表创建成功');
+      } catch (createError: any) {
+        console.error('[ColumnConfig] 创建表失败:', createError.message);
+        throw createError;
+      }
+    } else {
+      console.error('[ColumnConfig] 检查表存在失败:', error.message);
+      throw error;
+    }
+  }
+}
+
 // 默认列配置
 const DEFAULT_COLUMNS = [
   { key: 'internalCode', label: '内部编码', width: 120, visible: true, order: 0 },
@@ -38,6 +81,9 @@ function getUserIdFromRequest(request: NextRequest): number {
 // GET - 获取列配置
 export async function GET(request: NextRequest) {
   try {
+    // 确保表存在
+    await ensureTableExists();
+    
     const { searchParams } = new URL(request.url);
     const pageKey = searchParams.get('pageKey');
     
@@ -86,6 +132,9 @@ export async function GET(request: NextRequest) {
 // POST - 保存列配置
 export async function POST(request: NextRequest) {
   try {
+    // 确保表存在
+    await ensureTableExists();
+    
     const userId = getUserIdFromRequest(request);
     
     if (!userId) {
@@ -138,6 +187,9 @@ export async function POST(request: NextRequest) {
 // DELETE - 重置列配置
 export async function DELETE(request: NextRequest) {
   try {
+    // 确保表存在
+    await ensureTableExists();
+    
     const userId = getUserIdFromRequest(request);
     
     if (!userId) {
