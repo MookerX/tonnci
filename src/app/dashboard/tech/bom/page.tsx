@@ -92,23 +92,25 @@ interface ColumnConfig {
   visible: boolean;
   order: number;
   canHide?: boolean; // 有些列不能隐藏，如操作列
+  canResize?: boolean; // 有些列不能调整宽度，如展开列
+  canReorder?: boolean; // 有些列不能拖动调整位置，如展开列、操作列
   textAlign?: 'left' | 'center' | 'right'; // 文本对齐方式
 }
 
 // 默认列配置
 const DEFAULT_COLUMNS: ColumnConfig[] = [
-  { key: 'expand', label: '', width: 32, visible: true, order: 0, canHide: false },
-  { key: 'internalCode', label: '内部编码', width: 100, visible: true, order: 1, canHide: true },
-  { key: 'materialName', label: '物料名称', width: 150, visible: true, order: 2, canHide: true },
-  { key: 'drawingCode', label: '图纸编码', width: 100, visible: true, order: 3, canHide: true },
-  { key: 'drawingNo', label: '图号', width: 80, visible: true, order: 4, canHide: true },
-  { key: 'quantity', label: '单层用量', width: 70, visible: true, order: 5, canHide: true },
-  { key: 'materialType', label: '物料类型', width: 80, visible: true, order: 6, canHide: true },
-  { key: 'customerGroupName', label: '所属客户', width: 100, visible: true, order: 7, canHide: true },
-  { key: 'remark', label: '备注', width: 150, visible: true, order: 8, canHide: true },
-  { key: 'bomOwnerName', label: 'BOM所有者', width: 90, visible: true, order: 9, canHide: true },
-  { key: 'materialOwnerName', label: '物料所有者', width: 90, visible: true, order: 10, canHide: true },
-  { key: 'actions', label: '操作', width: 128, visible: true, order: 11, canHide: false },
+  { key: 'expand', label: '', width: 32, visible: true, order: 0, canHide: false, canResize: false, canReorder: false },
+  { key: 'internalCode', label: '内部编码', width: 100, visible: true, order: 1, canHide: true, canResize: true, canReorder: true },
+  { key: 'materialName', label: '物料名称', width: 150, visible: true, order: 2, canHide: true, canResize: true, canReorder: true },
+  { key: 'drawingCode', label: '图纸编码', width: 100, visible: true, order: 3, canHide: true, canResize: true, canReorder: true },
+  { key: 'drawingNo', label: '图号', width: 80, visible: true, order: 4, canHide: true, canResize: true, canReorder: true },
+  { key: 'quantity', label: '单层用量', width: 70, visible: true, order: 5, canHide: true, canResize: true, canReorder: true },
+  { key: 'materialType', label: '物料类型', width: 80, visible: true, order: 6, canHide: true, canResize: true, canReorder: true },
+  { key: 'customerGroupName', label: '所属客户', width: 100, visible: true, order: 7, canHide: true, canResize: true, canReorder: true },
+  { key: 'remark', label: '备注', width: 150, visible: true, order: 8, canHide: true, canResize: true, canReorder: true },
+  { key: 'bomOwnerName', label: 'BOM所有者', width: 90, visible: true, order: 9, canHide: true, canResize: true, canReorder: true },
+  { key: 'materialOwnerName', label: '物料所有者', width: 90, visible: true, order: 10, canHide: true, canResize: true, canReorder: true },
+  { key: 'actions', label: '操作', width: 128, visible: true, order: 11, canHide: false, canResize: false, canReorder: false },
 ];
 
 const typeLabelMap: Record<string, string> = {
@@ -377,6 +379,11 @@ export default function BOMManagementPage() {
   
   // 拖拽移动列
   const moveColumn = (fromKey: string, toKey: string) => {
+    const fromCol = columns.find(c => c.key === fromKey);
+    const toCol = columns.find(c => c.key === toKey);
+    // 检查是否允许移动
+    if (fromCol?.canReorder === false || toCol?.canReorder === false) return;
+    
     const newColumns = [...columns];
     const fromIndex = newColumns.findIndex(c => c.key === fromKey);
     const toIndex = newColumns.findIndex(c => c.key === toKey);
@@ -1717,14 +1724,18 @@ export default function BOMManagementPage() {
                     if (!column) return null;
                     
                     const width = col.width || column.width;
+                    const canDrag = col.canReorder !== false;
+                    const canResize = col.canResize !== false;
+                    
                     return (
                       <div
                         key={col.key}
                         data-column-key={col.key}
                         className="flex-shrink-0 truncate px-1 relative group"
                         style={{ width: `${width}px` }}
-                        draggable
+                        draggable={canDrag}
                         onDragStart={(e) => {
+                          if (!canDrag) return;
                           e.dataTransfer.setData('columnKey', col.key);
                           e.dataTransfer.effectAllowed = 'move';
                         }}
@@ -1734,6 +1745,7 @@ export default function BOMManagementPage() {
                         }}
                         onDrop={(e) => {
                           e.preventDefault();
+                          if (!canDrag) return;
                           const dragKey = e.dataTransfer.getData('columnKey');
                           if (dragKey && dragKey !== col.key) {
                             moveColumn(dragKey, col.key);
@@ -1744,10 +1756,12 @@ export default function BOMManagementPage() {
                           {column.label}
                         </span>
                         {/* 列宽调整手柄 */}
-                        <div
-                          className="absolute right-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-blue-400 transition-colors"
-                          onMouseDown={(e) => handleColumnResizeStart(e, col.key)}
-                        />
+                        {canResize && (
+                          <div
+                            className="absolute right-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-blue-400 transition-colors"
+                            onMouseDown={(e) => handleColumnResizeStart(e, col.key)}
+                          />
+                        )}
                       </div>
                     );
                   })}
@@ -2180,57 +2194,73 @@ export default function BOMManagementPage() {
                 <p className="text-sm text-gray-600 mb-2">拖动调整列顺序，勾选控制列显示，点击宽度数值可调整宽度</p>
               </div>
               <div className="space-y-2">
-                {columnsConfig.map((col, index) => (
-                  <div
-                    key={col.key}
-                    draggable
-                    onDragStart={(e) => {
-                      e.dataTransfer.setData('text/plain', index.toString());
-                    }}
-                    onDragOver={(e) => e.preventDefault()}
-                    onDrop={(e) => {
-                      e.preventDefault();
-                      const dragIndex = parseInt(e.dataTransfer.getData('text/plain'));
-                      if (dragIndex !== index) {
-                        const newColumns = [...columnsConfig];
-                        const [removed] = newColumns.splice(dragIndex, 1);
-                        newColumns.splice(index, 0, removed);
-                        handleColumnConfigChange(newColumns);
-                      }
-                    }}
-                    className="flex items-center gap-3 p-2 bg-gray-50 rounded hover:bg-gray-100 cursor-move"
-                  >
-                    <span className="text-gray-400">⋮⋮</span>
-                    <input
-                      type="checkbox"
-                      checked={col.visible}
-                      onChange={(e) => {
-                        const newColumns = [...columnsConfig];
-                        newColumns[index] = { ...col, visible: e.target.checked };
-                        handleColumnConfigChange(newColumns);
+                {columnsConfig.filter(col => col.canReorder !== false || col.canHide !== false).map((col, index) => {
+                  // 计算过滤后的真实索引
+                  const realIndex = columnsConfig.findIndex(c => c.key === col.key);
+                  const canDrag = col.canReorder !== false;
+                  const canHide = col.canHide !== false;
+                  const canResize = col.canResize !== false;
+                  
+                  return (
+                    <div
+                      key={col.key}
+                      draggable={canDrag}
+                      onDragStart={(e) => {
+                        if (!canDrag) return;
+                        e.dataTransfer.setData('text/plain', realIndex.toString());
                       }}
-                      className="w-4 h-4"
-                    />
-                    <span className="flex-1">{col.label}</span>
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm text-gray-500">宽度:</span>
-                      <input
-                        type="number"
-                        value={col.width}
-                        onChange={(e) => {
-                          const newWidth = parseInt(e.target.value) || 80;
+                      onDragOver={(e) => e.preventDefault()}
+                      onDrop={(e) => {
+                        e.preventDefault();
+                        if (!canDrag) return;
+                        const dragIndex = parseInt(e.dataTransfer.getData('text/plain'));
+                        if (dragIndex !== realIndex) {
                           const newColumns = [...columnsConfig];
-                          newColumns[index] = { ...col, width: Math.max(60, Math.min(400, newWidth)) };
+                          const [removed] = newColumns.splice(dragIndex, 1);
+                          newColumns.splice(realIndex, 0, removed);
                           handleColumnConfigChange(newColumns);
-                        }}
-                        className="w-16 px-2 py-1 text-sm border rounded text-right"
-                        min={60}
-                        max={400}
-                      />
-                      <span className="text-sm text-gray-500">px</span>
+                        }
+                      }}
+                      className={`flex items-center gap-3 p-2 bg-gray-50 rounded hover:bg-gray-100 ${canDrag ? 'cursor-move' : 'cursor-default'}`}
+                    >
+                      <span className={`text-gray-400 ${canDrag ? '' : 'opacity-30'}`}>⋮⋮</span>
+                      {canHide ? (
+                        <input
+                          type="checkbox"
+                          checked={col.visible}
+                          onChange={(e) => {
+                            const newColumns = [...columnsConfig];
+                            newColumns[realIndex] = { ...col, visible: e.target.checked };
+                            handleColumnConfigChange(newColumns);
+                          }}
+                          className="w-4 h-4"
+                        />
+                      ) : (
+                        <div className="w-4 h-4" />
+                      )}
+                      <span className="flex-1">{col.label || '(展开列)'}</span>
+                      {canResize && (
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm text-gray-500">宽度:</span>
+                          <input
+                            type="number"
+                            value={col.width}
+                            onChange={(e) => {
+                              const newWidth = parseInt(e.target.value) || 80;
+                              const newColumns = [...columnsConfig];
+                              newColumns[realIndex] = { ...col, width: Math.max(60, Math.min(400, newWidth)) };
+                              handleColumnConfigChange(newColumns);
+                            }}
+                            className="w-16 px-2 py-1 text-sm border rounded text-right"
+                            min={60}
+                            max={400}
+                          />
+                          <span className="text-sm text-gray-500">px</span>
+                        </div>
+                      )}
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
             <div className="p-4 border-t flex justify-between">
