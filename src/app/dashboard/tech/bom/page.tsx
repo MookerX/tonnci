@@ -278,18 +278,21 @@ export default function BOMManagementPage() {
     }));
     
     // 合并 DEFAULT_COLUMNS 中的 canReorder/canResize/canHide 属性
-    const mergedColumns = orderedColumns.map(configCol => {
-      const defaultCol = DEFAULT_COLUMNS.find(d => d.key === configCol.key);
-      if (defaultCol) {
-        return {
-          ...configCol,
-          canReorder: defaultCol.canReorder,
-          canResize: defaultCol.canResize,
-          canHide: defaultCol.canHide,
-        };
-      }
-      return configCol;
-    });
+    // 同时过滤掉 DEFAULT_COLUMNS 中不存在的列（如已删除的旧列）
+    const mergedColumns = orderedColumns
+      .filter(configCol => DEFAULT_COLUMNS.find(d => d.key === configCol.key))
+      .map(configCol => {
+        const defaultCol = DEFAULT_COLUMNS.find(d => d.key === configCol.key);
+        if (defaultCol) {
+          return {
+            ...configCol,
+            canReorder: defaultCol.canReorder,
+            canResize: defaultCol.canResize,
+            canHide: defaultCol.canHide,
+          };
+        }
+        return configCol;
+      });
     
     // 添加 DEFAULT_COLUMNS 中有但 columnsConfig 中没有的列
     DEFAULT_COLUMNS.forEach(defaultCol => {
@@ -345,18 +348,21 @@ export default function BOMManagementPage() {
         const savedColumns = Array.isArray(data.data) ? data.data : (data.data.columns as ColumnConfig[]);
         
         // 合并配置：保留默认配置中的 canReorder/canResize/canHide 等固定属性
-        const mergedColumns = savedColumns.map((savedCol: ColumnConfig) => {
-          const defaultCol = DEFAULT_COLUMNS.find(c => c.key === savedCol.key);
-          if (defaultCol) {
-            return {
-              ...savedCol,
-              canReorder: defaultCol.canReorder,
-              canResize: defaultCol.canResize,
-              canHide: defaultCol.canHide,
-            };
-          }
-          return savedCol;
-        });
+        // 同时过滤掉 DEFAULT_COLUMNS 中不存在的列（如已删除的旧列）
+        const mergedColumns = savedColumns
+          .filter((savedCol: ColumnConfig) => DEFAULT_COLUMNS.find(c => c.key === savedCol.key))
+          .map((savedCol: ColumnConfig) => {
+            const defaultCol = DEFAULT_COLUMNS.find(c => c.key === savedCol.key);
+            if (defaultCol) {
+              return {
+                ...savedCol,
+                canReorder: defaultCol.canReorder,
+                canResize: defaultCol.canResize,
+                canHide: defaultCol.canHide,
+              };
+            }
+            return savedCol;
+          });
         
         // 添加 DEFAULT_COLUMNS 中有但 savedColumns 中没有的列
         DEFAULT_COLUMNS.forEach(defaultCol => {
