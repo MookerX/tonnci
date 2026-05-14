@@ -56,9 +56,15 @@ const DEFAULT_COLUMNS = [
   { key: 'materialType', label: '物料类型', width: 80, visible: true, order: 6 },
   { key: 'customerGroupName', label: '所属客户', width: 100, visible: true, order: 7 },
   { key: 'remark', label: '备注', width: 150, visible: true, order: 8 },
-  { key: 'bomOwner', label: 'BOM所有者', width: 90, visible: true, order: 9 },
-  { key: 'materialOwner', label: '物料所有者', width: 90, visible: true, order: 10 },
-  { key: 'actions', label: '操作', width: 128, visible: true, order: 11 },
+  { key: 'bomCreatorName', label: 'BOM创建者', width: 90, visible: true, order: 9 },
+  { key: 'bomModifierName', label: 'BOM修改者', width: 90, visible: true, order: 10 },
+  { key: 'bomCreatedAt', label: 'BOM创建时间', width: 140, visible: true, order: 11 },
+  { key: 'bomUpdatedAt', label: 'BOM修改时间', width: 140, visible: true, order: 12 },
+  { key: 'materialCreatorName', label: '物料创建者', width: 90, visible: true, order: 13 },
+  { key: 'materialModifierName', label: '物料修改者', width: 90, visible: true, order: 14 },
+  { key: 'materialCreatedAt', label: '物料创建时间', width: 140, visible: true, order: 15 },
+  { key: 'materialUpdatedAt', label: '物料修改时间', width: 140, visible: true, order: 16 },
+  { key: 'actions', label: '操作', width: 128, visible: true, order: 17 },
 ];
 
 // 从请求头获取用户ID

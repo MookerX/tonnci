@@ -39,9 +39,11 @@ interface TreeNode {
   bomModifierId?: number | null;
   materialCreatorId?: number | null;
   materialModifierId?: number | null;
-  // 派生的所有者名称字段
-  bomOwnerName?: string | null;
-  materialOwnerName?: string | null;
+  // 创建和修改时间
+  bomCreatedAt?: string | null;
+  bomUpdatedAt?: string | null;
+  materialCreatedAt?: string | null;
+  materialUpdatedAt?: string | null;
 }
 
 interface Material {
@@ -108,9 +110,15 @@ const DEFAULT_COLUMNS: ColumnConfig[] = [
   { key: 'materialType', label: '物料类型', width: 80, visible: true, order: 6, canHide: true, canResize: true, canReorder: true },
   { key: 'customerGroupName', label: '所属客户', width: 100, visible: true, order: 7, canHide: true, canResize: true, canReorder: true },
   { key: 'remark', label: '备注', width: 150, visible: true, order: 8, canHide: true, canResize: true, canReorder: true },
-  { key: 'bomOwner', label: 'BOM所有者', width: 90, visible: true, order: 9, canHide: true, canResize: true, canReorder: true },
-  { key: 'materialOwner', label: '物料所有者', width: 90, visible: true, order: 10, canHide: true, canResize: true, canReorder: true },
-  { key: 'actions', label: '操作', width: 128, visible: true, order: 11, canHide: false, canResize: false, canReorder: false },
+  { key: 'bomCreatorName', label: 'BOM创建者', width: 90, visible: true, order: 9, canHide: true, canResize: true, canReorder: true },
+  { key: 'bomModifierName', label: 'BOM修改者', width: 90, visible: true, order: 10, canHide: true, canResize: true, canReorder: true },
+  { key: 'bomCreatedAt', label: 'BOM创建时间', width: 140, visible: true, order: 11, canHide: true, canResize: true, canReorder: true },
+  { key: 'bomUpdatedAt', label: 'BOM修改时间', width: 140, visible: true, order: 12, canHide: true, canResize: true, canReorder: true },
+  { key: 'materialCreatorName', label: '物料创建者', width: 90, visible: true, order: 13, canHide: true, canResize: true, canReorder: true },
+  { key: 'materialModifierName', label: '物料修改者', width: 90, visible: true, order: 14, canHide: true, canResize: true, canReorder: true },
+  { key: 'materialCreatedAt', label: '物料创建时间', width: 140, visible: true, order: 15, canHide: true, canResize: true, canReorder: true },
+  { key: 'materialUpdatedAt', label: '物料修改时间', width: 140, visible: true, order: 16, canHide: true, canResize: true, canReorder: true },
+  { key: 'actions', label: '操作', width: 128, visible: true, order: 17, canHide: false, canResize: false, canReorder: false },
 ];
 
 const typeLabelMap: Record<string, string> = {
@@ -208,105 +216,6 @@ function UserDetailModal({ userId, userName, onClose }: { userId: number; userNa
   );
 }
 
-// 物料详情弹窗组件
-function MaterialDetailModal({ node, onClose }: { node: TreeNode; onClose: () => void }) {
-  const materialTypeMap: Record<string, string> = {
-    part: '零件',
-    component: '组件',
-    assembly: '装配件',
-    material: '原材料',
-    consumable: '耗材',
-    product: '产品',
-  };
-
-  return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg shadow-xl w-[600px] max-h-[85vh] overflow-auto">
-        <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200 sticky top-0 bg-white">
-          <h3 className="font-semibold text-lg">物料详情</h3>
-          <button onClick={onClose} className="p-1 hover:bg-gray-100 rounded">
-            <X className="w-5 h-5" />
-          </button>
-        </div>
-        <div className="p-4">
-          {/* 物料基本信息 */}
-          <div className="mb-6">
-            <h4 className="font-medium text-gray-700 mb-3 pb-2 border-b border-gray-200">物料基本信息</h4>
-            <div className="grid grid-cols-2 gap-3">
-              <div className="flex justify-between py-2 border-b border-gray-100">
-                <span className="text-gray-500">内部编码</span>
-                <span className="font-medium font-mono">{node.internalCode || '-'}</span>
-              </div>
-              <div className="flex justify-between py-2 border-b border-gray-100">
-                <span className="text-gray-500">物料名称</span>
-                <span className="font-medium">{node.materialName || '-'}</span>
-              </div>
-              <div className="flex justify-between py-2 border-b border-gray-100">
-                <span className="text-gray-500">图纸编码</span>
-                <span className="font-medium">{node.drawingCode || '-'}</span>
-              </div>
-              <div className="flex justify-between py-2 border-b border-gray-100">
-                <span className="text-gray-500">图号</span>
-                <span className="font-medium">{node.drawingNo || '-'}</span>
-              </div>
-              <div className="flex justify-between py-2 border-b border-gray-100">
-                <span className="text-gray-500">物料类型</span>
-                <span className="font-medium">{materialTypeMap[node.materialType] || node.materialType || '-'}</span>
-              </div>
-              <div className="flex justify-between py-2 border-b border-gray-100">
-                <span className="text-gray-500">单位</span>
-                <span className="font-medium">{node.unit || '-'}</span>
-              </div>
-              <div className="flex justify-between py-2 border-b border-gray-100">
-                <span className="text-gray-500">规格</span>
-                <span className="font-medium">{node.spec || '-'}</span>
-              </div>
-              <div className="flex justify-between py-2 border-b border-gray-100">
-                <span className="text-gray-500">所属客户</span>
-                <span className="font-medium">{node.customerGroupName || '-'}</span>
-              </div>
-              <div className="col-span-2 flex justify-between py-2 border-b border-gray-100">
-                <span className="text-gray-500">物料备注</span>
-                <span className="font-medium text-right max-w-[300px] break-all">{node.remark || '-'}</span>
-              </div>
-              <div className="flex justify-between py-2 border-b border-gray-100">
-                <span className="text-gray-500">物料所有者</span>
-                <span className="font-medium">{node.materialOwnerName || '-'}</span>
-              </div>
-            </div>
-          </div>
-          
-          {/* BOM 信息（子物料才有） */}
-          {node.bomItemId && (
-            <div className="mb-4">
-              <h4 className="font-medium text-gray-700 mb-3 pb-2 border-b border-gray-200">BOM 关系信息</h4>
-              <div className="grid grid-cols-2 gap-3">
-                <div className="flex justify-between py-2 border-b border-gray-100">
-                  <span className="text-gray-500">单层用量</span>
-                  <span className="font-medium">{node.quantity || '-'}</span>
-                </div>
-                <div className="flex justify-between py-2 border-b border-gray-100">
-                  <span className="text-gray-500">BOM 备注</span>
-                  <span className="font-medium text-right max-w-[150px] break-all">{node.bomRemark || '-'}</span>
-                </div>
-                <div className="flex justify-between py-2 border-b border-gray-100">
-                  <span className="text-gray-500">BOM 所有者</span>
-                  <span className="font-medium">{node.bomOwnerName || '-'}</span>
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
-        <div className="flex justify-end px-4 py-3 border-t border-gray-200 sticky bottom-0 bg-white">
-          <button onClick={onClose} className="px-4 py-2 text-sm bg-gray-100 hover:bg-gray-200 rounded-lg">
-            关闭
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
 export default function BOMManagementPage() {
   const { success, error, warning } = useToast();
   const [token, setToken] = useState<string>('');
@@ -336,10 +245,6 @@ export default function BOMManagementPage() {
   const [showUserModal, setShowUserModal] = useState(false);
   const [selectedUserId, setSelectedUserId] = useState<number | null>(null);
   const [selectedUserName, setSelectedUserName] = useState('');
-  
-  // 物料详情弹窗状态
-  const [showMaterialDetailModal, setShowMaterialDetailModal] = useState(false);
-  const [selectedMaterialNode, setSelectedMaterialNode] = useState<TreeNode | null>(null);
   
   // 列配置状态
   const [columns, setColumns] = useState<ColumnConfig[]>(DEFAULT_COLUMNS);
@@ -575,10 +480,6 @@ export default function BOMManagementPage() {
   };
   
   // 打开物料详情弹窗
-  const handleShowMaterialDetail = (node: TreeNode) => {
-    setSelectedMaterialNode(node);
-    setShowMaterialDetailModal(true);
-  };
   
   // 辅助函数：在树中查找指定ID的节点
   const findNodeById = (nodes: TreeNode[], id: number): TreeNode | null => {
@@ -1394,16 +1295,26 @@ export default function BOMManagementPage() {
   const renderCellContent = (key: string, node: TreeNode) => {
     const groupName = node.customerGroupName || (node.groupId ? '未知' : '-');
     
+    // 格式化时间
+    const formatDateTime = (dateStr: string | null | undefined) => {
+      if (!dateStr) return '-';
+      try {
+        const date = new Date(dateStr);
+        return date.toLocaleString('zh-CN', {
+          year: 'numeric',
+          month: '2-digit',
+          day: '2-digit',
+          hour: '2-digit',
+          minute: '2-digit'
+        });
+      } catch {
+        return '-';
+      }
+    };
+    
     switch (key) {
       case 'internalCode':
-        return (
-          <button
-            onClick={() => handleShowMaterialDetail(node)}
-            className="text-blue-600 hover:text-blue-800 hover:underline truncate block text-left font-mono"
-          >
-            {node.internalCode}
-          </button>
-        );
+        return <span className="text-gray-700 truncate font-mono">{node.internalCode}</span>;
       case 'materialName':
         return <span className="font-medium text-gray-800 truncate">{node.materialName}</span>;
       case 'drawingCode':
@@ -1427,32 +1338,50 @@ export default function BOMManagementPage() {
         );
       case 'customerGroupName':
         return <span className="text-gray-600 truncate">{groupName}</span>;
-      case 'bomOwner':
-        return (() => {
-          const name = node.bomModifierName || node.bomCreatorName;
-          const id = node.bomModifierId || node.bomCreatorId;
-          return name ? (
-            <button
-              onClick={() => handleShowUserDetail(id, name)}
-              className="text-blue-600 hover:text-blue-800 hover:underline cursor-pointer truncate"
-            >
-              {name}
-            </button>
-          ) : '-';
-        })();
-      case 'materialOwner':
-        return (() => {
-          const name = node.materialModifierName || node.materialCreatorName;
-          const id = node.materialModifierId || node.materialCreatorId;
-          return name ? (
-            <button
-              onClick={() => handleShowUserDetail(id, name)}
-              className="text-blue-600 hover:text-blue-800 hover:underline cursor-pointer truncate"
-            >
-              {name}
-            </button>
-          ) : '-';
-        })();
+      case 'bomCreatorName':
+        return node.bomCreatorName ? (
+          <button
+            onClick={() => handleShowUserDetail(node.bomCreatorId, node.bomCreatorName!)}
+            className="text-blue-600 hover:text-blue-800 hover:underline cursor-pointer truncate"
+          >
+            {node.bomCreatorName}
+          </button>
+        ) : '-';
+      case 'bomModifierName':
+        return node.bomModifierName ? (
+          <button
+            onClick={() => handleShowUserDetail(node.bomModifierId, node.bomModifierName!)}
+            className="text-blue-600 hover:text-blue-800 hover:underline cursor-pointer truncate"
+          >
+            {node.bomModifierName}
+          </button>
+        ) : '-';
+      case 'bomCreatedAt':
+        return <span className="text-gray-600 truncate text-xs">{formatDateTime(node.bomCreatedAt)}</span>;
+      case 'bomUpdatedAt':
+        return <span className="text-gray-600 truncate text-xs">{formatDateTime(node.bomUpdatedAt)}</span>;
+      case 'materialCreatorName':
+        return node.materialCreatorName ? (
+          <button
+            onClick={() => handleShowUserDetail(node.materialCreatorId, node.materialCreatorName!)}
+            className="text-blue-600 hover:text-blue-800 hover:underline cursor-pointer truncate"
+          >
+            {node.materialCreatorName}
+          </button>
+        ) : '-';
+      case 'materialModifierName':
+        return node.materialModifierName ? (
+          <button
+            onClick={() => handleShowUserDetail(node.materialModifierId, node.materialModifierName!)}
+            className="text-blue-600 hover:text-blue-800 hover:underline cursor-pointer truncate"
+          >
+            {node.materialModifierName}
+          </button>
+        ) : '-';
+      case 'materialCreatedAt':
+        return <span className="text-gray-600 truncate text-xs">{formatDateTime(node.materialCreatedAt)}</span>;
+      case 'materialUpdatedAt':
+        return <span className="text-gray-600 truncate text-xs">{formatDateTime(node.materialUpdatedAt)}</span>;
       case 'remark':
         return (
           <span className="text-gray-500 truncate">
@@ -2190,17 +2119,6 @@ export default function BOMManagementPage() {
             setShowUserModal(false);
             setSelectedUserId(null);
             setSelectedUserName('');
-          }}
-        />
-      )}
-
-      {/* 物料详情弹窗 */}
-      {showMaterialDetailModal && selectedMaterialNode && (
-        <MaterialDetailModal
-          node={selectedMaterialNode}
-          onClose={() => {
-            setShowMaterialDetailModal(false);
-            setSelectedMaterialNode(null);
           }}
         />
       )}

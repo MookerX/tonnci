@@ -59,6 +59,8 @@ export async function GET(request: NextRequest) {
         remark: true,
         createdBy: true,
         modifiedBy: true,
+        createdAt: true,
+        updatedAt: true,
       },
     });
 
@@ -97,6 +99,8 @@ export async function GET(request: NextRequest) {
         materialModifierName: m.modifiedBy ? userNameMap.get(m.modifiedBy) || null : null,
         materialCreatorId: m.createdBy || null,
         materialModifierId: m.modifiedBy || null,
+        materialCreatedAt: m.createdAt || null,
+        materialUpdatedAt: m.updatedAt || null,
         children: [] as any[],
       }];
     }));
@@ -156,6 +160,8 @@ export async function GET(request: NextRequest) {
         bomRemark: true,
         createdBy: true,
         modifiedBy: true,
+        createdAt: true,
+        updatedAt: true,
       },
     });
 
@@ -193,11 +199,25 @@ export async function GET(request: NextRequest) {
           customerId: true,
           groupId: true,
           remark: true,
+          createdBy: true,
+          modifiedBy: true,
+          createdAt: true,
+          updatedAt: true,
         },
       });
       for (const m of parentMaterials) {
         const groupName = m.groupId ? groupNameMap.get(m.groupId) || null : null;
-        materialMap.set(m.id, { ...m, customerGroupName: groupName, children: [] as any[] });
+        materialMap.set(m.id, {
+          ...m,
+          customerGroupName: groupName,
+          materialCreatorName: m.createdBy ? userNameMap.get(m.createdBy) || null : null,
+          materialModifierName: m.modifiedBy ? userNameMap.get(m.modifiedBy) || null : null,
+          materialCreatorId: m.createdBy || null,
+          materialModifierId: m.modifiedBy || null,
+          materialCreatedAt: m.createdAt || null,
+          materialUpdatedAt: m.updatedAt || null,
+          children: [] as any[],
+        });
       }
     }
 
@@ -216,6 +236,8 @@ export async function GET(request: NextRequest) {
           bomRemark: item.bomRemark || '',
           bomCreatedBy: item.createdBy,
           bomModifiedBy: item.modifiedBy,
+          bomCreatedAt: item.createdAt,
+          bomUpdatedAt: item.updatedAt,
         });
       }
     }
@@ -238,6 +260,8 @@ export async function GET(request: NextRequest) {
         remark: true,
         createdBy: true,
         modifiedBy: true,
+        createdAt: true,
+        updatedAt: true,
       },
     });
     const childMap = new Map(childMaterials.map(m => [m.id, {
@@ -272,8 +296,16 @@ export async function GET(request: NextRequest) {
             children: [],
             materialCreatorName: detail.materialCreatorName || null,
             materialModifierName: detail.materialModifierName || null,
+            materialCreatorId: detail.createdBy || null,
+            materialModifierId: detail.modifiedBy || null,
+            materialCreatedAt: detail.createdAt || null,
+            materialUpdatedAt: detail.updatedAt || null,
             bomCreatorName: child.bomCreatedBy ? userNameMap.get(child.bomCreatedBy) || null : null,
             bomModifierName: child.bomModifiedBy ? userNameMap.get(child.bomModifiedBy) || null : null,
+            bomCreatorId: child.bomCreatedBy || null,
+            bomModifierId: child.bomModifiedBy || null,
+            bomCreatedAt: child.bomCreatedAt || null,
+            bomUpdatedAt: child.bomUpdatedAt || null,
           };
         });
       }
@@ -305,10 +337,14 @@ export async function GET(request: NextRequest) {
           materialModifierName: detail.materialModifierName || null,
           materialCreatorId: detail.createdBy || null,
           materialModifierId: detail.modifiedBy || null,
+          materialCreatedAt: detail.createdAt || null,
+          materialUpdatedAt: detail.updatedAt || null,
           bomCreatorName: child.bomCreatedBy ? userNameMap.get(child.bomCreatedBy) || null : null,
           bomModifierName: child.bomModifiedBy ? userNameMap.get(child.bomModifiedBy) || null : null,
           bomCreatorId: child.bomCreatedBy || null,
           bomModifierId: child.bomModifiedBy || null,
+          bomCreatedAt: child.bomCreatedAt || null,
+          bomUpdatedAt: child.bomUpdatedAt || null,
         };
         fillChildrenRecursively(childNode);
         return childNode;
@@ -352,13 +388,27 @@ export async function GET(request: NextRequest) {
             customerId: true,
             groupId: true,
             remark: true,
+            createdBy: true,
+            modifiedBy: true,
+            createdAt: true,
+            updatedAt: true,
           },
         });
         // 添加父物料到列表和materialMap
         for (const m of relatedParents) {
           if (!materialMap.has(m.id)) {
             const groupName = m.groupId ? groupNameMap.get(m.groupId) || null : null;
-            materialMap.set(m.id, { ...m, customerGroupName: groupName, children: [] as any[] });
+            materialMap.set(m.id, {
+              ...m,
+              customerGroupName: groupName,
+              materialCreatorName: m.createdBy ? userNameMap.get(m.createdBy) || null : null,
+              materialModifierName: m.modifiedBy ? userNameMap.get(m.modifiedBy) || null : null,
+              materialCreatorId: m.createdBy || null,
+              materialModifierId: m.modifiedBy || null,
+              materialCreatedAt: m.createdAt || null,
+              materialUpdatedAt: m.updatedAt || null,
+              children: [] as any[],
+            });
           }
         }
         // 将父物料加入顶层列表（去除已经是子物料的）
