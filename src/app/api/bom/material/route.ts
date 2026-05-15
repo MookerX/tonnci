@@ -159,13 +159,27 @@ export async function POST(request: NextRequest) {
       internalCode = await generateInternalCode(data.materialType);
     }
 
-    // 检查内部编码是否已存在
+    // 检查内部编码是否已存在（全局唯一）
     if (internalCode) {
       const exists = await prisma.material.findFirst({
         where: { internalCode, isDelete: false },
       });
       if (exists) {
         return badRequestResponse('内部编码已存在');
+      }
+    }
+
+    // 检查图纸编码是否已存在（在选定客户内唯一）
+    if (data.drawingCode && data.customerId) {
+      const existingDrawing = await prisma.material.findFirst({
+        where: { 
+          drawingCode: data.drawingCode, 
+          customerId: data.customerId,
+          isDelete: false 
+        },
+      });
+      if (existingDrawing) {
+        return badRequestResponse('该客户下图纸编码已存在，物料已存在');
       }
     }
 

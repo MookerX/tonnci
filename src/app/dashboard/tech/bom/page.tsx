@@ -551,13 +551,58 @@ export default function BOMManagementPage() {
     drawingNo: '',
     materialType: 'part',
     groupId: null as number | null,
+    customerId: null as number | null, // 添加客户ID用于图纸编码唯一性检查
     quantity: 1,
     remark: '',
     bomRemark: '', // BOM备注
   });
   
+  // 唯一性检查状态
+  const [internalCodeError, setInternalCodeError] = useState<string | null>(null);
+  const [drawingCodeError, setDrawingCodeError] = useState<string | null>(null);
+  const [checkingUnique, setCheckingUnique] = useState(false);
+  
   // 导入时选择的客户群组
   const [importGroupId, setImportGroupId] = useState<number | null>(null);
+  
+  // 唯一性检查函数
+  const checkUnique = useCallback(async (
+    internalCode?: string, 
+    drawingCode?: string, 
+    groupId?: number | null,
+    excludeMaterialId?: number
+  ) => {
+    if (!internalCode && !drawingCode) return { internalCodeExists: false, drawingCodeExists: false };
+    
+    setCheckingUnique(true);
+    try {
+      const params = new URLSearchParams();
+      if (internalCode) params.append('internalCode', internalCode);
+      if (drawingCode) params.append('drawingCode', drawingCode);
+      if (groupId) params.append('groupId', String(groupId));
+      if (excludeMaterialId) params.append('excludeId', String(excludeMaterialId));
+      
+      const response = await fetch(`/api/bom/material/check-unique?${params.toString()}`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const result = await response.json();
+      
+      if (result.code === 200) {
+        return {
+          internalCodeExists: result.data?.internalCodeExists || false,
+          internalCodeMessage: result.data?.internalCodeMessage || '',
+          drawingCodeExists: result.data?.drawingCodeExists || false,
+          drawingCodeMessage: result.data?.drawingCodeMessage || ''
+        };
+      }
+      return { internalCodeExists: false, drawingCodeExists: false, internalCodeMessage: '', drawingCodeMessage: '' };
+    } catch (error) {
+      console.error('检查唯一性失败:', error);
+      return { internalCodeExists: false, drawingCodeExists: false, internalCodeMessage: '', drawingCodeMessage: '' };
+    } finally {
+      setCheckingUnique(false);
+    }
+  }, [token]);
   
   // 导入状态
   const [importStep, setImportStep] = useState(1);
@@ -845,10 +890,14 @@ export default function BOMManagementPage() {
       drawingNo: '',
       materialType: 'part',
       groupId: null,
+      customerId: null,
       quantity: 1,
       remark: '',
       bomRemark: '',
     });
+    // 重置唯一性检查错误
+    setInternalCodeError(null);
+    setDrawingCodeError(null);
     setShowMaterialModal(true);
   };
 
@@ -863,6 +912,7 @@ export default function BOMManagementPage() {
       drawingNo: '',
       materialType: 'part',
       groupId: parentGroupId,
+      customerId: null,
       quantity: 1,
       remark: '',
       bomRemark: '',
@@ -872,6 +922,9 @@ export default function BOMManagementPage() {
     setMaterialSearchResults([]);
     setSelectedExistingMaterial(null);
     setShowMaterialDropdown(false);
+    // 重置唯一性检查错误
+    setInternalCodeError(null);
+    setDrawingCodeError(null);
     setShowMaterialModal(true);
   };
 
@@ -1131,6 +1184,37 @@ export default function BOMManagementPage() {
     if (!editingMaterial && !parentMaterialId && !formData.groupId) {
       warning('请选择所属客户群组');
       return;
+    }
+
+    // 新增物料时检查唯一性
+    if (!editingMaterial) {
+      // 检查内部编码唯一性（全局唯一）
+      if (formData.internalCode) {
+        try {
+          const checkRes = await fetch(`/api/bom/material/check-unique?internalCode=${encodeURIComponent(formData.internalCode)}`);
+          const checkData = await checkRes.json();
+          if (checkData.code === 200 && checkData.data?.internalCodeExists) {
+            error('内部编码已存在，请使用其他编码');
+            return;
+          }
+        } catch {
+          // 检查失败不阻止保存
+        }
+      }
+
+      // 检查图纸编码唯一性（客户群组内唯一）
+      if (formData.drawingCode && formData.groupId) {
+        try {
+          const checkRes = await fetch(`/api/bom/material/check-unique?drawingCode=${encodeURIComponent(formData.drawingCode)}&groupId=${formData.groupId}`);
+          const checkData = await checkRes.json();
+          if (checkData.code === 200 && checkData.data?.drawingCodeExists) {
+            error('该客户群组下图纸编码已存在，请使用其他编码');
+            return;
+          }
+        } catch {
+          // 检查失败不阻止保存
+        }
+      }
     }
 
     const url = editingMaterial
