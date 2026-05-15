@@ -1115,13 +1115,12 @@ export default function BOMManagementPage() {
         warning('物料名称不能为空');
         return;
       }
-      // 验证必须输入内部编码（用于搜索后选择）
-      if (!formData.internalCode || formData.internalCode.length < 4) {
-        warning('请输入内部编码搜索并选择已有物料，或者输入新物料信息');
+      // 如果输入了内部编码且长度>=4但没选择物料，提示用户选择
+      if (formData.internalCode && formData.internalCode.length >= 4 && materialSearchResults.length > 0) {
+        warning('请从下拉列表中选择已有物料，或清空内部编码后创建新物料');
         return;
       }
-      warning('请从下拉列表中选择已有物料，或清空内部编码后创建新物料');
-      return;
+      // 内部编码为空或太短时，将自动生成新编码（不需要用户输入）
     }
 
     if (!formData.materialName) {
@@ -2060,72 +2059,81 @@ export default function BOMManagementPage() {
                       className="w-full px-3 py-2 border border-gray-200 rounded-lg bg-gray-50 text-gray-500 cursor-not-allowed"
                     />
                   ) : parentMaterialId ? (
-                    // 新增子物料：可输入搜索
-                    <div className="relative">
-                      <input
-                        type="text"
-                        value={formData.internalCode}
-                        onChange={e => {
-                          const value = e.target.value;
-                          setFormData({ ...formData, internalCode: value });
-                          setMaterialSearchKey(value);
-                          setSelectedExistingMaterial(null);
-                          // 搜索物料
-                          searchMaterials(value);
-                        }}
-                        onFocus={() => {
-                          if (formData.internalCode?.length >= 4) {
-                            setShowMaterialDropdown(true);
-                          }
-                        }}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                        placeholder="输入至少4个字符搜索物料"
-                      />
-                      {/* 已选择物料标识 */}
-                      {selectedExistingMaterial && (
+                    // 新增子物料：根据是否选择物料显示不同状态
+                    selectedExistingMaterial ? (
+                      // 已选择物料：显示选中物料的内部编码（只读）
+                      <div className="relative">
+                        <input
+                          type="text"
+                          value={formData.internalCode}
+                          readOnly
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-700"
+                        />
                         <div className="absolute right-2 top-2 flex items-center gap-1 text-green-600 text-xs">
                           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                           </svg>
                           已选择
                         </div>
-                      )}
-                      {/* 搜索下拉列表 - 宽度加倍 */}
-                      {showMaterialDropdown && materialSearchResults.length > 0 && (
-                        <div className="absolute z-50 w-[200%] mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-auto">
-                          {materialSearchResults.map((material) => (
-                            <div
-                              key={material.id}
-                              onClick={() => selectExistingMaterial(material)}
-                              className="px-3 py-2 hover:bg-blue-50 cursor-pointer border-b border-gray-100 last:border-b-0"
-                            >
-                              <div className="flex items-center gap-2">
-                                <span className="font-medium text-gray-900">{material.internalCode}</span>
-                                <span className="text-gray-500">|</span>
-                                <span className="text-gray-700">{material.materialName}</span>
-                              </div>
-                              {material.drawingCode && (
-                                <div className="text-xs text-gray-500 mt-0.5">
-                                  图纸编码: {material.drawingCode} {material.drawingNo && `| 图号: ${material.drawingNo}`}
+                      </div>
+                    ) : (
+                      // 未选择物料：显示提示（新增模式下自动生成）
+                      <div className="relative">
+                        <input
+                          type="text"
+                          value={formData.internalCode}
+                          onChange={e => {
+                            const value = e.target.value;
+                            setFormData({ ...formData, internalCode: value });
+                            setMaterialSearchKey(value);
+                            // 搜索物料
+                            searchMaterials(value);
+                          }}
+                          onFocus={() => {
+                            if (formData.internalCode?.length >= 4) {
+                              setShowMaterialDropdown(true);
+                            }
+                          }}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                          placeholder="输入至少4个字符搜索已有物料，留空则新增物料"
+                        />
+                        {/* 搜索下拉列表 - 宽度加倍 */}
+                        {showMaterialDropdown && materialSearchResults.length > 0 && (
+                          <div className="absolute z-50 w-[200%] mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-auto">
+                            {materialSearchResults.map((material) => (
+                              <div
+                                key={material.id}
+                                onClick={() => selectExistingMaterial(material)}
+                                className="px-3 py-2 hover:bg-blue-50 cursor-pointer border-b border-gray-100 last:border-b-0"
+                              >
+                                <div className="flex items-center gap-2">
+                                  <span className="font-medium text-gray-900">{material.internalCode}</span>
+                                  <span className="text-gray-500">|</span>
+                                  <span className="text-gray-700">{material.materialName}</span>
                                 </div>
-                              )}
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                      {/* 搜索中提示 */}
-                      {isSearchingMaterial && (
-                        <div className="absolute z-50 w-[200%] mt-1 bg-white border border-gray-300 rounded-lg shadow-lg p-3 text-center text-gray-500">
-                          搜索中...
-                        </div>
-                      )}
-                      {/* 无结果提示 */}
-                      {!isSearchingMaterial && materialSearchKey.length >= 4 && materialSearchResults.length === 0 && !selectedExistingMaterial && (
-                        <div className="absolute z-50 w-[200%] mt-1 bg-white border border-gray-300 rounded-lg shadow-lg p-3 text-center text-gray-500">
-                          未找到匹配的物料
-                        </div>
-                      )}
-                    </div>
+                                {material.drawingCode && (
+                                  <div className="text-xs text-gray-500 mt-0.5">
+                                    图纸编码: {material.drawingCode} {material.drawingNo && `| 图号: ${material.drawingNo}`}
+                                  </div>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                        {/* 搜索中提示 */}
+                        {isSearchingMaterial && (
+                          <div className="absolute z-50 w-[200%] mt-1 bg-white border border-gray-300 rounded-lg shadow-lg p-3 text-center text-gray-500">
+                            搜索中...
+                          </div>
+                        )}
+                        {/* 无结果提示 */}
+                        {!isSearchingMaterial && materialSearchKey.length >= 4 && materialSearchResults.length === 0 && (
+                          <div className="absolute z-50 w-[200%] mt-1 bg-white border border-gray-300 rounded-lg shadow-lg p-3 text-center text-gray-500">
+                            未找到匹配的物料，保存时将创建新物料
+                          </div>
+                        )}
+                      </div>
+                    )
                   ) : (
                     // 新增顶层物料：只读（自动生成）
                     <input
