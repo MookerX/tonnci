@@ -537,6 +537,12 @@ export default function BOMManagementPage() {
   const [isSearchingMaterial, setIsSearchingMaterial] = useState(false);
   const [showMaterialDropdown, setShowMaterialDropdown] = useState(false);
   
+  // 图纸编码搜索状态
+  const [drawingCodeSearchKey, setDrawingCodeSearchKey] = useState('');
+  const [drawingCodeSearchResults, setDrawingCodeSearchResults] = useState<Material[]>([]);
+  const [isSearchingDrawingCode, setIsSearchingDrawingCode] = useState(false);
+  const [showDrawingCodeDropdown, setShowDrawingCodeDropdown] = useState(false);
+  
   // 表单状态
   const [formData, setFormData] = useState({
     materialName: '',
@@ -910,6 +916,83 @@ export default function BOMManagementPage() {
       bomRemark: formData.bomRemark || '', // 保持当前BOM备注
     });
     setShowMaterialDropdown(false);
+    // 同时更新图纸编码搜索状态
+    setDrawingCodeSearchKey(material.drawingCode || '');
+    setDrawingCodeSearchResults([]);
+    setShowDrawingCodeDropdown(false);
+  };
+
+  // 清除选择的物料（切换到新增模式）
+  const clearSelectedMaterial = () => {
+    setSelectedExistingMaterial(null);
+    setFormData({
+      materialName: '',
+      internalCode: '', // 新增模式下，保存时自动生成
+      drawingCode: '',
+      drawingNo: '',
+      materialType: 'LJ',
+      groupId: null,
+      quantity: 1,
+      remark: '',
+      bomRemark: '',
+    });
+    setMaterialSearchKey('');
+    setMaterialSearchResults([]);
+    setShowMaterialDropdown(false);
+    setDrawingCodeSearchKey('');
+    setDrawingCodeSearchResults([]);
+    setShowDrawingCodeDropdown(false);
+  };
+
+  // 搜索图纸编码
+  const searchDrawingCode = async (keyword: string) => {
+    if (keyword.length < 4) {
+      setDrawingCodeSearchResults([]);
+      setShowDrawingCodeDropdown(false);
+      return;
+    }
+    
+    setIsSearchingDrawingCode(true);
+    try {
+      const res = await fetchApi(`/api/bom/material/search?keyword=${encodeURIComponent(keyword)}`);
+      if (res.code === 200 && res.data) {
+        setDrawingCodeSearchResults(res.data);
+        setShowDrawingCodeDropdown(res.data.length > 0);
+      } else {
+        setDrawingCodeSearchResults([]);
+        setShowDrawingCodeDropdown(false);
+      }
+    } catch {
+      setDrawingCodeSearchResults([]);
+      setShowDrawingCodeDropdown(false);
+    } finally {
+      setIsSearchingDrawingCode(false);
+    }
+  };
+
+  // 选择图纸编码对应的物料
+  const selectDrawingCodeMaterial = (material: Material) => {
+    // 如果是新物料模式，填充物料信息
+    if (!selectedExistingMaterial) {
+      setFormData(prev => ({
+        ...prev,
+        drawingCode: material.drawingCode || '',
+        drawingNo: material.drawingNo || '',
+        materialName: material.materialName,
+        materialType: material.materialType,
+        groupId: material.groupId,
+        remark: material.remark || '',
+      }));
+    } else {
+      // 已选择物料模式，只更新图纸编码
+      setFormData(prev => ({
+        ...prev,
+        drawingCode: material.drawingCode || '',
+        drawingNo: material.drawingNo || '',
+      }));
+    }
+    setDrawingCodeSearchKey(material.drawingCode || '');
+    setShowDrawingCodeDropdown(false);
   };
 
   const handleEditMaterial = (node: TreeNode) => {
@@ -2007,9 +2090,9 @@ export default function BOMManagementPage() {
                           已选择
                         </div>
                       )}
-                      {/* 搜索下拉列表 */}
+                      {/* 搜索下拉列表 - 宽度加倍 */}
                       {showMaterialDropdown && materialSearchResults.length > 0 && (
-                        <div className="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-auto">
+                        <div className="absolute z-50 w-[200%] mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-auto">
                           {materialSearchResults.map((material) => (
                             <div
                               key={material.id}
@@ -2032,13 +2115,13 @@ export default function BOMManagementPage() {
                       )}
                       {/* 搜索中提示 */}
                       {isSearchingMaterial && (
-                        <div className="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg p-3 text-center text-gray-500">
+                        <div className="absolute z-50 w-[200%] mt-1 bg-white border border-gray-300 rounded-lg shadow-lg p-3 text-center text-gray-500">
                           搜索中...
                         </div>
                       )}
                       {/* 无结果提示 */}
                       {!isSearchingMaterial && materialSearchKey.length >= 4 && materialSearchResults.length === 0 && !selectedExistingMaterial && (
-                        <div className="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg p-3 text-center text-gray-500">
+                        <div className="absolute z-50 w-[200%] mt-1 bg-white border border-gray-300 rounded-lg shadow-lg p-3 text-center text-gray-500">
                           未找到匹配的物料
                         </div>
                       )}
@@ -2073,12 +2156,54 @@ export default function BOMManagementPage() {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">图纸编码</label>
-                  <input
-                    type="text"
-                    value={formData.drawingCode}
-                    onChange={e => setFormData({ ...formData, drawingCode: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg"
-                  />
+                  <div className="relative">
+                    <input
+                      type="text"
+                      value={formData.drawingCode}
+                      onChange={e => {
+                        const value = e.target.value;
+                        setFormData({ ...formData, drawingCode: value });
+                        setDrawingCodeSearchKey(value);
+                        searchDrawingCode(value);
+                      }}
+                      onFocus={() => {
+                        if (formData.drawingCode?.length >= 4) {
+                          setShowDrawingCodeDropdown(true);
+                        }
+                      }}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      placeholder="输入至少4个字符搜索"
+                    />
+                    {/* 搜索下拉列表 - 宽度加倍 */}
+                    {showDrawingCodeDropdown && drawingCodeSearchResults.length > 0 && (
+                      <div className="absolute z-50 w-[200%] mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-auto">
+                        {drawingCodeSearchResults.map((material) => (
+                          <div
+                            key={material.id}
+                            onClick={() => selectDrawingCodeMaterial(material)}
+                            className="px-3 py-2 hover:bg-blue-50 cursor-pointer border-b border-gray-100 last:border-b-0"
+                          >
+                            <div className="flex items-center gap-2">
+                              <span className="font-medium text-gray-900">{material.drawingCode}</span>
+                              <span className="text-gray-500">|</span>
+                              <span className="text-gray-700">{material.materialName}</span>
+                            </div>
+                            {material.drawingNo && (
+                              <div className="text-xs text-gray-500 mt-0.5">
+                                图号: {material.drawingNo}
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    {/* 搜索中提示 */}
+                    {isSearchingDrawingCode && (
+                      <div className="absolute z-50 w-[200%] mt-1 bg-white border border-gray-300 rounded-lg shadow-lg p-3 text-center text-gray-500">
+                        搜索中...
+                      </div>
+                    )}
+                  </div>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">图号</label>

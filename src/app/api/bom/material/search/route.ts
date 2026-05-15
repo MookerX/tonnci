@@ -18,13 +18,14 @@ export async function GET(request: NextRequest) {
       return successResponse([]);
     }
 
-    // 搜索物料编码或物料名称包含关键字的物料
+    // 搜索物料编码、物料名称或图纸编码包含关键字的物料
     const materials = await prisma.material.findMany({
       where: {
         isDelete: false,
         OR: [
           { internalCode: { contains: keyword } },
           { materialName: { contains: keyword } },
+          { drawingCode: { contains: keyword } },
         ],
       },
       select: {
