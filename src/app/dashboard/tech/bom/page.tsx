@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import {
   Search, Plus, Upload, Download, ChevronRight, ChevronDown, FileText, Edit2, Trash2,
   X, Save, AlertCircle, CheckCircle, RefreshCw, FolderTree, Eye, DownloadCloud, Settings2, Layers, Settings
