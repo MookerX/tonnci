@@ -25,6 +25,7 @@ interface TreeNode {
   hasDrawing?: boolean;
   processId?: number | null;
   bomItemId?: number; // BOM关系ID，用于唯一标识父子关系
+  parentBomItemId?: number | null; // 父BOM关系ID（用于判断是否有父件）
   groupId?: number | null;
   customerGroupName?: string | null;
   unit?: string | null;
@@ -60,6 +61,9 @@ interface Material {
   groupId: number | null;
   customerGroupName?: string;
   processId?: number | null;
+  bomItemId?: number;
+  hasChildren?: boolean;
+  hasParent?: boolean;
 }
 
 interface CustomerGroup {
@@ -1523,7 +1527,13 @@ export default function BOMManagementPage() {
       customerGroupName: material.customerGroupName ?? undefined,
       processId: material.processId,
     };
-    setDeleteMaterial(materialData);
+    // 保存删除时需要的信息
+    setDeleteMaterial({
+      ...materialData,
+      bomItemId: material.bomItemId, // BOM关系ID（有父件时）
+      hasChildren: material.children.length > 0, // 是否有子件
+      hasParent: !!material.bomItemId, // 是否有父件（有bomItemId表示是子件）
+    });
     setDeleteConfirmOpen(true);
   };
 
@@ -1531,14 +1541,34 @@ export default function BOMManagementPage() {
     const id = deleteMaterial?.id;
     if (!id) return;
     
-    const res = await fetchApi(`/api/bom/material/${id}`, { method: 'DELETE' });
-    if (res.code === 200) {
-      success('物料删除成功');
+    let res;
+    if (deleteMaterial.hasParent && deleteMaterial.bomItemId) {
+      // 有父件：删除此行与父件的BOM关系
+      res = await fetchApi(`/api/bom/bom-item/${deleteMaterial.bomItemId}`, { method: 'DELETE' });
+      if (res.code === 200) {
+        success('BOM关系删除成功');
+      }
+    } else if (!deleteMaterial.hasParent && deleteMaterial.hasChildren) {
+      // 顶层行且有子件：删除该行与其子件的父子关系
+      res = await fetchApi(`/api/bom/material/${id}/delete-relations`, { method: 'DELETE' });
+      if (res.code === 200) {
+        success('物料父子关系删除成功');
+      }
+    } else {
+      // 顶层行且无子件：软删除该物料
+      res = await fetchApi(`/api/bom/material/${id}/delete-with-bom`, { method: 'DELETE' });
+      if (res.code === 200) {
+        success('物料删除成功');
+      }
+    }
+    
+    if (res?.code === 200) {
       fetchBOMTree();
       fetchMaterials();
     } else {
-      error(res.message || '删除失败');
+      error(res?.message || '删除失败');
     }
+    
     setDeleteConfirmOpen(false);
     setDeleteMaterial(null);
   };
@@ -2767,7 +2797,13 @@ export default function BOMManagementPage() {
         open={deleteConfirmOpen}
         onOpenChange={(open) => setDeleteConfirmOpen(open)}
         title="确认删除"
-        description={`确定要删除物料"${deleteMaterial?.materialName}"吗？此操作不可恢复。`}
+        description={
+          deleteMaterial?.hasParent && deleteMaterial?.bomItemId
+            ? `确定要删除物料"${deleteMaterial?.materialName}"与父物料的BOM关系吗？`
+            : !deleteMaterial?.hasParent && deleteMaterial?.hasChildren
+            ? `确定要删除物料"${deleteMaterial?.materialName}"与其所有子物料的父子关系吗？物料本身不会被删除。`
+            : `确定要删除物料"${deleteMaterial?.materialName}"吗？此操作不可恢复。`
+        }
         confirmText="删除"
         variant="destructive"
         onConfirm={confirmDeleteMaterial}
