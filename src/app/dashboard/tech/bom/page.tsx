@@ -932,13 +932,28 @@ export default function BOMManagementPage() {
   const shouldStartSearch = (keyword: string): boolean => {
     if (!keyword) return false;
     
-    // 计算中文字符数量
-    const chineseChars = (keyword.match(/[\u4e00-\u9fa5]/g) || []).length;
-    // 计算英文字符数量（只算字母和数字，不包括标点符号和空格）
-    const alphanumericChars = (keyword.match(/[a-zA-Z0-9]/g) || []).length;
+    let chineseCount = 0;
+    let englishCount = 0;
     
-    // 中文字符≥2 或 英文字符≥4
-    return chineseChars >= 2 || alphanumericChars >= 4;
+    for (let i = 0; i < keyword.length; i++) {
+      const char = keyword.charAt(i);
+      const code = char.charCodeAt(0);
+      
+      // 中文字符范围：基本汉字 + 扩展A
+      if ((code >= 0x4E00 && code <= 0x9FFF) || (code >= 0x3400 && code <= 0x4DBF)) {
+        chineseCount++;
+      }
+      // 英文字符或数字
+      else if ((code >= 65 && code <= 90) || (code >= 97 && code <= 122) || (code >= 48 && code <= 57)) {
+        englishCount++;
+      }
+      // 其他字符也算英文字符数量（比如空格、标点等）
+      else {
+        englishCount++;
+      }
+    }
+    
+    return chineseCount >= 2 || englishCount >= 4;
   };
 
   // 搜索物料（用于新增子物料时选择已有物料）
