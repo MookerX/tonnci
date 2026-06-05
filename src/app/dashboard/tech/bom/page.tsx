@@ -2145,15 +2145,15 @@ export default function BOMManagementPage() {
                       className="w-full px-3 py-2 border border-gray-200 rounded-lg bg-gray-50 text-gray-500 cursor-not-allowed"
                     />
                   ) : parentMaterialId ? (
-                    // 新增子物料：根据是否选择物料显示不同状态
+                    // 新增子物料：内部编码只能自动生成或从搜索结果中选择
                     selectedExistingMaterial ? (
-                      // 已选择物料：显示选中物料的内部编码（可编辑）
+                      // 已选择物料：显示选中物料的内部编码（只读，不可修改）
                       <div className="relative">
                         <input
                           type="text"
                           value={formData.internalCode}
-                          onChange={e => setFormData({ ...formData, internalCode: e.target.value })}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                          readOnly
+                          className="w-full px-3 py-2 border border-gray-200 rounded-lg bg-gray-50 text-gray-700 cursor-not-allowed"
                         />
                         <div className="absolute right-2 top-2 flex items-center gap-1 text-green-600 text-xs">
                           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -2163,25 +2163,24 @@ export default function BOMManagementPage() {
                         </div>
                       </div>
                     ) : (
-                      // 未选择物料：显示提示（新增模式下自动生成）
+                      // 未选择物料：搜索输入框，不保存到formData，仅用于搜索
                       <div className="relative">
                         <input
                           type="text"
-                          value={formData.internalCode}
+                          value={materialSearchKey}
                           onChange={e => {
                             const value = e.target.value;
-                            setFormData({ ...formData, internalCode: value });
                             setMaterialSearchKey(value);
                             // 搜索物料
                             searchMaterials(value);
                           }}
                           onFocus={() => {
-                            if (formData.internalCode?.length >= 4) {
+                            if (materialSearchKey.length >= 4) {
                               setShowMaterialDropdown(true);
                             }
                           }}
                           className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                          placeholder="输入至少4个字符搜索已有物料，留空则新增物料"
+                          placeholder="输入至少4个字符搜索已有物料，留空则自动生成新编码"
                         />
                         {/* 搜索下拉列表 - 宽度加倍 */}
                         {showMaterialDropdown && materialSearchResults.length > 0 && (
