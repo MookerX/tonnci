@@ -261,11 +261,57 @@ export default function BOMManagementPage() {
   // 物料详情弹窗状态
   const [showMaterialDetailModal, setShowMaterialDetailModal] = useState(false);
   const [selectedMaterialNode, setSelectedMaterialNode] = useState<TreeNode | null>(null);
+  const [materialBomTree, setMaterialBomTree] = useState<any[]>([]);
+  const [loadingBomTree, setLoadingBomTree] = useState(false);
   
+  // 渲染BOM子树表格行（递归）
+  const renderBomTreeRows = (items: any[], level: number) => {
+    return items.map((item: any) => {
+      const hasChildren = item.children && item.children.length > 0;
+      return (
+        <React.Fragment key={item.materialId || item.id}>
+          <tr className="border-b border-border/50 hover:bg-muted/30">
+            <td className="px-3 py-2 text-sm" style={{ paddingLeft: `${12 + level * 24}px` }}>
+              <div className="flex items-center gap-1">
+                {hasChildren && (
+                  <span className="text-muted-foreground text-xs">▼</span>
+                )}
+                <span className="font-medium text-foreground">{item.internalCode || '-'}</span>
+              </div>
+            </td>
+            <td className="px-3 py-2 text-sm text-foreground">{item.materialName || '-'}</td>
+            <td className="px-3 py-2 text-sm text-foreground">{item.drawingCode || '-'}</td>
+            <td className="px-3 py-2 text-sm text-foreground">{item.drawingNo || '-'}</td>
+            <td className="px-3 py-2 text-sm text-foreground">{item.quantity || '-'}</td>
+            <td className="px-3 py-2 text-sm text-muted-foreground">{item.bomRemark || '-'}</td>
+          </tr>
+          {hasChildren && renderBomTreeRows(item.children, level + 1)}
+        </React.Fragment>
+      );
+    });
+  };
+
   // 打开物料详情弹窗
-  const handleShowMaterialDetail = (node: TreeNode) => {
+  const handleShowMaterialDetail = async (node: TreeNode) => {
     setSelectedMaterialNode(node);
     setShowMaterialDetailModal(true);
+    // 加载该物料的BOM子树
+    setLoadingBomTree(true);
+    setMaterialBomTree([]);
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch(`/api/bom/${node.id}/bom-tree`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const data = await res.json();
+      if (data.code === 200 && data.data) {
+        setMaterialBomTree(data.data.children || []);
+      }
+    } catch (e) {
+      console.error('加载BOM子树失败', e);
+    } finally {
+      setLoadingBomTree(false);
+    }
   };
   
   // 弹窗中的列配置状态（编辑副本）
@@ -2926,7 +2972,7 @@ export default function BOMManagementPage() {
       {/* 物料详情弹窗 */}
       {showMaterialDetailModal && selectedMaterialNode && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg shadow-xl max-w-[722px] w-full mx-4 max-h-[90vh] overflow-hidden">
+          <div className="bg-white rounded-lg shadow-xl max-w-[900px] w-full mx-4 max-h-[90vh] overflow-hidden flex flex-col">
             <div className="px-6 py-4 border-b flex justify-between items-center">
               <h3 className="text-lg font-semibold text-gray-800">物料详情</h3>
               <button
@@ -3033,6 +3079,36 @@ export default function BOMManagementPage() {
                 </div>
               )}
             </div>
+            
+            {/* BOM子件树 - 当物料有子件时显示 */}
+            {(materialBomTree.length > 0 || loadingBomTree) && (
+              <div className="mb-6">
+                <h4 className="text-sm font-semibold text-gray-600 mb-3 pb-2 border-b">BOM子件结构</h4>
+                {loadingBomTree ? (
+                  <div className="text-center py-4 text-sm text-gray-400">加载中...</div>
+                ) : (
+                  <div className="border rounded-lg overflow-hidden">
+                    <table className="w-full text-sm">
+                      <thead className="bg-gray-50">
+                        <tr>
+                          <th className="text-left px-3 py-2 font-medium text-gray-600" style={{minWidth: '200px'}}>物料名称</th>
+                          <th className="text-left px-3 py-2 font-medium text-gray-600" style={{minWidth: '100px'}}>内部编码</th>
+                          <th className="text-left px-3 py-2 font-medium text-gray-600" style={{minWidth: '100px'}}>图纸编码</th>
+                          <th className="text-left px-3 py-2 font-medium text-gray-600" style={{minWidth: '60px'}}>图号</th>
+                          <th className="text-left px-3 py-2 font-medium text-gray-600" style={{minWidth: '60px'}}>类型</th>
+                          <th className="text-right px-3 py-2 font-medium text-gray-600" style={{minWidth: '60px'}}>用量</th>
+                          <th className="text-left px-3 py-2 font-medium text-gray-600" style={{minWidth: '100px'}}>BOM备注</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {renderBomTreeRows(materialBomTree, 0)}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            )}
+            
             <div className="px-6 py-4 border-t flex justify-end">
               <button
                 onClick={() => setShowMaterialDetailModal(false)}
