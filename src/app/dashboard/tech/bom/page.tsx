@@ -2314,14 +2314,15 @@ export default function BOMManagementPage() {
                                 onClick={() => selectExistingMaterial(material)}
                                 className="px-3 py-2 hover:bg-blue-50 cursor-pointer border-b border-gray-100 last:border-b-0"
                               >
-                                <div className="flex items-center gap-2">
+                                <div className="flex flex-wrap gap-x-2 gap-y-1">
                                   <span className="font-medium text-gray-900">{material.internalCode}</span>
-                                  <span className="text-gray-500">|</span>
                                   <span className="text-gray-700">{material.materialName}</span>
                                 </div>
-                                {material.drawingCode && (
+                                {(material.drawingCode || material.drawingNo) && (
                                   <div className="text-xs text-gray-500 mt-0.5">
-                                    图纸编码: {material.drawingCode} {material.drawingNo && `| 图号: ${material.drawingNo}`}
+                                    {material.drawingCode && <span>图纸编码: {material.drawingCode}</span>}
+                                    {material.drawingCode && material.drawingNo && <span className="mx-1">|</span>}
+                                    {material.drawingNo && <span>图号: {material.drawingNo}</span>}
                                   </div>
                                 )}
                               </div>
@@ -2403,14 +2404,15 @@ export default function BOMManagementPage() {
                             onClick={() => selectDrawingCodeMaterial(material)}
                             className="px-3 py-2 hover:bg-blue-50 cursor-pointer border-b border-gray-100 last:border-b-0"
                           >
-                            <div className="flex items-center gap-2">
-                              <span className="font-medium text-gray-900">{material.drawingCode}</span>
-                              <span className="text-gray-500">|</span>
+                            <div className="flex flex-wrap gap-x-2 gap-y-1">
+                              <span className="font-medium text-gray-900">{material.internalCode}</span>
                               <span className="text-gray-700">{material.materialName}</span>
                             </div>
-                            {material.drawingNo && (
+                            {(material.drawingCode || material.drawingNo) && (
                               <div className="text-xs text-gray-500 mt-0.5">
-                                图号: {material.drawingNo}
+                                {material.drawingCode && <span>图纸编码: {material.drawingCode}</span>}
+                                {material.drawingCode && material.drawingNo && <span className="mx-1">|</span>}
+                                {material.drawingNo && <span>图号: {material.drawingNo}</span>}
                               </div>
                             )}
                           </div>
