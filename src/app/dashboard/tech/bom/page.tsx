@@ -1023,29 +1023,25 @@ export default function BOMManagementPage() {
     }
   };
 
-  // 选择图纸编码对应的物料
+  // 选择图纸编码对应的物料 - 与内部编码选择逻辑一致
   const selectDrawingCodeMaterial = (material: Material) => {
-    // 如果是新物料模式，填充物料信息
-    if (!selectedExistingMaterial) {
-      setFormData(prev => ({
-        ...prev,
-        drawingCode: material.drawingCode || '',
-        drawingNo: material.drawingNo || '',
-        materialName: material.materialName,
-        materialType: material.materialType,
-        groupId: material.groupId,
-        remark: material.remark || '',
-      }));
-    } else {
-      // 已选择物料模式，只更新图纸编码
-      setFormData(prev => ({
-        ...prev,
-        drawingCode: material.drawingCode || '',
-        drawingNo: material.drawingNo || '',
-      }));
-    }
-    setDrawingCodeSearchKey(material.drawingCode || '');
+    setSelectedExistingMaterial(material);
+    setFormData({
+      materialName: material.materialName,
+      internalCode: material.internalCode || '',
+      drawingCode: material.drawingCode || '',
+      drawingNo: material.drawingNo || '',
+      materialType: material.materialType,
+      groupId: material.groupId,
+      quantity: formData.quantity, // 保持当前用量
+      remark: material.remark || '',
+      bomRemark: formData.bomRemark, // 保持当前BOM备注
+      customerId: formData.customerId, // 保持当前客户
+    });
+    setMaterialSearchKey(material.internalCode || '');
+    setShowMaterialDropdown(false);
     setShowDrawingCodeDropdown(false);
+    setDrawingCodeSearchKey('');
   };
 
   const handleEditMaterial = (node: TreeNode) => {
@@ -2260,6 +2256,8 @@ export default function BOMManagementPage() {
                               // 清除选定的物料，但保留客户群组
                               setSelectedExistingMaterial(null);
                               setMaterialSearchKey('');
+                              setDrawingCodeSearchKey('');
+                              setShowDrawingCodeDropdown(false);
                               setFormData({
                                 ...formData,
                                 materialName: '',
