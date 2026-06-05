@@ -524,7 +524,7 @@ export default function BOMManagementPage() {
   const [showMaterialModal, setShowMaterialModal] = useState(false);
   const [editingMaterial, setEditingMaterial] = useState<Material | null>(null);
   const [parentMaterialId, setParentMaterialId] = useState<number | null>(null);
-  const [parentMaterial, setParentMaterial] = useState<{ drawingCode: string; materialName: string } | null>(null);
+  const [parentMaterial, setParentMaterial] = useState<{ drawingCode: string; materialName: string; groupId: number | null } | null>(null);
   // 编辑时存储父物料信息（用于子物料编辑时的客户群组锁定）
   const [editingParentInfo, setEditingParentInfo] = useState<{ id: number; groupId: number; groupName: string } | null>(null);
   // 编辑子物料时存储 BOM 关系 ID
@@ -904,7 +904,7 @@ export default function BOMManagementPage() {
   const handleAddChildMaterial = (parentId: number, parentGroupId: number | null, parentDrawingCode: string, parentMaterialName: string) => {
     setEditingMaterial(null);
     setParentMaterialId(parentId);
-    setParentMaterial({ drawingCode: parentDrawingCode, materialName: parentMaterialName });
+    setParentMaterial({ drawingCode: parentDrawingCode, materialName: parentMaterialName, groupId: parentGroupId });
     setFormData({
       materialName: '',
       internalCode: '',  // 用于输入搜索
@@ -1152,6 +1152,12 @@ export default function BOMManagementPage() {
         // 如果检测接口失败，继续保存（后端会做最终检测）
       }
       
+      // 检测3：客户群组必须相同
+      if (parentMaterial?.groupId !== selectedExistingMaterial.groupId) {
+        warning('子物料的客户群组必须与父物料相同');
+        return;
+      }
+      
       // 只创建BOM关系
       const bomRes = await fetchApi('/api/bom', {
         method: 'POST',
@@ -1267,6 +1273,14 @@ export default function BOMManagementPage() {
     if (!editingMaterial && !parentMaterialId && !formData.groupId) {
       warning('请选择所属客户群组');
       return;
+    }
+
+    // 新增子物料时必须与父物料的客户群组相同
+    if (!editingMaterial && parentMaterialId && parentMaterial?.groupId !== null) {
+      if (formData.groupId !== parentMaterial.groupId) {
+        warning('子物料的客户群组必须与父物料相同');
+        return;
+      }
     }
 
     // 新增物料时检查唯一性
