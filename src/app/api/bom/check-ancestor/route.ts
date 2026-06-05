@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { verifyAuth } from '@/lib/auth';
+import { getUserFromToken } from '@/lib/auth/jwt';
+import { successResponse, badRequestResponse, serverErrorResponse } from '@/lib/response';
 
 /**
  * 检测物料是否是父物料的直系上级（防止循环引用）
@@ -8,8 +9,8 @@ import { verifyAuth } from '@/lib/auth';
  */
 export async function GET(request: NextRequest) {
   try {
-    const authResult = await verifyAuth(request);
-    if (!authResult.valid) {
+    const authUser = await getUserFromToken(request);
+    if (!authUser) {
       return NextResponse.json({ code: 401, message: '未授权访问' }, { status: 401 });
     }
 
