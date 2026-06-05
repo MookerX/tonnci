@@ -955,27 +955,7 @@ export default function BOMManagementPage() {
   };
 
   // 选择已有物料填充表单
-  const selectExistingMaterial = async (material: Material) => {
-    // 检查是否选择了父物料本身（不允许将父物料添加为自己的子物料）
-    if (parentMaterialId && material.id === parentMaterialId) {
-      warning('不能将父物料添加为其自身的子物料');
-      return;
-    }
-    
-    // 检查是否选择了父物料的上级（防止循环引用）
-    if (parentMaterialId) {
-      try {
-        const res = await fetchApi(`/api/bom/check-ancestor?materialId=${material.id}&targetMaterialId=${parentMaterialId}`);
-        if (res.code === 200 && res.data?.isAncestor) {
-          warning('不能将上级物料添加为子物料，这会造成循环引用');
-          return;
-        }
-      } catch (err) {
-        console.error('检查上级物料失败:', err);
-        // 即使检查失败也允许选择，后端保存时会再次验证
-      }
-    }
-    
+  const selectExistingMaterial = (material: Material) => {
     setSelectedExistingMaterial(material);
     setFormData({
       materialName: material.materialName,
