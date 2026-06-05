@@ -2100,27 +2100,29 @@ export default function BOMManagementPage() {
               })()}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  物料名称 <span className="text-red-500">*</span>
+                  物料名称 {!selectedExistingMaterial && <span className="text-red-500">*</span>}
+                  {!!selectedExistingMaterial && !!parentMaterialId && !editingMaterial && <span className="text-gray-400 text-xs ml-1">(已选择物料，不可修改)</span>}
                 </label>
                 <input
                   type="text"
                   value={formData.materialName}
                   onChange={e => setFormData({ ...formData, materialName: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                  disabled={!!selectedExistingMaterial && !!parentMaterialId && !editingMaterial}
+                  className={`w-full px-3 py-2 border rounded-lg ${(!!selectedExistingMaterial && !!parentMaterialId && !editingMaterial) ? 'border-gray-200 bg-gray-50 text-gray-500 cursor-not-allowed' : 'border-gray-300'}`}
                   placeholder="请输入物料名称"
                 />
               </div>
               <div className="grid grid-cols-3 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    物料类型 {!editingMaterial && <span className="text-red-500">*</span>}
-                    {editingMaterial && <span className="text-gray-400 text-xs ml-1">(不可修改)</span>}
+                    物料类型 {!editingMaterial && !selectedExistingMaterial && <span className="text-red-500">*</span>}
+                    {(!!editingMaterial || (!!selectedExistingMaterial && !!parentMaterialId)) && <span className="text-gray-400 text-xs ml-1">(不可修改)</span>}
                   </label>
                   <select
                     value={formData.materialType}
                     onChange={e => setFormData({ ...formData, materialType: e.target.value })}
-                    disabled={!!editingMaterial}
-                    className={`w-full px-3 py-2 border rounded-lg ${editingMaterial ? 'border-gray-200 bg-gray-50 text-gray-500 cursor-not-allowed' : 'border-gray-300'}`}
+                    disabled={!!editingMaterial || (!!selectedExistingMaterial && !!parentMaterialId && !editingMaterial)}
+                    className={`w-full px-3 py-2 border rounded-lg ${(!!editingMaterial || (!!selectedExistingMaterial && !!parentMaterialId && !editingMaterial)) ? 'border-gray-200 bg-gray-50 text-gray-500 cursor-not-allowed' : 'border-gray-300'}`}
                   >
                     {materialTypeOptions.map(t => (
                       <option key={t.value} value={t.value}>{t.label}</option>
@@ -2145,13 +2147,13 @@ export default function BOMManagementPage() {
                   ) : parentMaterialId ? (
                     // 新增子物料：根据是否选择物料显示不同状态
                     selectedExistingMaterial ? (
-                      // 已选择物料：显示选中物料的内部编码（只读）
+                      // 已选择物料：显示选中物料的内部编码（可编辑）
                       <div className="relative">
                         <input
                           type="text"
                           value={formData.internalCode}
-                          readOnly
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-700"
+                          onChange={e => setFormData({ ...formData, internalCode: e.target.value })}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                         />
                         <div className="absolute right-2 top-2 flex items-center gap-1 text-green-600 text-xs">
                           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -2247,7 +2249,10 @@ export default function BOMManagementPage() {
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">图纸编码</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    图纸编码
+                    {!!selectedExistingMaterial && !!parentMaterialId && !editingMaterial && <span className="text-gray-400 text-xs ml-1">(已选择物料，不可修改)</span>}
+                  </label>
                   <div className="relative">
                     <input
                       type="text"
@@ -2263,11 +2268,12 @@ export default function BOMManagementPage() {
                           setShowDrawingCodeDropdown(true);
                         }
                       }}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      disabled={!!selectedExistingMaterial && !!parentMaterialId && !editingMaterial}
+                      className={`w-full px-3 py-2 border rounded-lg ${(!!selectedExistingMaterial && !!parentMaterialId && !editingMaterial) ? 'border-gray-200 bg-gray-50 text-gray-500 cursor-not-allowed' : 'border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500'}`}
                       placeholder="输入至少4个字符搜索"
                     />
                     {/* 搜索下拉列表 - 宽度加倍 */}
-                    {showDrawingCodeDropdown && drawingCodeSearchResults.length > 0 && (
+                    {!selectedExistingMaterial && showDrawingCodeDropdown && drawingCodeSearchResults.length > 0 && (
                       <div className="absolute z-50 w-[200%] mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-auto">
                         {drawingCodeSearchResults.map((material) => (
                           <div
@@ -2290,7 +2296,7 @@ export default function BOMManagementPage() {
                       </div>
                     )}
                     {/* 搜索中提示 */}
-                    {isSearchingDrawingCode && (
+                    {!selectedExistingMaterial && isSearchingDrawingCode && (
                       <div className="absolute z-50 w-[200%] mt-1 bg-white border border-gray-300 rounded-lg shadow-lg p-3 text-center text-gray-500">
                         搜索中...
                       </div>
@@ -2298,23 +2304,31 @@ export default function BOMManagementPage() {
                   </div>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">图号</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    图号
+                    {!!selectedExistingMaterial && !!parentMaterialId && !editingMaterial && <span className="text-gray-400 text-xs ml-1">(已选择物料，不可修改)</span>}
+                  </label>
                   <input
                     type="text"
                     value={formData.drawingNo}
                     onChange={e => setFormData({ ...formData, drawingNo: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                    disabled={!!selectedExistingMaterial && !!parentMaterialId && !editingMaterial}
+                    className={`w-full px-3 py-2 border rounded-lg ${(!!selectedExistingMaterial && !!parentMaterialId && !editingMaterial) ? 'border-gray-200 bg-gray-50 text-gray-500 cursor-not-allowed' : 'border-gray-300'}`}
                   />
                 </div>
               </div>
               {/* 备注区域：物料备注和BOM备注并排显示 */}
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">物料备注</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    物料备注
+                    {!!selectedExistingMaterial && !!parentMaterialId && !editingMaterial && <span className="text-gray-400 text-xs ml-1">(已选择物料，不可修改)</span>}
+                  </label>
                   <textarea
                     value={formData.remark}
                     onChange={e => setFormData({ ...formData, remark: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                    disabled={!!selectedExistingMaterial && !!parentMaterialId && !editingMaterial}
+                    className={`w-full px-3 py-2 border rounded-lg ${(!!selectedExistingMaterial && !!parentMaterialId && !editingMaterial) ? 'border-gray-200 bg-gray-50 text-gray-500 cursor-not-allowed' : 'border-gray-300'}`}
                     rows={2}
                     placeholder="物料本身的备注信息"
                   />
