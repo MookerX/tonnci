@@ -14,7 +14,7 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const keyword = searchParams.get('keyword');
 
-    if (!keyword || keyword.length < 4) {
+    if (!keyword) {
       return successResponse([]);
     }
 
