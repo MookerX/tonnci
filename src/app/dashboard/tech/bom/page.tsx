@@ -2326,16 +2326,14 @@ export default function BOMManagementPage() {
                                 className="px-3 py-2 hover:bg-blue-50 cursor-pointer border-b border-gray-100 last:border-b-0"
                               >
                                 <div className="flex flex-wrap gap-x-2 gap-y-1">
-                                  <span className="font-medium text-gray-900">{material.internalCode}</span>
+                                  {material.drawingCode && <span className="font-medium text-gray-900">{material.drawingCode}</span>}
                                   <span className="text-gray-700">{material.materialName}</span>
                                 </div>
-                                {(material.drawingCode || material.drawingNo) && (
-                                  <div className="text-xs text-gray-500 mt-0.5">
-                                    {material.drawingCode && <span>图纸编码: {material.drawingCode}</span>}
-                                    {material.drawingCode && material.drawingNo && <span className="mx-1">|</span>}
-                                    {material.drawingNo && <span>图号: {material.drawingNo}</span>}
-                                  </div>
-                                )}
+                                <div className="text-xs text-gray-500 mt-0.5">
+                                  <span>内部编码: {material.internalCode}</span>
+                                  {material.internalCode && material.drawingNo && <span className="mx-1">|</span>}
+                                  {material.drawingNo && <span>图号: {material.drawingNo}</span>}
+                                </div>
                               </div>
                             ))}
                           </div>
@@ -2347,7 +2345,7 @@ export default function BOMManagementPage() {
                           </div>
                         )}
                         {/* 无结果提示 */}
-                        {!isSearchingMaterial && materialSearchKey.length >= 4 && materialSearchResults.length === 0 && (
+                        {!isSearchingMaterial && shouldStartSearch(materialSearchKey) && materialSearchResults.length === 0 && (
                           <div className="absolute z-50 w-[200%] mt-1 bg-white border border-gray-300 rounded-lg shadow-lg p-3 text-center text-gray-500">
                             未找到匹配的物料，保存时将创建新物料
                           </div>
@@ -2461,16 +2459,14 @@ export default function BOMManagementPage() {
                                 className="px-3 py-2 hover:bg-blue-50 cursor-pointer border-b border-gray-100 last:border-b-0"
                               >
                                 <div className="flex flex-wrap gap-x-2 gap-y-1">
-                                  <span className="font-medium text-gray-900">{material.internalCode}</span>
+                                  {material.drawingCode && <span className="font-medium text-gray-900">{material.drawingCode}</span>}
                                   <span className="text-gray-700">{material.materialName}</span>
                                 </div>
-                                {(material.drawingCode || material.drawingNo) && (
-                                  <div className="text-xs text-gray-500 mt-0.5">
-                                    {material.drawingCode && <span>图纸编码: {material.drawingCode}</span>}
-                                    {material.drawingCode && material.drawingNo && <span className="mx-1">|</span>}
-                                    {material.drawingNo && <span>图号: {material.drawingNo}</span>}
-                                  </div>
-                                )}
+                                <div className="text-xs text-gray-500 mt-0.5">
+                                  <span>内部编码: {material.internalCode}</span>
+                                  {material.internalCode && material.drawingNo && <span className="mx-1">|</span>}
+                                  {material.drawingNo && <span>图号: {material.drawingNo}</span>}
+                                </div>
                               </div>
                             ))}
                           </div>
