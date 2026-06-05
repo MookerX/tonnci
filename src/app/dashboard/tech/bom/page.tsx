@@ -1171,7 +1171,73 @@ export default function BOMManagementPage() {
         setSelectedExistingMaterial(null);
         setMaterialSearchKey('');
         setMaterialSearchResults([]);
-        fetchBOMTree();
+        
+        // 等待数据刷新后获取新数据并展开定位
+        const newTreeData = await fetchBOMTree();
+        fetchMaterials();
+        
+        // 展开父物料并定位到子件
+        const savedMaterialId = selectedExistingMaterial.id;
+        const parentId = parentMaterialId;
+        
+        const findNodeById = (nodes: TreeNode[], id: number): TreeNode | null => {
+          for (const node of nodes) {
+            if (node.id === id) return node;
+            if (node.children && node.children.length > 0) {
+              const found = findNodeById(node.children, id);
+              if (found) return found;
+            }
+          }
+          return null;
+        };
+        
+        const parentNode = findNodeById(newTreeData, parentId);
+        const newMaterialNode = findNodeById(newTreeData, savedMaterialId);
+        
+        // 找到该物料在树中的完整键和所有父节点键
+        const findNodeInfo = (nodes: TreeNode[], targetId: number, parentKey: string = ''): { fullKey: string | null; parentKeys: string[] } => {
+          for (const node of nodes) {
+            const nodeKey = `node_${node.id}`;
+            const fullKey = parentKey ? `${parentKey}_${nodeKey}` : nodeKey;
+            if (node.id === targetId) {
+              return { fullKey, parentKeys: [] };
+            }
+            if (node.children && node.children.length > 0) {
+              const result = findNodeInfo(node.children, targetId, fullKey);
+              if (result.fullKey) {
+                return { 
+                  fullKey: result.fullKey, 
+                  parentKeys: [fullKey, ...result.parentKeys] 
+                };
+              }
+            }
+          }
+          return { fullKey: null, parentKeys: [] };
+        };
+        
+        const { fullKey, parentKeys } = findNodeInfo(newTreeData, savedMaterialId);
+        
+        // 展开所有父节点
+        if (parentKeys.length > 0) {
+          skipAutoCollapse.current = true;
+          setExpandedKeys(prev => {
+            const newKeys = new Set(prev);
+            parentKeys.forEach(key => newKeys.add(key));
+            return newKeys;
+          });
+        }
+        
+        // 延迟滚动，等待展开渲染完成
+        setTimeout(() => {
+          if (fullKey && itemRefs.current[fullKey]) {
+            itemRefs.current[fullKey]?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            itemRefs.current[fullKey]?.classList.add('ring-2', 'ring-blue-400');
+            setTimeout(() => {
+              itemRefs.current[fullKey]?.classList.remove('ring-2', 'ring-blue-400');
+            }, 2000);
+          }
+          skipAutoCollapse.current = false;
+        }, 500);
       } else {
         error('BOM关系创建失败: ' + (bomRes.message || '未知错误'));
       }
