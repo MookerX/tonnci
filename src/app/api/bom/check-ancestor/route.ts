@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { verifyToken } from '@/lib/auth';
+import { getUserFromToken } from '@/lib/auth/jwt';
 
 /**
  * 检查物料是否是目标物料的上级（祖先）
@@ -16,7 +16,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ code: 401, message: '未授权访问' }, { status: 401 });
     }
     
-    const user = await verifyToken(token);
+    const user = await getUserFromToken(token);
     if (!user) {
       return NextResponse.json({ code: 401, message: 'Token无效或已过期' }, { status: 401 });
     }
