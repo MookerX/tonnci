@@ -2372,58 +2372,115 @@ export default function BOMManagementPage() {
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     图纸编码
-                    {!!selectedExistingMaterial && !!parentMaterialId && !editingMaterial && <span className="text-gray-400 text-xs ml-1">(已选择物料，不可修改)</span>}
                   </label>
-                  <div className="relative">
+                  {parentMaterialId ? (
+                    // 新增子物料：图纸编码
+                    selectedExistingMaterial ? (
+                      // 已选择物料：显示选中物料的图纸编码（只读，不可修改），带清除按钮
+                      <div className="relative">
+                        <input
+                          type="text"
+                          value={formData.drawingCode}
+                          readOnly
+                          className="w-full px-3 py-2 pr-20 border border-gray-200 rounded-lg bg-gray-50 text-gray-700 cursor-not-allowed"
+                        />
+                        <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-2">
+                          <span className="text-green-600 text-xs font-medium">已选择</span>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              // 清除选定的物料，但保留客户群组
+                              setSelectedExistingMaterial(null);
+                              setMaterialSearchKey('');
+                              setDrawingCodeSearchKey('');
+                              setShowDrawingCodeDropdown(false);
+                              setFormData({
+                                ...formData,
+                                materialName: '',
+                                internalCode: '',
+                                drawingCode: '',
+                                drawingNo: '',
+                                materialType: 'material',
+                                quantity: 1,
+                                remark: '',
+                                bomRemark: '',
+                              });
+                            }}
+                            className="p-1 hover:bg-red-100 rounded text-gray-500 hover:text-red-500 transition-colors"
+                            title="清除选定"
+                          >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      // 未选择物料：搜索输入框
+                      <div className="relative">
+                        <input
+                          type="text"
+                          value={drawingCodeSearchKey}
+                          onChange={e => {
+                            const value = e.target.value;
+                            setDrawingCodeSearchKey(value);
+                            searchDrawingCode(value);
+                          }}
+                          onFocus={() => {
+                            if (drawingCodeSearchKey.length >= 4) {
+                              setShowDrawingCodeDropdown(true);
+                            }
+                          }}
+                          onBlur={() => {
+                            // 延迟关闭下拉框，确保点击下拉项时能触发点击事件
+                            setTimeout(() => setShowDrawingCodeDropdown(false), 200);
+                          }}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                          placeholder="输入至少4个字符搜索已有物料"
+                        />
+                        {/* 搜索下拉列表 - 宽度加倍 */}
+                        {showDrawingCodeDropdown && drawingCodeSearchResults.length > 0 && (
+                          <div className="absolute z-50 w-[200%] mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-auto">
+                            {drawingCodeSearchResults.map((material) => (
+                              <div
+                                key={material.id}
+                                onClick={() => selectDrawingCodeMaterial(material)}
+                                className="px-3 py-2 hover:bg-blue-50 cursor-pointer border-b border-gray-100 last:border-b-0"
+                              >
+                                <div className="flex flex-wrap gap-x-2 gap-y-1">
+                                  <span className="font-medium text-gray-900">{material.internalCode}</span>
+                                  <span className="text-gray-700">{material.materialName}</span>
+                                </div>
+                                {(material.drawingCode || material.drawingNo) && (
+                                  <div className="text-xs text-gray-500 mt-0.5">
+                                    {material.drawingCode && <span>图纸编码: {material.drawingCode}</span>}
+                                    {material.drawingCode && material.drawingNo && <span className="mx-1">|</span>}
+                                    {material.drawingNo && <span>图号: {material.drawingNo}</span>}
+                                  </div>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                        {/* 搜索中提示 */}
+                        {isSearchingDrawingCode && (
+                          <div className="absolute z-50 w-[200%] mt-1 bg-white border border-gray-300 rounded-lg shadow-lg p-3 text-center text-gray-500">
+                            搜索中...
+                          </div>
+                        )}
+                      </div>
+                    )
+                  ) : (
+                    // 新增顶层物料或编辑物料：图纸编码可编辑
                     <input
                       type="text"
                       value={formData.drawingCode}
-                      onChange={e => {
-                        const value = e.target.value;
-                        setFormData({ ...formData, drawingCode: value });
-                        setDrawingCodeSearchKey(value);
-                        searchDrawingCode(value);
-                      }}
-                      onFocus={() => {
-                        if (formData.drawingCode?.length >= 4) {
-                          setShowDrawingCodeDropdown(true);
-                        }
-                      }}
-                      disabled={!!selectedExistingMaterial && !!parentMaterialId && !editingMaterial}
-                      className={`w-full px-3 py-2 border rounded-lg ${(!!selectedExistingMaterial && !!parentMaterialId && !editingMaterial) ? 'border-gray-200 bg-gray-50 text-gray-500 cursor-not-allowed' : 'border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500'}`}
-                      placeholder="输入至少4个字符搜索"
+                      onChange={e => setFormData({ ...formData, drawingCode: e.target.value })}
+                      disabled={!!(selectedExistingMaterial && !editingMaterial)}
+                      className={`w-full px-3 py-2 border rounded-lg ${(selectedExistingMaterial && !editingMaterial) ? 'border-gray-200 bg-gray-50 text-gray-500 cursor-not-allowed' : 'border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500'}`}
+                      placeholder="图纸编码"
                     />
-                    {/* 搜索下拉列表 - 宽度加倍 */}
-                    {!selectedExistingMaterial && showDrawingCodeDropdown && drawingCodeSearchResults.length > 0 && (
-                      <div className="absolute z-50 w-[200%] mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-auto">
-                        {drawingCodeSearchResults.map((material) => (
-                          <div
-                            key={material.id}
-                            onClick={() => selectDrawingCodeMaterial(material)}
-                            className="px-3 py-2 hover:bg-blue-50 cursor-pointer border-b border-gray-100 last:border-b-0"
-                          >
-                            <div className="flex flex-wrap gap-x-2 gap-y-1">
-                              <span className="font-medium text-gray-900">{material.internalCode}</span>
-                              <span className="text-gray-700">{material.materialName}</span>
-                            </div>
-                            {(material.drawingCode || material.drawingNo) && (
-                              <div className="text-xs text-gray-500 mt-0.5">
-                                {material.drawingCode && <span>图纸编码: {material.drawingCode}</span>}
-                                {material.drawingCode && material.drawingNo && <span className="mx-1">|</span>}
-                                {material.drawingNo && <span>图号: {material.drawingNo}</span>}
-                              </div>
-                            )}
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                    {/* 搜索中提示 */}
-                    {!selectedExistingMaterial && isSearchingDrawingCode && (
-                      <div className="absolute z-50 w-[200%] mt-1 bg-white border border-gray-300 rounded-lg shadow-lg p-3 text-center text-gray-500">
-                        搜索中...
-                      </div>
-                    )}
-                  </div>
+                  )}
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
