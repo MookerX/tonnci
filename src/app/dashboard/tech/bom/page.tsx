@@ -928,9 +928,22 @@ export default function BOMManagementPage() {
     setShowMaterialModal(true);
   };
 
+  // 判断是否满足检索条件：两个中文字符或4个英文字符
+  const shouldStartSearch = (keyword: string): boolean => {
+    if (!keyword) return false;
+    
+    // 计算中文字符数量
+    const chineseChars = (keyword.match(/[\u4e00-\u9fa5]/g) || []).length;
+    // 计算英文字符数量（只算字母和数字，不包括标点符号和空格）
+    const alphanumericChars = (keyword.match(/[a-zA-Z0-9]/g) || []).length;
+    
+    // 中文字符≥2 或 英文字符≥4
+    return chineseChars >= 2 || alphanumericChars >= 4;
+  };
+
   // 搜索物料（用于新增子物料时选择已有物料）
   const searchMaterials = async (keyword: string) => {
-    if (keyword.length < 4) {
+    if (!shouldStartSearch(keyword)) {
       setMaterialSearchResults([]);
       setShowMaterialDropdown(false);
       return;
@@ -999,7 +1012,7 @@ export default function BOMManagementPage() {
 
   // 搜索图纸编码
   const searchDrawingCode = async (keyword: string) => {
-    if (keyword.length < 4) {
+    if (!shouldStartSearch(keyword)) {
       setDrawingCodeSearchResults([]);
       setShowDrawingCodeDropdown(false);
       return;
@@ -2292,7 +2305,7 @@ export default function BOMManagementPage() {
                             searchMaterials(value);
                           }}
                           onFocus={() => {
-                            if (materialSearchKey.length >= 4) {
+                            if (shouldStartSearch(materialSearchKey)) {
                               setShowMaterialDropdown(true);
                             }
                           }}
@@ -2301,7 +2314,7 @@ export default function BOMManagementPage() {
                             setTimeout(() => setShowMaterialDropdown(false), 200);
                           }}
                           className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                          placeholder="输入至少4个字符搜索已有物料，留空则自动生成新编码"
+                          placeholder="输入2个中文字符或4个英文字符搜索已有物料，留空则自动生成新编码"
                         />
                         {/* 搜索下拉列表 - 宽度加倍 */}
                         {showMaterialDropdown && materialSearchResults.length > 0 && (
@@ -2427,7 +2440,7 @@ export default function BOMManagementPage() {
                             searchDrawingCode(value);
                           }}
                           onFocus={() => {
-                            if (drawingCodeSearchKey.length >= 4) {
+                            if (shouldStartSearch(drawingCodeSearchKey)) {
                               setShowDrawingCodeDropdown(true);
                             }
                           }}
@@ -2436,7 +2449,7 @@ export default function BOMManagementPage() {
                             setTimeout(() => setShowDrawingCodeDropdown(false), 200);
                           }}
                           className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                          placeholder="输入至少4个字符搜索已有物料"
+                          placeholder="输入2个中文字符或4个英文字符搜索已有物料"
                         />
                         {/* 搜索下拉列表 - 宽度加倍 */}
                         {showDrawingCodeDropdown && drawingCodeSearchResults.length > 0 && (
