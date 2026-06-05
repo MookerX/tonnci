@@ -2132,7 +2132,7 @@ export default function BOMManagementPage() {
                 <div className="relative">
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     内部编码 {!editingMaterial && !parentMaterialId && <span className="text-gray-400 text-xs ml-1">(自动生成)</span>}
-                    {!editingMaterial && parentMaterialId && <span className="text-red-500">*</span>}
+                    {!editingMaterial && parentMaterialId && <span className="text-gray-400 text-xs ml-1">(搜索选择或自动生成)</span>}
                     {editingMaterial && <span className="text-gray-400 text-xs ml-1">(不可修改)</span>}
                   </label>
                   {editingMaterial ? (
