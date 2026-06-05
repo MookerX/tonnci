@@ -1135,6 +1135,23 @@ export default function BOMManagementPage() {
   const handleSaveMaterial = async () => {
     // 新增子物料时，如果选择了已有物料，只创建BOM关系
     if (!editingMaterial && parentMaterialId && selectedExistingMaterial) {
+      // 检测1：不能将物料作为自身的子件
+      if (selectedExistingMaterial.id === parentMaterialId) {
+        warning('不能将物料作为自身的子件');
+        return;
+      }
+      
+      // 检测2：不能将父物料及所有直系上级作为子件（需要查询BOM链）
+      try {
+        const checkRes = await fetchApi(`/api/bom/check-ancestor?parentMaterialId=${parentMaterialId}&childMaterialId=${selectedExistingMaterial.id}`);
+        if (checkRes.code === 200 && checkRes.data?.isAncestor) {
+          warning('不能将父物料或其直系上级作为子件，这将形成循环引用');
+          return;
+        }
+      } catch (e) {
+        // 如果检测接口失败，继续保存（后端会做最终检测）
+      }
+      
       // 只创建BOM关系
       const bomRes = await fetchApi('/api/bom', {
         method: 'POST',
