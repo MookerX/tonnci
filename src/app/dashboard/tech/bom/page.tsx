@@ -1513,7 +1513,8 @@ export default function BOMManagementPage() {
   };
 
   const handleDeleteMaterial = async (material: TreeNode) => {
-    const materialData: Material = {
+    // 保存删除时需要的信息
+    setDeleteMaterial({
       id: material.id,
       uuid: material.uuid,
       materialName: material.materialName,
@@ -1525,13 +1526,9 @@ export default function BOMManagementPage() {
       customerId: null,
       groupId: material.groupId ?? null,
       customerGroupName: material.customerGroupName ?? undefined,
-      processId: material.processId,
-    };
-    // 保存删除时需要的信息
-    setDeleteMaterial({
-      ...materialData,
-      bomItemId: material.bomItemId, // BOM关系ID（有父件时）
-      hasChildren: material.children.length > 0, // 是否有子件
+      processId: material.processId ?? null,
+      bomItemId: material.bomItemId ?? undefined,
+      hasChildren: (material.children?.length ?? 0) > 0, // 是否有子件
       hasParent: !!material.bomItemId, // 是否有父件（有bomItemId表示是子件）
     });
     setDeleteConfirmOpen(true);
