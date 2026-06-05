@@ -9,9 +9,8 @@ export async function DELETE(
   { params }: { params: Promise<{ bomItemId: string }> }
 ) {
   try {
-    const authResult = await getUserFromToken(request);
-    if (authResult instanceof Response) return authResult;
-    const user = authResult.user;
+    const user = await getUserFromToken(request);
+    if (!user) return notFoundResponse('用户未认证');
 
     const { bomItemId } = await params;
 
