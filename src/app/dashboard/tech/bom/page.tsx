@@ -2236,8 +2236,8 @@ export default function BOMManagementPage() {
                   <label className="block text-sm font-medium text-gray-700 mb-1">单层用量 <span className="text-red-500">*</span></label>
                   <input
                     type="number"
-                    min="0.001"
-                    step="0.001"
+                    min="1"
+                    step="1"
                     value={formData.quantity ?? 1}
                     onChange={e => setFormData({ ...formData, quantity: parseFloat(e.target.value) || 0 })}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg"
