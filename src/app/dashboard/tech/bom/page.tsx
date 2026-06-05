@@ -2147,19 +2147,47 @@ export default function BOMManagementPage() {
                   ) : parentMaterialId ? (
                     // 新增子物料：内部编码只能自动生成或从搜索结果中选择
                     selectedExistingMaterial ? (
-                      // 已选择物料：显示选中物料的内部编码（只读，不可修改）
+                      // 已选择物料：显示选中物料的内部编码（只读，不可修改），带清除按钮
                       <div className="relative">
                         <input
                           type="text"
                           value={formData.internalCode}
                           readOnly
-                          className="w-full px-3 py-2 border border-gray-200 rounded-lg bg-gray-50 text-gray-700 cursor-not-allowed"
+                          className="w-full px-3 py-2 pr-20 border border-gray-200 rounded-lg bg-gray-50 text-gray-700 cursor-not-allowed"
                         />
-                        <div className="absolute right-2 top-2 flex items-center gap-1 text-green-600 text-xs">
-                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                          </svg>
-                          已选择
+                        <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-2">
+                          <span className="flex items-center gap-1 text-green-600 text-xs">
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                            </svg>
+                            已选择
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              // 清除选定的物料
+                              setSelectedExistingMaterial(null);
+                              setMaterialSearchKey('');
+                              setFormData({
+                                materialName: '',
+                                internalCode: '',
+                                drawingCode: '',
+                                drawingNo: '',
+                                materialType: 'material',
+                                groupId: parentMaterial?.groupId ?? null,
+                                customerId: null,
+                                quantity: 1,
+                                remark: '',
+                                bomRemark: '',
+                              });
+                            }}
+                            className="p-1 hover:bg-gray-200 rounded text-gray-400 hover:text-red-500 transition-colors"
+                            title="清除选定"
+                          >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                          </button>
                         </div>
                       </div>
                     ) : (
