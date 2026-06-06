@@ -305,7 +305,7 @@ export default function BOMManagementPage() {
       });
       const data = await res.json();
       if (data.code === 200 && data.data) {
-        setMaterialBomTree(data.data.children || []);
+        setMaterialBomTree(data.data.bomTree || []);
       }
     } catch (e) {
       console.error('加载BOM子树失败', e);
