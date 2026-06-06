@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getUserFromToken } from '@/lib/auth/jwt';
 import { successResponse, serverErrorResponse, notFoundResponse } from '@/lib/response';
@@ -22,31 +22,40 @@ export async function GET(
       return notFoundResponse('物料不存在');
     }
 
-    // 递归获取BOM子树
+    // 递归获取BOM子树（分步查询，因为BomItem没有定义Prisma关联关系）
     async function buildBomTree(parentId: number, level: number = 0): Promise<any[]> {
       if (level > 20) return []; // 防止无限递归
 
+      // 第1步：查询所有子件BOM关系
       const bomItems = await prisma.bomItem.findMany({
         where: {
           parentMaterialId: parentId,
           isDelete: false,
         },
-        include: {
-          childMaterial: {
-            include: {
-              customer: { select: { id: true, customerName: true } },
-            },
-          },
-        },
         orderBy: { createdAt: 'asc' },
       });
 
+      if (bomItems.length === 0) return [];
+
+      // 第2步：批量查询所有子物料
+      const childIds = bomItems.map(item => item.childMaterialId);
+      const children = await prisma.material.findMany({
+        where: {
+          id: { in: childIds },
+          isDelete: false,
+        },
+      });
+
+      // 建立子物料id到数据的映射
+      const childMap = new Map(children.map(c => [c.id, c]));
+
+      // 第3步：逐个构建子树
       const result: any[] = [];
       for (const item of bomItems) {
-        const child = item.childMaterial;
-        if (!child || child.isDelete) continue;
+        const child = childMap.get(item.childMaterialId);
+        if (!child) continue;
 
-        const children = await buildBomTree(child.id, level + 1);
+        const subChildren = await buildBomTree(child.id, level + 1);
 
         result.push({
           id: child.id,
@@ -56,14 +65,14 @@ export async function GET(
           drawingCode: child.drawingCode,
           drawingNo: child.drawingNo,
           materialType: child.materialType,
-          quantity: item.quantity,
+          quantity: Number(item.quantity),
           unit: child.unit,
           spec: child.spec,
-          bomRemark: item.remark,
+          bomRemark: item.bomRemark,
           levelCode: item.levelCode,
-          customerGroupName: child.customer?.customerName || '-',
-          hasChildren: children.length > 0,
-          children: children,
+          remark: child.remark,
+          hasChildren: subChildren.length > 0,
+          children: subChildren,
         });
       }
       return result;
