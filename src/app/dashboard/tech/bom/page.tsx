@@ -3031,22 +3031,22 @@ export default function BOMManagementPage() {
                     </div>
                   </div>
                   {/* 第三行：创建者、创建时间、修改者、修改时间 */}
-                  <div className="flex flex-wrap gap-x-6 gap-y-1">
-                    <div className="flex items-center min-w-[200px]">
-                      <label className="text-xs text-gray-500 w-16">创建者</label>
-                      <span className="text-sm text-gray-900">{selectedMaterialNode.materialCreatorName || '-'}</span>
+                  <div className="grid grid-cols-4 gap-x-4">
+                    <div className="flex items-center">
+                      <label className="text-xs text-gray-500 w-14">创建者</label>
+                      <span className="text-sm text-gray-900 truncate">{selectedMaterialNode.materialCreatorName || '-'}</span>
                     </div>
-                    <div className="flex items-center min-w-[220px]">
-                      <label className="text-xs text-gray-500 w-16">创建时间</label>
-                      <span className="text-sm text-gray-900">{selectedMaterialNode.materialCreatedAt ? new Date(selectedMaterialNode.materialCreatedAt).toLocaleString('zh-CN') : '-'}</span>
+                    <div className="flex items-center">
+                      <label className="text-xs text-gray-500 w-14">创建时间</label>
+                      <span className="text-sm text-gray-900">{selectedMaterialNode.materialCreatedAt ? new Date(selectedMaterialNode.materialCreatedAt).toLocaleDateString('zh-CN') : '-'}</span>
                     </div>
-                    <div className="flex items-center min-w-[200px]">
-                      <label className="text-xs text-gray-500 w-16">修改者</label>
-                      <span className="text-sm text-gray-900">{selectedMaterialNode.materialModifierName || '-'}</span>
+                    <div className="flex items-center">
+                      <label className="text-xs text-gray-500 w-14">修改者</label>
+                      <span className="text-sm text-gray-900 truncate">{selectedMaterialNode.materialModifierName || '-'}</span>
                     </div>
-                    <div className="flex items-center min-w-[220px]">
-                      <label className="text-xs text-gray-500 w-16">修改时间</label>
-                      <span className="text-sm text-gray-900">{selectedMaterialNode.materialUpdatedAt ? new Date(selectedMaterialNode.materialUpdatedAt).toLocaleString('zh-CN') : '-'}</span>
+                    <div className="flex items-center">
+                      <label className="text-xs text-gray-500 w-14">修改时间</label>
+                      <span className="text-sm text-gray-900">{selectedMaterialNode.materialUpdatedAt ? new Date(selectedMaterialNode.materialUpdatedAt).toLocaleDateString('zh-CN') : '-'}</span>
                     </div>
                   </div>
                   {/* 物料备注单独一行 */}
