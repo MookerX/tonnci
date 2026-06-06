@@ -30,6 +30,7 @@ interface TreeNode {
   customerGroupName?: string | null;
   unit?: string | null;
   spec?: string | null;
+  weight?: number | null; // 重量
   // 创建者和修改者
   bomCreatorName?: string | null;
   bomModifierName?: string | null;
@@ -3010,11 +3011,15 @@ export default function BOMManagementPage() {
                       <span className="text-sm text-gray-900">{selectedMaterialNode.drawingNo || '-'}</span>
                     </div>
                   </div>
-                  {/* 第二行：物料类型、单位、规格 */}
+                  {/* 第二行：物料类型、重量、单位、规格 */}
                   <div className="flex flex-wrap gap-x-6 gap-y-1">
                     <div className="flex items-center min-w-[180px]">
                       <label className="text-xs text-gray-500 w-16">物料类型</label>
                       <span className="text-sm text-gray-900">{typeLabelMap[selectedMaterialNode.materialType] || selectedMaterialNode.materialType || '-'}</span>
+                    </div>
+                    <div className="flex items-center min-w-[180px]">
+                      <label className="text-xs text-gray-500 w-12">重量</label>
+                      <span className="text-sm text-gray-900">{selectedMaterialNode.weight ? `${selectedMaterialNode.weight} kg` : '-'}</span>
                     </div>
                     <div className="flex items-center min-w-[180px]">
                       <label className="text-xs text-gray-500 w-12">单位</label>
