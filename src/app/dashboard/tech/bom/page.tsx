@@ -271,18 +271,19 @@ export default function BOMManagementPage() {
       return (
         <React.Fragment key={item.materialId || item.id}>
           <tr className="border-b border-border/50 hover:bg-muted/30">
-            <td className="px-3 py-2 text-sm" style={{ paddingLeft: `${12 + level * 24}px` }}>
+            <td className="px-3 py-2 text-sm" style={{ paddingLeft: `${12 + level * 20}px` }}>
               <div className="flex items-center gap-1">
                 {hasChildren && (
                   <span className="text-muted-foreground text-xs">▼</span>
                 )}
-                <span className="font-medium text-foreground">{item.internalCode || '-'}</span>
+                <span className="font-medium text-foreground">{item.materialName || '-'}</span>
               </div>
             </td>
-            <td className="px-3 py-2 text-sm text-foreground">{item.materialName || '-'}</td>
+            <td className="px-3 py-2 text-sm text-foreground font-mono">{item.internalCode || '-'}</td>
             <td className="px-3 py-2 text-sm text-foreground">{item.drawingCode || '-'}</td>
             <td className="px-3 py-2 text-sm text-foreground">{item.drawingNo || '-'}</td>
-            <td className="px-3 py-2 text-sm text-foreground">{item.quantity || '-'}</td>
+            <td className="px-3 py-2 text-sm text-foreground">{typeLabelMap[item.materialType] || item.materialType || '-'}</td>
+            <td className="px-3 py-2 text-sm text-foreground text-right">{item.quantity || '-'}</td>
             <td className="px-3 py-2 text-sm text-muted-foreground">{item.bomRemark || '-'}</td>
           </tr>
           {hasChildren && renderBomTreeRows(item.children, level + 1)}
@@ -2984,60 +2985,56 @@ export default function BOMManagementPage() {
             </div>
             <div className="p-6 overflow-y-auto max-h-[calc(90vh-120px)]">
               {/* 物料基本信息 */}
-              <div className="mb-6">
-                <h4 className="text-sm font-semibold text-gray-600 mb-3 pb-2 border-b">物料信息</h4>
-                <div className="grid grid-cols-2 gap-4">
+              <div className="mb-4">
+                <h4 className="text-sm font-semibold text-gray-600 mb-2 pb-1 border-b">物料信息</h4>
+                <div className="grid grid-cols-3 gap-3">
                   <div>
                     <label className="text-xs text-gray-500">物料名称</label>
-                    <p className="text-sm text-gray-800">{selectedMaterialNode.materialName || '-'}</p>
+                    <p className="text-sm text-gray-900 font-medium">{selectedMaterialNode.materialName || '-'}</p>
                   </div>
                   <div>
                     <label className="text-xs text-gray-500">内部编码</label>
-                    <p className="text-sm text-gray-800 font-mono">{selectedMaterialNode.internalCode || '-'}</p>
+                    <p className="text-sm text-gray-900 font-mono">{selectedMaterialNode.internalCode || '-'}</p>
                   </div>
                   <div>
                     <label className="text-xs text-gray-500">图纸编码</label>
-                    <p className="text-sm text-gray-800">{selectedMaterialNode.drawingCode || '-'}</p>
+                    <p className="text-sm text-gray-900">{selectedMaterialNode.drawingCode || '-'}</p>
                   </div>
                   <div>
                     <label className="text-xs text-gray-500">图号</label>
-                    <p className="text-sm text-gray-800">{selectedMaterialNode.drawingNo || '-'}</p>
+                    <p className="text-sm text-gray-900">{selectedMaterialNode.drawingNo || '-'}</p>
                   </div>
                   <div>
                     <label className="text-xs text-gray-500">物料类型</label>
-                    <p className="text-sm text-gray-800">{typeLabelMap[selectedMaterialNode.materialType] || selectedMaterialNode.materialType || '-'}</p>
+                    <p className="text-sm text-gray-900">{typeLabelMap[selectedMaterialNode.materialType] || selectedMaterialNode.materialType || '-'}</p>
                   </div>
                   <div>
                     <label className="text-xs text-gray-500">所属客户</label>
-                    <p className="text-sm text-gray-800">{selectedMaterialNode.customerGroupName || '-'}</p>
+                    <p className="text-sm text-gray-900">{selectedMaterialNode.customerGroupName || '-'}</p>
                   </div>
                   <div>
                     <label className="text-xs text-gray-500">单位</label>
-                    <p className="text-sm text-gray-800">{selectedMaterialNode.unit || '-'}</p>
+                    <p className="text-sm text-gray-900">{selectedMaterialNode.unit || '-'}</p>
                   </div>
                   <div>
                     <label className="text-xs text-gray-500">规格</label>
-                    <p className="text-sm text-gray-800">{selectedMaterialNode.spec || '-'}</p>
+                    <p className="text-sm text-gray-900">{selectedMaterialNode.spec || '-'}</p>
                   </div>
-                  <div className="col-span-2">
+                  <div className="col-span-3">
                     <label className="text-xs text-gray-500">物料备注</label>
-                    <p className="text-sm text-gray-800 whitespace-pre-wrap">{selectedMaterialNode.remark || '-'}</p>
+                    <p className="text-sm text-gray-900 whitespace-pre-wrap">{selectedMaterialNode.remark || '-'}</p>
                   </div>
                   <div>
-                    <label className="text-xs text-gray-500">物料创建者</label>
-                    <p className="text-sm text-gray-800">{selectedMaterialNode.materialCreatorName || '-'}</p>
+                    <label className="text-xs text-gray-500">创建者</label>
+                    <p className="text-sm text-gray-900">{selectedMaterialNode.materialCreatorName || '-'}</p>
                   </div>
                   <div>
-                    <label className="text-xs text-gray-500">物料创建时间</label>
-                    <p className="text-sm text-gray-800">{selectedMaterialNode.materialCreatedAt ? new Date(selectedMaterialNode.materialCreatedAt).toLocaleString('zh-CN') : '-'}</p>
+                    <label className="text-xs text-gray-500">创建时间</label>
+                    <p className="text-sm text-gray-900">{selectedMaterialNode.materialCreatedAt ? new Date(selectedMaterialNode.materialCreatedAt).toLocaleString('zh-CN') : '-'}</p>
                   </div>
                   <div>
-                    <label className="text-xs text-gray-500">物料修改者</label>
-                    <p className="text-sm text-gray-800">{selectedMaterialNode.materialModifierName || '-'}</p>
-                  </div>
-                  <div>
-                    <label className="text-xs text-gray-500">物料修改时间</label>
-                    <p className="text-sm text-gray-800">{selectedMaterialNode.materialUpdatedAt ? new Date(selectedMaterialNode.materialUpdatedAt).toLocaleString('zh-CN') : '-'}</p>
+                    <label className="text-xs text-gray-500">修改者</label>
+                    <p className="text-sm text-gray-900">{selectedMaterialNode.materialModifierName || '-'}</p>
                   </div>
                 </div>
               </div>
