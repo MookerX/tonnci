@@ -2974,7 +2974,7 @@ export default function BOMManagementPage() {
       {/* 物料详情弹窗 */}
       {showMaterialDetailModal && selectedMaterialNode && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg shadow-xl max-w-[900px] w-full mx-4 max-h-[90vh] overflow-hidden flex flex-col">
+          <div className="bg-white rounded-lg shadow-xl w-[95vw] max-w-[1400px] mx-auto max-h-[90vh] overflow-hidden flex flex-col">
             <div className="px-6 py-4 border-b flex justify-between items-center">
               <h3 className="text-lg font-semibold text-gray-800">物料详情</h3>
               <button
