@@ -264,6 +264,7 @@ export default function BOMManagementPage() {
   const [selectedMaterialNode, setSelectedMaterialNode] = useState<TreeNode | null>(null);
   const [materialBomTree, setMaterialBomTree] = useState<any[]>([]);
   const [loadingBomTree, setLoadingBomTree] = useState(false);
+  const [isDetailModalMaximized, setIsDetailModalMaximized] = useState(false);
   
   // 渲染BOM子树表格行（递归）
   const renderBomTreeRows = (items: any[], level: number) => {
@@ -2974,17 +2975,41 @@ export default function BOMManagementPage() {
       {/* 物料详情弹窗 */}
       {showMaterialDetailModal && selectedMaterialNode && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg shadow-xl w-[95vw] max-w-[1400px] mx-auto max-h-[90vh] overflow-hidden flex flex-col">
+          <div className={`bg-white shadow-xl overflow-hidden flex flex-col ${
+            isDetailModalMaximized 
+              ? 'inset-0 absolute w-full h-full rounded-none' 
+              : 'rounded-lg w-[95vw] max-w-[1400px] mx-auto max-h-[90vh]'
+          }`}>
             <div className="px-6 py-4 border-b flex justify-between items-center">
               <h3 className="text-lg font-semibold text-gray-800">物料详情</h3>
-              <button
-                onClick={() => setShowMaterialDetailModal(false)}
-                className="text-gray-400 hover:text-gray-600"
-              >
-                <X className="w-5 h-5" />
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setIsDetailModalMaximized(!isDetailModalMaximized)}
+                  className="text-gray-400 hover:text-gray-600 p-1"
+                  title={isDetailModalMaximized ? '还原' : '最大化'}
+                >
+                  {isDetailModalMaximized ? (
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 4H6a2 2 0 00-2 2v2m0 8v2a2 2 0 002 2h2m8-16h2a2 2 0 012 2v2m0 8v2a2 2 0 01-2 2h-2" />
+                    </svg>
+                  ) : (
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" />
+                    </svg>
+                  )}
+                </button>
+                <button
+                  onClick={() => {
+                    setShowMaterialDetailModal(false);
+                    setIsDetailModalMaximized(false);
+                  }}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
             </div>
-            <div className="p-6 overflow-y-auto max-h-[calc(90vh-120px)]">
+            <div className={`p-6 overflow-y-auto ${isDetailModalMaximized ? 'flex-1' : 'max-h-[calc(90vh-120px)]'}`}>
               {/* 物料基本信息 */}
               <div className="mb-4">
                 <h4 className="text-sm font-semibold text-gray-600 mb-2 pb-1 border-b">
