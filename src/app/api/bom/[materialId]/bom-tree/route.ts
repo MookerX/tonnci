@@ -23,8 +23,13 @@ export async function GET(
     }
 
     // 递归获取BOM子树（分步查询，因为BomItem没有定义Prisma关联关系）
-    async function buildBomTree(parentId: number, level: number = 0): Promise<any[]> {
-      if (level > 20) return []; // 防止无限递归
+    // 使用visited Set检测循环引用，防止无限递归
+    async function buildBomTree(parentId: number, visited: Set<number> = new Set()): Promise<any[]> {
+      // 检测循环引用：如果当前物料已在路径中出现，停止递归
+      if (visited.has(parentId)) {
+        return [];
+      }
+      visited.add(parentId);
 
       // 第1步：查询所有子件BOM关系
       const bomItems = await prisma.bomItem.findMany({
@@ -55,7 +60,7 @@ export async function GET(
         const child = childMap.get(item.childMaterialId);
         if (!child) continue;
 
-        const subChildren = await buildBomTree(child.id, level + 1);
+        const subChildren = await buildBomTree(child.id, new Set(visited));
 
         result.push({
           id: child.id,
@@ -78,7 +83,7 @@ export async function GET(
       return result;
     }
 
-    const bomTree = await buildBomTree(parseInt(materialId));
+    const bomTree = await buildBomTree(parseInt(materialId), new Set());
 
     return successResponse({
       materialId: material.id,
