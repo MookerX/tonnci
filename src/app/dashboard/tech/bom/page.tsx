@@ -2992,68 +2992,49 @@ export default function BOMManagementPage() {
                   <span className="text-gray-500 font-normal ml-2">(所属客户群组：{selectedMaterialNode.customerGroupName || '无'})</span>
                 </h4>
                 <div className="space-y-2">
-                  {/* 第一行：物料名称、图纸编码、内部编码、图号 */}
-                  <div className="flex flex-wrap gap-x-6 gap-y-1">
-                    <div className="flex items-center min-w-[180px]">
-                      <label className="text-xs text-gray-500 w-16">物料名称</label>
-                      <span className="text-sm text-gray-900 font-medium">{selectedMaterialNode.materialName || '-'}</span>
-                    </div>
-                    <div className="flex items-center min-w-[180px]">
-                      <label className="text-xs text-gray-500 w-16">图纸编码</label>
-                      <span className="text-sm text-gray-900">{selectedMaterialNode.drawingCode || '-'}</span>
-                    </div>
-                    <div className="flex items-center min-w-[180px]">
-                      <label className="text-xs text-gray-500 w-16">内部编码</label>
-                      <span className="text-sm text-gray-900 font-mono">{selectedMaterialNode.internalCode || '-'}</span>
-                    </div>
-                    <div className="flex items-center min-w-[180px]">
-                      <label className="text-xs text-gray-500 w-12">图号</label>
-                      <span className="text-sm text-gray-900">{selectedMaterialNode.drawingNo || '-'}</span>
-                    </div>
-                  </div>
-                  {/* 第二行：物料类型、重量、单位、规格 */}
-                  <div className="flex flex-wrap gap-x-6 gap-y-1">
-                    <div className="flex items-center min-w-[180px]">
-                      <label className="text-xs text-gray-500 w-16">物料类型</label>
-                      <span className="text-sm text-gray-900">{typeLabelMap[selectedMaterialNode.materialType] || selectedMaterialNode.materialType || '-'}</span>
-                    </div>
-                    <div className="flex items-center min-w-[180px]">
-                      <label className="text-xs text-gray-500 w-12">重量</label>
-                      <span className="text-sm text-gray-900">{selectedMaterialNode.weight ? `${selectedMaterialNode.weight} kg` : '-'}</span>
-                    </div>
-                    <div className="flex items-center min-w-[180px]">
-                      <label className="text-xs text-gray-500 w-12">单位</label>
-                      <span className="text-sm text-gray-900">{selectedMaterialNode.unit || '-'}</span>
-                    </div>
-                    <div className="flex items-center min-w-[180px]">
-                      <label className="text-xs text-gray-500 w-12">规格</label>
-                      <span className="text-sm text-gray-900">{selectedMaterialNode.spec || '-'}</span>
-                    </div>
-                  </div>
-                  {/* 第三行：创建者、创建时间、修改者、修改时间 */}
-                  <div className="grid grid-cols-4 gap-x-4">
-                    <div className="flex items-center">
-                      <label className="text-xs text-gray-500 w-14">创建者</label>
-                      <span className="text-sm text-gray-900 truncate">{selectedMaterialNode.materialCreatorName || '-'}</span>
-                    </div>
-                    <div className="flex items-center">
-                      <label className="text-xs text-gray-500 w-14">创建时间</label>
-                      <span className="text-sm text-gray-900">{selectedMaterialNode.materialCreatedAt ? new Date(selectedMaterialNode.materialCreatedAt).toLocaleDateString('zh-CN') : '-'}</span>
-                    </div>
-                    <div className="flex items-center">
-                      <label className="text-xs text-gray-500 w-14">修改者</label>
-                      <span className="text-sm text-gray-900 truncate">{selectedMaterialNode.materialModifierName || '-'}</span>
-                    </div>
-                    <div className="flex items-center">
-                      <label className="text-xs text-gray-500 w-14">修改时间</label>
-                      <span className="text-sm text-gray-900">{selectedMaterialNode.materialUpdatedAt ? new Date(selectedMaterialNode.materialUpdatedAt).toLocaleDateString('zh-CN') : '-'}</span>
-                    </div>
-                  </div>
-                  {/* 物料备注单独一行 */}
-                  <div className="flex items-start">
-                    <label className="text-xs text-gray-500 w-16 shrink-0">物料备注</label>
-                    <span className="text-sm text-gray-900 whitespace-pre-wrap flex-1">{selectedMaterialNode.remark || '-'}</span>
-                  </div>
+                  {/* 物料信息表格 */}
+                  <table className="w-full text-sm border-collapse">
+                    <tbody>
+                      {/* 第一行：物料名称、图纸编码、内部编码、图号 */}
+                      <tr>
+                        <td className="py-1.5 px-2 bg-gray-50 text-gray-500 w-20 border border-gray-200">物料名称</td>
+                        <td className="py-1.5 px-2 border border-gray-200 font-medium">{selectedMaterialNode.materialName || '-'}</td>
+                        <td className="py-1.5 px-2 bg-gray-50 text-gray-500 w-20 border border-gray-200">图纸编码</td>
+                        <td className="py-1.5 px-2 border border-gray-200">{selectedMaterialNode.drawingCode || '-'}</td>
+                        <td className="py-1.5 px-2 bg-gray-50 text-gray-500 w-20 border border-gray-200">内部编码</td>
+                        <td className="py-1.5 px-2 border border-gray-200 font-mono">{selectedMaterialNode.internalCode || '-'}</td>
+                        <td className="py-1.5 px-2 bg-gray-50 text-gray-500 w-16 border border-gray-200">图号</td>
+                        <td className="py-1.5 px-2 border border-gray-200">{selectedMaterialNode.drawingNo || '-'}</td>
+                      </tr>
+                      {/* 第二行：物料类型、重量、单位、规格 */}
+                      <tr>
+                        <td className="py-1.5 px-2 bg-gray-50 text-gray-500 border border-gray-200">物料类型</td>
+                        <td className="py-1.5 px-2 border border-gray-200">{typeLabelMap[selectedMaterialNode.materialType] || selectedMaterialNode.materialType || '-'}</td>
+                        <td className="py-1.5 px-2 bg-gray-50 text-gray-500 border border-gray-200">重量</td>
+                        <td className="py-1.5 px-2 border border-gray-200">{selectedMaterialNode.weight ? `${selectedMaterialNode.weight} kg` : '-'}</td>
+                        <td className="py-1.5 px-2 bg-gray-50 text-gray-500 border border-gray-200">单位</td>
+                        <td className="py-1.5 px-2 border border-gray-200">{selectedMaterialNode.unit || '-'}</td>
+                        <td className="py-1.5 px-2 bg-gray-50 text-gray-500 border border-gray-200">规格</td>
+                        <td className="py-1.5 px-2 border border-gray-200">{selectedMaterialNode.spec || '-'}</td>
+                      </tr>
+                      {/* 第三行：创建者、创建时间、修改者、修改时间 */}
+                      <tr>
+                        <td className="py-1.5 px-2 bg-gray-50 text-gray-500 border border-gray-200">创建者</td>
+                        <td className="py-1.5 px-2 border border-gray-200">{selectedMaterialNode.materialCreatorName || '-'}</td>
+                        <td className="py-1.5 px-2 bg-gray-50 text-gray-500 border border-gray-200">创建时间</td>
+                        <td className="py-1.5 px-2 border border-gray-200">{selectedMaterialNode.materialCreatedAt ? new Date(selectedMaterialNode.materialCreatedAt).toLocaleDateString('zh-CN') : '-'}</td>
+                        <td className="py-1.5 px-2 bg-gray-50 text-gray-500 border border-gray-200">修改者</td>
+                        <td className="py-1.5 px-2 border border-gray-200">{selectedMaterialNode.materialModifierName || '-'}</td>
+                        <td className="py-1.5 px-2 bg-gray-50 text-gray-500 border border-gray-200">修改时间</td>
+                        <td className="py-1.5 px-2 border border-gray-200">{selectedMaterialNode.materialUpdatedAt ? new Date(selectedMaterialNode.materialUpdatedAt).toLocaleDateString('zh-CN') : '-'}</td>
+                      </tr>
+                      {/* 物料备注单独一行 */}
+                      <tr>
+                        <td className="py-1.5 px-2 bg-gray-50 text-gray-500 border border-gray-200">物料备注</td>
+                        <td className="py-1.5 px-2 border border-gray-200 whitespace-pre-wrap" colSpan={7}>{selectedMaterialNode.remark || '-'}</td>
+                      </tr>
+                    </tbody>
+                  </table>
                 </div>
               </div>
               
