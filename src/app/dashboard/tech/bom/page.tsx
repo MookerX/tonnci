@@ -2986,55 +2986,68 @@ export default function BOMManagementPage() {
             <div className="p-6 overflow-y-auto max-h-[calc(90vh-120px)]">
               {/* 物料基本信息 */}
               <div className="mb-4">
-                <h4 className="text-sm font-semibold text-gray-600 mb-2 pb-1 border-b">物料信息</h4>
-                <div className="grid grid-cols-3 gap-3">
-                  <div>
-                    <label className="text-xs text-gray-500">物料名称</label>
-                    <p className="text-sm text-gray-900 font-medium">{selectedMaterialNode.materialName || '-'}</p>
+                <h4 className="text-sm font-semibold text-gray-600 mb-2 pb-1 border-b">
+                  物料信息
+                  <span className="text-gray-500 font-normal ml-2">(所属客户群组：{selectedMaterialNode.customerGroupName || '无'})</span>
+                </h4>
+                <div className="space-y-2">
+                  {/* 第一行：物料名称、图纸编码、内部编码、图号 */}
+                  <div className="flex flex-wrap gap-x-6 gap-y-1">
+                    <div className="flex items-center min-w-[180px]">
+                      <label className="text-xs text-gray-500 w-16">物料名称</label>
+                      <span className="text-sm text-gray-900 font-medium">{selectedMaterialNode.materialName || '-'}</span>
+                    </div>
+                    <div className="flex items-center min-w-[180px]">
+                      <label className="text-xs text-gray-500 w-16">图纸编码</label>
+                      <span className="text-sm text-gray-900">{selectedMaterialNode.drawingCode || '-'}</span>
+                    </div>
+                    <div className="flex items-center min-w-[180px]">
+                      <label className="text-xs text-gray-500 w-16">内部编码</label>
+                      <span className="text-sm text-gray-900 font-mono">{selectedMaterialNode.internalCode || '-'}</span>
+                    </div>
+                    <div className="flex items-center min-w-[180px]">
+                      <label className="text-xs text-gray-500 w-12">图号</label>
+                      <span className="text-sm text-gray-900">{selectedMaterialNode.drawingNo || '-'}</span>
+                    </div>
                   </div>
-                  <div>
-                    <label className="text-xs text-gray-500">内部编码</label>
-                    <p className="text-sm text-gray-900 font-mono">{selectedMaterialNode.internalCode || '-'}</p>
+                  {/* 第二行：物料类型、单位、规格 */}
+                  <div className="flex flex-wrap gap-x-6 gap-y-1">
+                    <div className="flex items-center min-w-[180px]">
+                      <label className="text-xs text-gray-500 w-16">物料类型</label>
+                      <span className="text-sm text-gray-900">{typeLabelMap[selectedMaterialNode.materialType] || selectedMaterialNode.materialType || '-'}</span>
+                    </div>
+                    <div className="flex items-center min-w-[180px]">
+                      <label className="text-xs text-gray-500 w-12">单位</label>
+                      <span className="text-sm text-gray-900">{selectedMaterialNode.unit || '-'}</span>
+                    </div>
+                    <div className="flex items-center min-w-[180px]">
+                      <label className="text-xs text-gray-500 w-12">规格</label>
+                      <span className="text-sm text-gray-900">{selectedMaterialNode.spec || '-'}</span>
+                    </div>
                   </div>
-                  <div>
-                    <label className="text-xs text-gray-500">图纸编码</label>
-                    <p className="text-sm text-gray-900">{selectedMaterialNode.drawingCode || '-'}</p>
+                  {/* 第三行：创建者、创建时间、修改者、修改时间 */}
+                  <div className="flex flex-wrap gap-x-6 gap-y-1">
+                    <div className="flex items-center min-w-[200px]">
+                      <label className="text-xs text-gray-500 w-16">创建者</label>
+                      <span className="text-sm text-gray-900">{selectedMaterialNode.materialCreatorName || '-'}</span>
+                    </div>
+                    <div className="flex items-center min-w-[220px]">
+                      <label className="text-xs text-gray-500 w-16">创建时间</label>
+                      <span className="text-sm text-gray-900">{selectedMaterialNode.materialCreatedAt ? new Date(selectedMaterialNode.materialCreatedAt).toLocaleString('zh-CN') : '-'}</span>
+                    </div>
+                    <div className="flex items-center min-w-[200px]">
+                      <label className="text-xs text-gray-500 w-16">修改者</label>
+                      <span className="text-sm text-gray-900">{selectedMaterialNode.materialModifierName || '-'}</span>
+                    </div>
+                    <div className="flex items-center min-w-[220px]">
+                      <label className="text-xs text-gray-500 w-16">修改时间</label>
+                      <span className="text-sm text-gray-900">{selectedMaterialNode.materialUpdatedAt ? new Date(selectedMaterialNode.materialUpdatedAt).toLocaleString('zh-CN') : '-'}</span>
+                    </div>
                   </div>
-                  <div>
-                    <label className="text-xs text-gray-500">图号</label>
-                    <p className="text-sm text-gray-900">{selectedMaterialNode.drawingNo || '-'}</p>
-                  </div>
-                  <div>
-                    <label className="text-xs text-gray-500">物料类型</label>
-                    <p className="text-sm text-gray-900">{typeLabelMap[selectedMaterialNode.materialType] || selectedMaterialNode.materialType || '-'}</p>
-                  </div>
-                  <div>
-                    <label className="text-xs text-gray-500">所属客户</label>
-                    <p className="text-sm text-gray-900">{selectedMaterialNode.customerGroupName || '-'}</p>
-                  </div>
-                  <div>
-                    <label className="text-xs text-gray-500">单位</label>
-                    <p className="text-sm text-gray-900">{selectedMaterialNode.unit || '-'}</p>
-                  </div>
-                  <div>
-                    <label className="text-xs text-gray-500">规格</label>
-                    <p className="text-sm text-gray-900">{selectedMaterialNode.spec || '-'}</p>
-                  </div>
-                  <div className="col-span-3">
-                    <label className="text-xs text-gray-500">物料备注</label>
-                    <p className="text-sm text-gray-900 whitespace-pre-wrap">{selectedMaterialNode.remark || '-'}</p>
-                  </div>
-                  <div>
-                    <label className="text-xs text-gray-500">创建者</label>
-                    <p className="text-sm text-gray-900">{selectedMaterialNode.materialCreatorName || '-'}</p>
-                  </div>
-                  <div>
-                    <label className="text-xs text-gray-500">创建时间</label>
-                    <p className="text-sm text-gray-900">{selectedMaterialNode.materialCreatedAt ? new Date(selectedMaterialNode.materialCreatedAt).toLocaleString('zh-CN') : '-'}</p>
-                  </div>
-                  <div>
-                    <label className="text-xs text-gray-500">修改者</label>
-                    <p className="text-sm text-gray-900">{selectedMaterialNode.materialModifierName || '-'}</p>
+                  {/* 物料备注单独一行 */}
+                  <div className="flex items-start">
+                    <label className="text-xs text-gray-500 w-16 shrink-0">物料备注</label>
+                    <span className="text-sm text-gray-900 whitespace-pre-wrap flex-1">{selectedMaterialNode.remark || '-'}</span>
                   </div>
                 </div>
               </div>
