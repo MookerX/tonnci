@@ -645,7 +645,7 @@ export default function BOMManagementPage() {
             childNode.internalCode || '',
             childNode.drawingCode || '',
             childNode.drawingNumber || '',
-            childNode.materialType || '',
+            typeLabelMap[childNode.materialType] || childNode.materialType || '',
             String(childNode.quantity || ''),
             childNode.bomRemark || ''
           ]);
