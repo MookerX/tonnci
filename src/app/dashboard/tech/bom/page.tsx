@@ -3065,29 +3065,29 @@ export default function BOMManagementPage() {
               
               {/* BOM相关信息 - 仅子层物料显示（有 bomItemId 表示是子层物料） */}
               {selectedMaterialNode.bomItemId && (
-                <div className="mb-6">
-                  <h4 className="text-sm font-semibold text-gray-600 mb-3 pb-2 border-b">
+                <div className="mb-4">
+                  <h4 className="text-sm font-semibold text-gray-600 mb-2 pb-1 border-b">
                     BOM信息
                     <span className="font-bold text-red-600 ml-2">(单层用量：{selectedMaterialNode.quantity || '-'})</span>
                   </h4>
-                  <div className="border border-green-300 rounded-lg overflow-hidden">
-                    <table className="w-full text-sm">
+                  <div className="border border-gray-200 rounded-lg overflow-hidden">
+                    <table className="w-full text-sm border-collapse">
                       <tbody>
                         {/* 第一行：BOM创建者、BOM创建时间、BOM修改者、BOM修改时间 */}
                         <tr>
-                          <td className="py-1.5 px-2 bg-green-50 text-gray-500 border border-green-200">BOM创建者</td>
-                          <td className="py-1.5 px-2 border border-green-200">{selectedMaterialNode.bomCreatorName || '-'}</td>
-                          <td className="py-1.5 px-2 bg-green-50 text-gray-500 border border-green-200">BOM创建时间</td>
-                          <td className="py-1.5 px-2 border border-green-200">{selectedMaterialNode.bomCreatedAt ? new Date(selectedMaterialNode.bomCreatedAt).toLocaleDateString('zh-CN') : '-'}</td>
-                          <td className="py-1.5 px-2 bg-green-50 text-gray-500 border border-green-200">BOM修改者</td>
-                          <td className="py-1.5 px-2 border border-green-200">{selectedMaterialNode.bomModifierName || '-'}</td>
-                          <td className="py-1.5 px-2 bg-green-50 text-gray-500 border border-green-200">BOM修改时间</td>
-                          <td className="py-1.5 px-2 border border-green-200">{selectedMaterialNode.bomUpdatedAt ? new Date(selectedMaterialNode.bomUpdatedAt).toLocaleDateString('zh-CN') : '-'}</td>
+                          <td className="py-1.5 px-2 bg-gray-50 text-gray-500 border border-gray-200">BOM创建者</td>
+                          <td className="py-1.5 px-2 border border-gray-200">{selectedMaterialNode.bomCreatorName || '-'}</td>
+                          <td className="py-1.5 px-2 bg-gray-50 text-gray-500 border border-gray-200">BOM创建时间</td>
+                          <td className="py-1.5 px-2 border border-gray-200">{selectedMaterialNode.bomCreatedAt ? new Date(selectedMaterialNode.bomCreatedAt).toLocaleDateString('zh-CN') : '-'}</td>
+                          <td className="py-1.5 px-2 bg-gray-50 text-gray-500 border border-gray-200">BOM修改者</td>
+                          <td className="py-1.5 px-2 border border-gray-200">{selectedMaterialNode.bomModifierName || '-'}</td>
+                          <td className="py-1.5 px-2 bg-gray-50 text-gray-500 border border-gray-200">BOM修改时间</td>
+                          <td className="py-1.5 px-2 border border-gray-200">{selectedMaterialNode.bomUpdatedAt ? new Date(selectedMaterialNode.bomUpdatedAt).toLocaleDateString('zh-CN') : '-'}</td>
                         </tr>
                         {/* 第二行：BOM备注 */}
                         <tr>
-                          <td className="py-1.5 px-2 bg-green-50 text-gray-500 border border-green-200">BOM备注</td>
-                          <td className="py-1.5 px-2 border border-green-200 whitespace-pre-wrap" colSpan={7}>{selectedMaterialNode.bomRemark || '-'}</td>
+                          <td className="py-1.5 px-2 bg-gray-50 text-gray-500 border border-gray-200">BOM备注</td>
+                          <td className="py-1.5 px-2 border border-gray-200 whitespace-pre-wrap" colSpan={7}>{selectedMaterialNode.bomRemark || '-'}</td>
                         </tr>
                       </tbody>
                     </table>
