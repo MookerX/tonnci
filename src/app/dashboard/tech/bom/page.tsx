@@ -445,7 +445,7 @@ export default function BOMManagementPage() {
                 <span className="text-gray-600 truncate">{typeLabelMap[item.materialType] || item.materialType || '-'}</span>
               </div>
               {/* 用量 */}
-              <div className="flex-shrink-0 truncate px-1 text-right" style={{ width: `${detailColumnWidths.quantity}px` }}>
+              <div className="flex-shrink-0 truncate px-1" style={{ width: `${detailColumnWidths.quantity}px` }}>
                 <span className="text-gray-800 font-medium truncate">{item.quantity || '-'}</span>
               </div>
               {/* BOM备注 */}
@@ -3410,7 +3410,7 @@ export default function BOMManagementPage() {
                           />
                         </div>
                         {/* 用量 */}
-                        <div className="flex-shrink-0 px-1 text-right relative group" style={{ width: `${detailColumnWidths.quantity}px` }}>
+                        <div className="flex-shrink-0 px-1 relative group" style={{ width: `${detailColumnWidths.quantity}px` }}>
                           <span className="font-medium text-gray-600 truncate">用量</span>
                           <div 
                             className="absolute right-0 top-0 bottom-0 w-2 cursor-col-resize hover:bg-blue-400 group-hover:bg-blue-300 z-10"
