@@ -266,28 +266,90 @@ export default function BOMManagementPage() {
   const [loadingBomTree, setLoadingBomTree] = useState(false);
   const [isDetailModalMaximized, setIsDetailModalMaximized] = useState(false);
   
-  // 渲染BOM子树表格行（递归）
-  const renderBomTreeRows = (items: any[], level: number) => {
+  // 弹窗中的层级样式配置（与主页面一致）
+  const detailLevelColors = [
+    'bg-white',       // 0级：白色
+    'bg-blue-50',     // 1级：浅蓝
+    'bg-green-50',    // 2级：浅绿
+    'bg-yellow-50',   // 3级：浅黄
+    'bg-purple-50',   // 4级：浅紫
+    'bg-pink-50',     // 5级：浅粉
+  ];
+  const detailLevelFontSizes = [
+    'text-sm',        // 0级：正常
+    'text-sm',        // 1级：稍小
+    'text-xs',        // 2级：较小
+    'text-xs',        // 3级：更小
+    'text-xs',        // 4级：更小
+    'text-xs',        // 5级：最小
+  ];
+  const detailLevelPadding = [
+    'py-2.5',         // 0级：正常
+    'py-2',           // 1级：稍小
+    'py-1.5',         // 2级：较小
+    'py-1.5',         // 3级：更小
+    'py-1',           // 4级：更小
+    'py-1',           // 5级：最小
+  ];
+
+  // 渲染BOM子树表格行（递归）- 样式与主BOM页面一致
+  const renderBomTreeRows = (items: any[], level: number = 0) => {
+    const levelIndex = Math.min(level, detailLevelColors.length - 1);
+    
     return items.map((item: any) => {
       const hasChildren = item.children && item.children.length > 0;
+      const bgColor = detailLevelColors[levelIndex];
+      const fontSize = detailLevelFontSizes[levelIndex];
+      const paddingY = detailLevelPadding[levelIndex];
+      
       return (
         <React.Fragment key={item.materialId || item.id}>
-          <tr className="border-b border-border/50 hover:bg-muted/30">
-            <td className="px-3 py-2 text-sm" style={{ paddingLeft: `${12 + level * 20}px` }}>
-              <div className="flex items-center gap-1">
-                {hasChildren && (
-                  <span className="text-muted-foreground text-xs">▼</span>
-                )}
-                <span className="font-medium text-foreground">{item.materialName || '-'}</span>
+          {/* 数据行 */}
+          <div className={`flex items-center border-b border-gray-200 hover:brightness-95 transition-all ${bgColor}`}
+               style={{ paddingLeft: `${level * 20 + 8}px` }}>
+            {/* 展开/折叠图标 */}
+            <div className="w-8 flex-shrink-0 flex items-center justify-center">
+              {hasChildren ? (
+                <span className="text-gray-400 text-xs">▼</span>
+              ) : (
+                <span className="w-4 h-4" />
+              )}
+            </div>
+            
+            {/* 数据列 */}
+            <div className={`flex-1 flex items-center ${paddingY} ${fontSize} min-w-0`}>
+              {/* 物料名称 */}
+              <div className="flex-shrink-0 truncate px-1" style={{ width: '200px' }}>
+                <span className="font-medium text-gray-800 truncate">{item.materialName || '-'}</span>
               </div>
-            </td>
-            <td className="px-3 py-2 text-sm text-foreground font-mono">{item.internalCode || '-'}</td>
-            <td className="px-3 py-2 text-sm text-foreground">{item.drawingCode || '-'}</td>
-            <td className="px-3 py-2 text-sm text-foreground">{item.drawingNo || '-'}</td>
-            <td className="px-3 py-2 text-sm text-foreground">{typeLabelMap[item.materialType] || item.materialType || '-'}</td>
-            <td className="px-3 py-2 text-sm text-foreground text-right">{item.quantity || '-'}</td>
-            <td className="px-3 py-2 text-sm text-muted-foreground">{item.bomRemark || '-'}</td>
-          </tr>
+              {/* 内部编码 */}
+              <div className="flex-shrink-0 truncate px-1" style={{ width: '100px' }}>
+                <span className="text-gray-600 font-mono truncate">{item.internalCode || '-'}</span>
+              </div>
+              {/* 图纸编码 */}
+              <div className="flex-shrink-0 truncate px-1" style={{ width: '100px' }}>
+                <span className="text-gray-600 truncate">{item.drawingCode || '-'}</span>
+              </div>
+              {/* 图号 */}
+              <div className="flex-shrink-0 truncate px-1" style={{ width: '60px' }}>
+                <span className="text-gray-600 truncate">{item.drawingNo || '-'}</span>
+              </div>
+              {/* 类型 */}
+              <div className="flex-shrink-0 truncate px-1" style={{ width: '60px' }}>
+                <span className="text-gray-600 truncate">{typeLabelMap[item.materialType] || item.materialType || '-'}</span>
+              </div>
+              {/* 用量 */}
+              <div className="flex-shrink-0 truncate px-1 text-right" style={{ width: '60px' }}>
+                <span className="text-gray-800 font-medium truncate">{item.quantity || '-'}</span>
+              </div>
+              {/* BOM备注 */}
+              <div className="flex-shrink-0 truncate px-1" style={{ width: '100px' }}>
+                <span className="text-gray-500 truncate">{item.bomRemark || '-'}</span>
+              </div>
+            </div>
+          </div>
+          
+          {/* 子节点 */}
           {hasChildren && renderBomTreeRows(item.children, level + 1)}
         </React.Fragment>
       );
@@ -3103,22 +3165,32 @@ export default function BOMManagementPage() {
                     <div className="text-center py-4 text-sm text-gray-400">加载中...</div>
                   ) : (
                     <div className="border border-gray-200 rounded-lg overflow-hidden">
-                      <table className="w-full text-sm">
-                        <thead className="bg-gray-50">
-                          <tr>
-                            <th className="text-left px-3 py-2 font-medium text-gray-600" style={{minWidth: '200px'}}>物料名称</th>
-                            <th className="text-left px-3 py-2 font-medium text-gray-600" style={{minWidth: '100px'}}>内部编码</th>
-                            <th className="text-left px-3 py-2 font-medium text-gray-600" style={{minWidth: '100px'}}>图纸编码</th>
-                            <th className="text-left px-3 py-2 font-medium text-gray-600" style={{minWidth: '60px'}}>图号</th>
-                            <th className="text-left px-3 py-2 font-medium text-gray-600" style={{minWidth: '60px'}}>类型</th>
-                            <th className="text-right px-3 py-2 font-medium text-gray-600" style={{minWidth: '60px'}}>用量</th>
-                            <th className="text-left px-3 py-2 font-medium text-gray-600" style={{minWidth: '100px'}}>BOM备注</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {renderBomTreeRows(materialBomTree, 0)}
-                        </tbody>
-                      </table>
+                      {/* 表头 */}
+                      <div className="flex items-center bg-gray-50 border-b border-gray-200 py-2 pl-8">
+                        <div className="flex-shrink-0 px-1" style={{ width: '200px' }}>
+                          <span className="font-medium text-gray-600">物料名称</span>
+                        </div>
+                        <div className="flex-shrink-0 px-1" style={{ width: '100px' }}>
+                          <span className="font-medium text-gray-600">内部编码</span>
+                        </div>
+                        <div className="flex-shrink-0 px-1" style={{ width: '100px' }}>
+                          <span className="font-medium text-gray-600">图纸编码</span>
+                        </div>
+                        <div className="flex-shrink-0 px-1" style={{ width: '60px' }}>
+                          <span className="font-medium text-gray-600">图号</span>
+                        </div>
+                        <div className="flex-shrink-0 px-1" style={{ width: '60px' }}>
+                          <span className="font-medium text-gray-600">类型</span>
+                        </div>
+                        <div className="flex-shrink-0 px-1 text-right" style={{ width: '60px' }}>
+                          <span className="font-medium text-gray-600">用量</span>
+                        </div>
+                        <div className="flex-shrink-0 px-1" style={{ width: '100px' }}>
+                          <span className="font-medium text-gray-600">BOM备注</span>
+                        </div>
+                      </div>
+                      {/* 数据行 */}
+                      {renderBomTreeRows(materialBomTree, 0)}
                     </div>
                   )}
                 </div>
