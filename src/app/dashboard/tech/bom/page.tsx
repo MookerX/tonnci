@@ -614,13 +614,13 @@ export default function BOMManagementPage() {
       const data = await res.json();
       
       if (data.code !== 200 || !data.data) {
-        toast.error('获取BOM数据失败');
+        error('获取BOM数据失败');
         return;
       }
 
       const bomTree = data.data.bomTree || [];
       if (bomTree.length === 0) {
-        toast.error('该物料没有BOM子件');
+        error('该物料没有BOM子件');
         return;
       }
 
@@ -677,10 +677,10 @@ export default function BOMManagementPage() {
       link.click();
       window.URL.revokeObjectURL(url);
 
-      toast.success('BOM导出成功');
+      success('BOM导出成功');
     } catch (e) {
       console.error('导出BOM失败', e);
-      toast.error('导出BOM失败');
+      error('导出BOM失败');
     }
   };
 
