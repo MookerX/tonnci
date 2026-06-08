@@ -3014,7 +3014,7 @@ export default function BOMManagementPage() {
               <div className="mb-4">
                 <h4 className="text-sm font-semibold text-gray-600 mb-2 pb-1 border-b">
                   物料信息
-                  <span className="text-gray-500 font-normal ml-2">(所属客户群组：{selectedMaterialNode.customerGroupName || '无'})</span>
+                  <span className="font-bold text-red-600 ml-2">(所属客户群组：{selectedMaterialNode.customerGroupName || '无'})</span>
                 </h4>
                 <div className="border border-gray-200 rounded-lg overflow-hidden">
                   {/* 物料信息表格 */}
