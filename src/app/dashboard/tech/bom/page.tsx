@@ -268,6 +268,60 @@ export default function BOMManagementPage() {
   // 弹窗中BOM子树的展开状态
   const [detailExpandedKeys, setDetailExpandedKeys] = useState<Set<string>>(new Set());
   
+  // 弹窗中BOM子件列表的列宽配置（可拖拽调整）
+  const [detailColumnWidths, setDetailColumnWidths] = useState({
+    materialName: 200,
+    internalCode: 100,
+    drawingCode: 100,
+    drawingNo: 60,
+    materialType: 60,
+    quantity: 60,
+    bomRemark: 100,
+    // 操作列固定宽度，不可调整
+    operation: 130,
+  });
+  
+  // 弹窗列宽拖拽调整相关状态
+  const [detailResizingColumn, setDetailResizingColumn] = useState<string | null>(null);
+  const [detailResizeStartX, setDetailResizeStartX] = useState(0);
+  const [detailResizeStartWidth, setDetailResizeStartWidth] = useState(0);
+  
+  // 开始拖拽调整列宽
+  const handleDetailColumnResizeStart = (e: React.MouseEvent, columnKey: string) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDetailResizingColumn(columnKey);
+    setDetailResizeStartX(e.clientX);
+    setDetailResizeStartWidth(detailColumnWidths[columnKey as keyof typeof detailColumnWidths] || 100);
+  };
+  
+  // 拖拽过程中更新列宽
+  useEffect(() => {
+    if (!detailResizingColumn) return;
+    
+    const handleMouseMove = (e: MouseEvent) => {
+      const delta = e.clientX - detailResizeStartX;
+      const newWidth = Math.max(40, Math.min(400, detailResizeStartWidth + delta)); // 最小40px，最大400px
+      
+      setDetailColumnWidths(prev => ({
+        ...prev,
+        [detailResizingColumn]: newWidth,
+      }));
+    };
+    
+    const handleMouseUp = () => {
+      setDetailResizingColumn(null);
+    };
+    
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+    
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [detailResizingColumn, detailResizeStartX, detailResizeStartWidth]);
+  
   // 弹窗中BOM子树展开/折叠切换
   const toggleDetailExpand = (key: string) => {
     setDetailExpandedKeys(prev => {
@@ -371,36 +425,36 @@ export default function BOMManagementPage() {
             {/* 数据列 */}
             <div className={`flex-1 flex items-center ${paddingY} ${fontSize} min-w-0`}>
               {/* 物料名称 */}
-              <div className="flex-shrink-0 truncate px-1" style={{ width: '200px' }}>
+              <div className="flex-shrink-0 truncate px-1" style={{ width: `${detailColumnWidths.materialName}px` }}>
                 <span className="font-medium text-gray-800 truncate">{item.materialName || '-'}</span>
               </div>
               {/* 内部编码 */}
-              <div className="flex-shrink-0 truncate px-1" style={{ width: '100px' }}>
+              <div className="flex-shrink-0 truncate px-1" style={{ width: `${detailColumnWidths.internalCode}px` }}>
                 <span className="text-gray-600 font-mono truncate">{item.internalCode || '-'}</span>
               </div>
               {/* 图纸编码 */}
-              <div className="flex-shrink-0 truncate px-1" style={{ width: '100px' }}>
+              <div className="flex-shrink-0 truncate px-1" style={{ width: `${detailColumnWidths.drawingCode}px` }}>
                 <span className="text-gray-600 truncate">{item.drawingCode || '-'}</span>
               </div>
               {/* 图号 */}
-              <div className="flex-shrink-0 truncate px-1" style={{ width: '60px' }}>
+              <div className="flex-shrink-0 truncate px-1" style={{ width: `${detailColumnWidths.drawingNo}px` }}>
                 <span className="text-gray-600 truncate">{item.drawingNo || '-'}</span>
               </div>
               {/* 类型 */}
-              <div className="flex-shrink-0 truncate px-1" style={{ width: '60px' }}>
+              <div className="flex-shrink-0 truncate px-1" style={{ width: `${detailColumnWidths.materialType}px` }}>
                 <span className="text-gray-600 truncate">{typeLabelMap[item.materialType] || item.materialType || '-'}</span>
               </div>
               {/* 用量 */}
-              <div className="flex-shrink-0 truncate px-1 text-right" style={{ width: '60px' }}>
+              <div className="flex-shrink-0 truncate px-1 text-right" style={{ width: `${detailColumnWidths.quantity}px` }}>
                 <span className="text-gray-800 font-medium truncate">{item.quantity || '-'}</span>
               </div>
               {/* BOM备注 */}
-              <div className="flex-shrink-0 truncate px-1" style={{ width: '100px' }}>
+              <div className="flex-shrink-0 truncate px-1" style={{ width: `${detailColumnWidths.bomRemark}px` }}>
                 <span className="text-gray-500 truncate">{item.bomRemark || '-'}</span>
               </div>
               
               {/* 操作列 */}
-              <div className="flex-shrink-0 flex items-center justify-center gap-0.5 px-1" style={{ width: '130px' }}>
+              <div className="flex-shrink-0 flex items-center justify-center gap-0.5 px-1" style={{ width: `${detailColumnWidths.operation}px` }}>
                 {/* 编辑 */}
                 <button
                   onClick={() => handleEditMaterial(treeNode)}
@@ -2422,7 +2476,7 @@ export default function BOMManagementPage() {
                         {canResize && (
                           <div
                             className="absolute right-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-blue-400 transition-colors"
-                            onMouseDown={(e) => handleColumnResizeStart(e, col.key)}
+                            onMouseDown={(e) => handleDetailColumnResizeStart(e, col.key)}
                           />
                         )}
                       </div>
@@ -3313,31 +3367,66 @@ export default function BOMManagementPage() {
                     <div className="text-center py-4 text-sm text-gray-400">加载中...</div>
                   ) : (
                     <div className="border border-gray-200 rounded-lg overflow-hidden">
-                      {/* 表头 */}
-                      <div className="flex items-center bg-gray-50 border-b border-gray-200 py-2 pl-8">
-                        <div className="flex-shrink-0 px-1" style={{ width: '200px' }}>
-                          <span className="font-medium text-gray-600">物料名称</span>
+                      {/* 表头 - 可拖拽调整列宽 */}
+                      <div className="flex items-center bg-gray-50 border-b border-gray-200 py-2 pl-8 select-none">
+                        {/* 物料名称 */}
+                        <div className="flex-shrink-0 px-1 relative group" style={{ width: `${detailColumnWidths.materialName}px` }}>
+                          <span className="font-medium text-gray-600 truncate">物料名称</span>
+                          <div 
+                            className="absolute right-0 top-0 bottom-0 w-2 cursor-col-resize hover:bg-blue-400 group-hover:bg-blue-300 z-10"
+                            onMouseDown={(e) => handleDetailColumnResizeStart(e, 'materialName')}
+                          />
                         </div>
-                        <div className="flex-shrink-0 px-1" style={{ width: '100px' }}>
-                          <span className="font-medium text-gray-600">内部编码</span>
+                        {/* 内部编码 */}
+                        <div className="flex-shrink-0 px-1 relative group" style={{ width: `${detailColumnWidths.internalCode}px` }}>
+                          <span className="font-medium text-gray-600 truncate">内部编码</span>
+                          <div 
+                            className="absolute right-0 top-0 bottom-0 w-2 cursor-col-resize hover:bg-blue-400 group-hover:bg-blue-300 z-10"
+                            onMouseDown={(e) => handleDetailColumnResizeStart(e, 'internalCode')}
+                          />
                         </div>
-                        <div className="flex-shrink-0 px-1" style={{ width: '100px' }}>
-                          <span className="font-medium text-gray-600">图纸编码</span>
+                        {/* 图纸编码 */}
+                        <div className="flex-shrink-0 px-1 relative group" style={{ width: `${detailColumnWidths.drawingCode}px` }}>
+                          <span className="font-medium text-gray-600 truncate">图纸编码</span>
+                          <div 
+                            className="absolute right-0 top-0 bottom-0 w-2 cursor-col-resize hover:bg-blue-400 group-hover:bg-blue-300 z-10"
+                            onMouseDown={(e) => handleDetailColumnResizeStart(e, 'drawingCode')}
+                          />
                         </div>
-                        <div className="flex-shrink-0 px-1" style={{ width: '60px' }}>
-                          <span className="font-medium text-gray-600">图号</span>
+                        {/* 图号 */}
+                        <div className="flex-shrink-0 px-1 relative group" style={{ width: `${detailColumnWidths.drawingNo}px` }}>
+                          <span className="font-medium text-gray-600 truncate">图号</span>
+                          <div 
+                            className="absolute right-0 top-0 bottom-0 w-2 cursor-col-resize hover:bg-blue-400 group-hover:bg-blue-300 z-10"
+                            onMouseDown={(e) => handleDetailColumnResizeStart(e, 'drawingNo')}
+                          />
                         </div>
-                        <div className="flex-shrink-0 px-1" style={{ width: '60px' }}>
-                          <span className="font-medium text-gray-600">类型</span>
+                        {/* 类型 */}
+                        <div className="flex-shrink-0 px-1 relative group" style={{ width: `${detailColumnWidths.materialType}px` }}>
+                          <span className="font-medium text-gray-600 truncate">类型</span>
+                          <div 
+                            className="absolute right-0 top-0 bottom-0 w-2 cursor-col-resize hover:bg-blue-400 group-hover:bg-blue-300 z-10"
+                            onMouseDown={(e) => handleDetailColumnResizeStart(e, 'materialType')}
+                          />
                         </div>
-                        <div className="flex-shrink-0 px-1 text-right" style={{ width: '60px' }}>
-                          <span className="font-medium text-gray-600">用量</span>
+                        {/* 用量 */}
+                        <div className="flex-shrink-0 px-1 text-right relative group" style={{ width: `${detailColumnWidths.quantity}px` }}>
+                          <span className="font-medium text-gray-600 truncate">用量</span>
+                          <div 
+                            className="absolute right-0 top-0 bottom-0 w-2 cursor-col-resize hover:bg-blue-400 group-hover:bg-blue-300 z-10"
+                            onMouseDown={(e) => handleDetailColumnResizeStart(e, 'quantity')}
+                          />
                         </div>
-                        <div className="flex-shrink-0 px-1" style={{ width: '100px' }}>
-                          <span className="font-medium text-gray-600">BOM备注</span>
+                        {/* BOM备注 */}
+                        <div className="flex-shrink-0 px-1 relative group" style={{ width: `${detailColumnWidths.bomRemark}px` }}>
+                          <span className="font-medium text-gray-600 truncate">BOM备注</span>
+                          <div 
+                            className="absolute right-0 top-0 bottom-0 w-2 cursor-col-resize hover:bg-blue-400 group-hover:bg-blue-300 z-10"
+                            onMouseDown={(e) => handleDetailColumnResizeStart(e, 'bomRemark')}
+                          />
                         </div>
-                        {/* 操作列 */}
-                        <div className="flex-shrink-0 px-1 flex items-center justify-center" style={{ width: '130px' }}>
+                        {/* 操作列 - 固定宽度 */}
+                        <div className="flex-shrink-0 px-1 flex items-center justify-center" style={{ width: `${detailColumnWidths.operation}px` }}>
                           <span className="font-medium text-gray-600">操作</span>
                         </div>
                       </div>
