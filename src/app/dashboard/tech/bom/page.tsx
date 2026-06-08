@@ -2476,7 +2476,7 @@ export default function BOMManagementPage() {
                         {canResize && (
                           <div
                             className="absolute right-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-blue-400 transition-colors"
-                            onMouseDown={(e) => handleDetailColumnResizeStart(e, col.key)}
+                            onMouseDown={(e) => handleColumnResizeStart(e, col.key)}
                           />
                         )}
                       </div>
