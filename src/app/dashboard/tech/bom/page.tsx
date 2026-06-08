@@ -466,6 +466,31 @@ export default function BOMManagementPage() {
     return keys;
   };
 
+  // 刷新物料详情弹窗中的BOM子树数据
+  const refreshMaterialDetailBomTree = async () => {
+    if (!selectedMaterialNode || !showMaterialDetailModal) return;
+    
+    setLoadingBomTree(true);
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch(`/api/bom/${selectedMaterialNode.id}/bom-tree`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const data = await res.json();
+      if (data.code === 200 && data.data) {
+        const bomTree = data.data.bomTree || [];
+        setMaterialBomTree(bomTree);
+        // 默认全部展开
+        const allKeys = collectAllNodeKeys(bomTree);
+        setDetailExpandedKeys(new Set(allKeys));
+      }
+    } catch (e) {
+      console.error('刷新BOM子树失败', e);
+    } finally {
+      setLoadingBomTree(false);
+    }
+  };
+
   // 打开物料详情弹窗
   const handleShowMaterialDetail = async (node: TreeNode) => {
     setSelectedMaterialNode(node);
@@ -1435,6 +1460,9 @@ export default function BOMManagementPage() {
         const newTreeData = await fetchBOMTree();
         fetchMaterials();
         
+        // 刷新物料详情弹窗中的BOM子树数据
+        refreshMaterialDetailBomTree();
+        
         // 展开父物料并定位到子件
         const savedMaterialId = selectedExistingMaterial.id;
         const parentId = parentMaterialId;
@@ -1653,6 +1681,9 @@ export default function BOMManagementPage() {
       const newTreeData = await fetchBOMTree();
       fetchMaterials();
       
+      // 刷新物料详情弹窗中的BOM子树数据
+      refreshMaterialDetailBomTree();
+      
       if (savedMaterialId) {
         // 先找父物料是否存在
         const findNodeById = (nodes: TreeNode[], id: number): TreeNode | null => {
@@ -1787,6 +1818,8 @@ export default function BOMManagementPage() {
     if (res?.code === 200) {
       fetchBOMTree();
       fetchMaterials();
+      // 刷新物料详情弹窗中的BOM子树数据
+      refreshMaterialDetailBomTree();
     } else {
       error(res?.message || '删除失败');
     }
