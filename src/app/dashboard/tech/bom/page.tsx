@@ -545,6 +545,62 @@ export default function BOMManagementPage() {
     }
   };
 
+  // 导出BOM为CSV
+  const handleExportBomCsv = () => {
+    if (!selectedMaterialNode || materialBomTree.length === 0) return;
+
+    // 构建文件名：图纸编码+内部编码+物料名称
+    const drawingCode = selectedMaterialNode.drawingCode || '';
+    const internalCode = selectedMaterialNode.internalCode || '';
+    const materialName = selectedMaterialNode.materialName || '';
+    const fileName = `${drawingCode}${internalCode}${materialName}.csv`;
+
+    // CSV表头
+    const headers = ['层级', '物料名称', '内部编码', '图纸编码', '图号', '类型', '用量', 'BOM备注'];
+
+    // 递归收集所有节点数据
+    const rows: string[][] = [];
+    const collectRows = (nodes: any[], level: number) => {
+      nodes.forEach(node => {
+        rows.push([
+          String(level),
+          node.materialName || '',
+          node.internalCode || '',
+          node.drawingCode || '',
+          node.drawingNumber || '',
+          node.materialType || '',
+          String(node.quantity || ''),
+          node.bomRemark || ''
+        ]);
+        if (node.children && node.children.length > 0) {
+          collectRows(node.children, level + 1);
+        }
+      });
+    };
+    collectRows(materialBomTree, 1);
+
+    // 构建CSV内容
+    const csvContent = [
+      headers.join(','),
+      ...rows.map(row => row.map(cell => {
+        // 处理包含逗号或引号的单元格
+        if (cell.includes(',') || cell.includes('"') || cell.includes('\n')) {
+          return `"${cell.replace(/"/g, '""')}"`;
+        }
+        return cell;
+      }).join(','))
+    ].join('\n');
+
+    // 创建Blob并下载
+    const blob = new Blob(['\ufeff' + csvContent], { type: 'text/csv;charset=utf-8' });
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = fileName;
+    link.click();
+    window.URL.revokeObjectURL(url);
+  };
+
   // 打开物料详情弹窗
   const handleShowMaterialDetail = async (node: TreeNode) => {
     setSelectedMaterialNode(node);
@@ -3362,7 +3418,17 @@ export default function BOMManagementPage() {
               {/* BOM子件树 - 当物料有子件时显示 */}
               {(materialBomTree.length > 0 || loadingBomTree) && (
                 <div className="mb-4">
-                  <h4 className="text-sm font-semibold text-gray-600 mb-2 pb-1 border-b">BOM子件结构</h4>
+                  <div className="flex items-center justify-between mb-2 pb-1 border-b">
+                    <h4 className="text-sm font-semibold text-gray-600">BOM子件结构</h4>
+                    <button
+                      onClick={handleExportBomCsv}
+                      disabled={materialBomTree.length === 0}
+                      className="flex items-center gap-1 px-3 py-1 text-xs bg-blue-500 text-white rounded hover:bg-blue-600 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
+                    >
+                      <Download className="w-3 h-3" />
+                      导出BOM
+                    </button>
+                  </div>
                   {loadingBomTree ? (
                     <div className="text-center py-4 text-sm text-gray-400">加载中...</div>
                   ) : (
