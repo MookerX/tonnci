@@ -558,12 +558,14 @@ export default function BOMManagementPage() {
     // CSV表头
     const headers = ['层级', '物料名称', '内部编码', '图纸编码', '图号', '类型', '用量', 'BOM备注'];
 
-    // 递归收集所有节点数据
+    // 递归收集所有节点数据，生成位置编号层级（如1, 1.1, 1.1.1）
     const rows: string[][] = [];
-    const collectRows = (nodes: any[], level: number) => {
-      nodes.forEach(node => {
+    const collectRows = (nodes: any[], levelPrefix: string) => {
+      nodes.forEach((node, index) => {
+        // 生成层级编号：第一层为1,2,3...，子层为父编号.子序号
+        const levelNumber = levelPrefix ? `${levelPrefix}.${index + 1}` : `${index + 1}`;
         rows.push([
-          String(level),
+          levelNumber,
           node.materialName || '',
           node.internalCode || '',
           node.drawingCode || '',
@@ -573,11 +575,11 @@ export default function BOMManagementPage() {
           node.bomRemark || ''
         ]);
         if (node.children && node.children.length > 0) {
-          collectRows(node.children, level + 1);
+          collectRows(node.children, levelNumber);
         }
       });
     };
-    collectRows(materialBomTree, 1);
+    collectRows(materialBomTree, '');
 
     // 构建CSV内容
     const csvContent = [
