@@ -381,6 +381,20 @@ export default function BOMManagementPage() {
     });
   };
 
+  // 收集BOM子树中所有节点的key（用于默认全部展开）
+  const collectAllNodeKeys = (items: any[], parentKey: string = ''): string[] => {
+    const keys: string[] = [];
+    items.forEach((item: any) => {
+      const nodeKey = `detail_node_${item.materialId || item.id}`;
+      const fullKey = parentKey ? `${parentKey}_${nodeKey}` : nodeKey;
+      keys.push(fullKey);
+      if (item.children && item.children.length > 0) {
+        keys.push(...collectAllNodeKeys(item.children, fullKey));
+      }
+    });
+    return keys;
+  };
+
   // 打开物料详情弹窗
   const handleShowMaterialDetail = async (node: TreeNode) => {
     setSelectedMaterialNode(node);
@@ -395,7 +409,11 @@ export default function BOMManagementPage() {
       });
       const data = await res.json();
       if (data.code === 200 && data.data) {
-        setMaterialBomTree(data.data.bomTree || []);
+        const bomTree = data.data.bomTree || [];
+        setMaterialBomTree(bomTree);
+        // 默认全部展开
+        const allKeys = collectAllNodeKeys(bomTree);
+        setDetailExpandedKeys(new Set(allKeys));
       }
     } catch (e) {
       console.error('加载BOM子树失败', e);
