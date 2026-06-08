@@ -318,6 +318,33 @@ export default function BOMManagementPage() {
       const fontSize = detailLevelFontSizes[levelIndex];
       const paddingY = detailLevelPadding[levelIndex];
       
+      // 构建TreeNode格式用于操作按钮
+      const treeNode: TreeNode = {
+        id: item.materialId || item.id,
+        materialName: item.materialName || '',
+        internalCode: item.internalCode || '',
+        drawingCode: item.drawingCode || '',
+        drawingNo: item.drawingNo || '',
+        materialType: item.materialType || '',
+        quantity: item.quantity || '',
+        groupId: item.groupId || null,
+        customerGroupName: item.customerGroupName || '',
+        remark: item.remark || '',
+        bomRemark: item.bomRemark || '',
+        bomItemId: item.bomItemId || null,
+        bomCreatorName: item.bomCreatorName || '',
+        bomCreatedAt: item.bomCreatedAt || null,
+        bomModifierName: item.bomModifierName || '',
+        bomUpdatedAt: item.bomUpdatedAt || null,
+        materialCreatorName: item.materialCreatorName || '',
+        materialCreatedAt: item.materialCreatedAt || null,
+        materialModifierName: item.materialModifierName || '',
+        materialUpdatedAt: item.materialUpdatedAt || null,
+        hasChildren: hasChildren,
+        hasParent: true,
+        children: item.children || [],
+      };
+      
       return (
         <div key={fullKey}>
           {/* 数据行 */}
@@ -370,6 +397,50 @@ export default function BOMManagementPage() {
               {/* BOM备注 */}
               <div className="flex-shrink-0 truncate px-1" style={{ width: '100px' }}>
                 <span className="text-gray-500 truncate">{item.bomRemark || '-'}</span>
+              </div>
+              
+              {/* 操作列 */}
+              <div className="flex-shrink-0 flex items-center justify-center gap-0.5 px-1" style={{ width: '130px' }}>
+                {/* 编辑 */}
+                <button
+                  onClick={() => handleEditMaterial(treeNode)}
+                  className="p-1 text-amber-600 hover:bg-amber-100 rounded transition-colors"
+                  title="编辑"
+                >
+                  <Edit2 className={`w-4 h-4 ${level > 0 ? 'w-3 h-3' : ''}`} />
+                </button>
+                {/* 添加子物料 */}
+                <button
+                  onClick={() => handleAddChildMaterial(treeNode.id, treeNode.groupId ?? null, treeNode.drawingCode || '', treeNode.materialName)}
+                  className="p-1 text-green-600 hover:bg-green-100 rounded transition-colors"
+                  title="添加子物料"
+                >
+                  <Plus className={`w-4 h-4 ${level > 0 ? 'w-3 h-3' : ''}`} />
+                </button>
+                {/* 查看图纸 */}
+                <button
+                  onClick={() => {/* TODO: 查看图纸 */}}
+                  className="p-1 text-blue-600 hover:bg-blue-100 rounded transition-colors"
+                  title="查看图纸"
+                >
+                  <FileText className={`w-4 h-4 ${level > 0 ? 'w-3 h-3' : ''}`} />
+                </button>
+                {/* 查看工艺 */}
+                <button
+                  onClick={() => {/* TODO: 查看工艺 */}}
+                  className="p-1 text-purple-600 hover:bg-purple-100 rounded transition-colors"
+                  title="查看工艺"
+                >
+                  <Settings2 className={`w-4 h-4 ${level > 0 ? 'w-3 h-3' : ''}`} />
+                </button>
+                {/* 删除 */}
+                <button
+                  onClick={() => handleDeleteMaterial(treeNode)}
+                  className="p-1 text-red-600 hover:bg-red-100 rounded transition-colors"
+                  title="删除"
+                >
+                  <Trash2 className={`w-4 h-4 ${level > 0 ? 'w-3 h-3' : ''}`} />
+                </button>
               </div>
             </div>
           </div>
@@ -3231,6 +3302,10 @@ export default function BOMManagementPage() {
                         </div>
                         <div className="flex-shrink-0 px-1" style={{ width: '100px' }}>
                           <span className="font-medium text-gray-600">BOM备注</span>
+                        </div>
+                        {/* 操作列 */}
+                        <div className="flex-shrink-0 px-1 flex items-center justify-center" style={{ width: '130px' }}>
+                          <span className="font-medium text-gray-600">操作</span>
                         </div>
                       </div>
                       {/* 数据行 */}
