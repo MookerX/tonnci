@@ -553,7 +553,7 @@ export default function BOMManagementPage() {
     const drawingCode = selectedMaterialNode.drawingCode || '';
     const internalCode = selectedMaterialNode.internalCode || '';
     const materialName = selectedMaterialNode.materialName || '';
-    const fileName = `${drawingCode}${internalCode}${materialName}.csv`;
+    const fileName = `${drawingCode}_${internalCode}_${materialName}.csv`;
 
     // CSV表头
     const headers = ['层级', '物料名称', '内部编码', '图纸编码', '图号', '类型', '用量', 'BOM备注'];
