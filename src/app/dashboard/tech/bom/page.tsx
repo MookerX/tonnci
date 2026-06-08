@@ -603,6 +603,87 @@ export default function BOMManagementPage() {
     window.URL.revokeObjectURL(url);
   };
 
+  // 从主BOM页面导出某个物料的BOM（需要先获取BOM子树数据）
+  const handleExportBomFromTreeNode = async (node: TreeNode) => {
+    try {
+      // 获取该物料的BOM子树数据
+      const token = localStorage.getItem('token');
+      const res = await fetch(`/api/bom/${node.id}/bom-tree`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const data = await res.json();
+      
+      if (data.code !== 200 || !data.data) {
+        toast.error('获取BOM数据失败');
+        return;
+      }
+
+      const bomTree = data.data.bomTree || [];
+      if (bomTree.length === 0) {
+        toast.error('该物料没有BOM子件');
+        return;
+      }
+
+      // 构建文件名：图纸编码_内部编码_物料名称
+      const drawingCode = node.drawingCode || '';
+      const internalCode = node.internalCode || '';
+      const materialName = node.materialName || '';
+      const fileName = `${drawingCode}_${internalCode}_${materialName}.csv`;
+
+      // CSV表头
+      const headers = ['层级', '物料名称', '内部编码', '图纸编码', '图号', '类型', '用量', 'BOM备注'];
+
+      // 递归收集所有节点数据，生成位置编号层级（如1, 1.1, 1.1.1）
+      const rows: string[][] = [];
+      const collectRows = (nodes: any[], levelPrefix: string) => {
+        nodes.forEach((childNode, index) => {
+          // 生成层级编号：第一层为1,2,3...，子层为父编号.子序号
+          const levelNumber = levelPrefix ? `${levelPrefix}.${index + 1}` : `${index + 1}`;
+          rows.push([
+            levelNumber,
+            childNode.materialName || '',
+            childNode.internalCode || '',
+            childNode.drawingCode || '',
+            childNode.drawingNumber || '',
+            childNode.materialType || '',
+            String(childNode.quantity || ''),
+            childNode.bomRemark || ''
+          ]);
+          if (childNode.children && childNode.children.length > 0) {
+            collectRows(childNode.children, levelNumber);
+          }
+        });
+      };
+      collectRows(bomTree, '');
+
+      // 构建CSV内容
+      const csvContent = [
+        headers.join(','),
+        ...rows.map(row => row.map(cell => {
+          // 处理包含逗号或引号的单元格
+          if (cell.includes(',') || cell.includes('"') || cell.includes('\n')) {
+            return `"${cell.replace(/"/g, '""')}"`;
+          }
+          return cell;
+        }).join(','))
+      ].join('\n');
+
+      // 创建Blob并下载
+      const blob = new Blob(['\ufeff' + csvContent], { type: 'text/csv;charset=utf-8' });
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = fileName;
+      link.click();
+      window.URL.revokeObjectURL(url);
+
+      toast.success('BOM导出成功');
+    } catch (e) {
+      console.error('导出BOM失败', e);
+      toast.error('导出BOM失败');
+    }
+  };
+
   // 打开物料详情弹窗
   const handleShowMaterialDetail = async (node: TreeNode) => {
     setSelectedMaterialNode(node);
@@ -2290,6 +2371,14 @@ export default function BOMManagementPage() {
                 title="查看工艺"
               >
                 <Settings2 className={`w-4 h-4 ${level > 0 ? 'w-3 h-3' : ''}`} />
+              </button>
+              {/* 导出BOM */}
+              <button
+                onClick={() => handleExportBomFromTreeNode(node)}
+                className="p-1 text-cyan-600 hover:bg-cyan-100 rounded transition-colors"
+                title="导出BOM"
+              >
+                <Download className={`w-4 h-4 ${level > 0 ? 'w-3 h-3' : ''}`} />
               </button>
               {/* 删除 */}
               <button
