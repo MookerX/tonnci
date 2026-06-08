@@ -570,7 +570,7 @@ export default function BOMManagementPage() {
           node.internalCode || '',
           node.drawingCode || '',
           node.drawingNumber || '',
-          node.materialType || '',
+          typeLabelMap[node.materialType] || node.materialType || '',
           String(node.quantity || ''),
           node.bomRemark || ''
         ]);
