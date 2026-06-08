@@ -265,6 +265,18 @@ export default function BOMManagementPage() {
   const [materialBomTree, setMaterialBomTree] = useState<any[]>([]);
   const [loadingBomTree, setLoadingBomTree] = useState(false);
   const [isDetailModalMaximized, setIsDetailModalMaximized] = useState(false);
+  // 弹窗中BOM子树的展开状态
+  const [detailExpandedKeys, setDetailExpandedKeys] = useState<Set<string>>(new Set());
+  
+  // 弹窗中BOM子树展开/折叠切换
+  const toggleDetailExpand = (key: string) => {
+    setDetailExpandedKeys(prev => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  };
   
   // 弹窗中的层级样式配置（与主页面一致）
   const detailLevelColors = [
@@ -292,25 +304,38 @@ export default function BOMManagementPage() {
     'py-1',           // 5级：最小
   ];
 
-  // 渲染BOM子树表格行（递归）- 样式与主BOM页面一致
-  const renderBomTreeRows = (items: any[], level: number = 0) => {
+  // 渲染BOM子树表格行（递归）- 样式与主BOM页面一致，支持展开/折叠
+  const renderBomTreeRows = (items: any[], level: number = 0, parentKey: string = '') => {
     const levelIndex = Math.min(level, detailLevelColors.length - 1);
     
     return items.map((item: any) => {
+      const nodeKey = `detail_node_${item.materialId || item.id}`;
+      const fullKey = parentKey ? `${parentKey}_${nodeKey}` : nodeKey;
       const hasChildren = item.children && item.children.length > 0;
+      const isExpanded = detailExpandedKeys.has(fullKey);
+      
       const bgColor = detailLevelColors[levelIndex];
       const fontSize = detailLevelFontSizes[levelIndex];
       const paddingY = detailLevelPadding[levelIndex];
       
       return (
-        <React.Fragment key={item.materialId || item.id}>
+        <div key={fullKey}>
           {/* 数据行 */}
           <div className={`flex items-center border-b border-gray-200 hover:brightness-95 transition-all ${bgColor}`}
                style={{ paddingLeft: `${level * 20 + 8}px` }}>
             {/* 展开/折叠图标 */}
             <div className="w-8 flex-shrink-0 flex items-center justify-center">
               {hasChildren ? (
-                <span className="text-gray-400 text-xs">▼</span>
+                <button
+                  onClick={() => toggleDetailExpand(fullKey)}
+                  className="p-1 hover:bg-black/5 rounded transition-colors"
+                >
+                  {isExpanded ? (
+                    <ChevronDown className={`w-4 h-4 text-gray-500 ${level > 0 ? 'text-gray-400' : ''}`} />
+                  ) : (
+                    <ChevronRight className={`w-4 h-4 text-gray-500 ${level > 0 ? 'text-gray-400' : ''}`} />
+                  )}
+                </button>
               ) : (
                 <span className="w-4 h-4" />
               )}
@@ -349,9 +374,9 @@ export default function BOMManagementPage() {
             </div>
           </div>
           
-          {/* 子节点 */}
-          {hasChildren && renderBomTreeRows(item.children, level + 1)}
-        </React.Fragment>
+          {/* 子节点 - 仅在展开时显示 */}
+          {hasChildren && isExpanded && renderBomTreeRows(item.children, level + 1, fullKey)}
+        </div>
       );
     });
   };
@@ -3064,6 +3089,7 @@ export default function BOMManagementPage() {
                   onClick={() => {
                     setShowMaterialDetailModal(false);
                     setIsDetailModalMaximized(false);
+                    setDetailExpandedKeys(new Set()); // 重置展开状态
                   }}
                   className="text-gray-400 hover:text-gray-600"
                 >
@@ -3199,7 +3225,11 @@ export default function BOMManagementPage() {
             
             <div className="px-6 py-4 border-t flex justify-end">
               <button
-                onClick={() => setShowMaterialDetailModal(false)}
+                onClick={() => {
+                  setShowMaterialDetailModal(false);
+                  setIsDetailModalMaximized(false);
+                  setDetailExpandedKeys(new Set()); // 重置展开状态
+                }}
                 className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded"
               >
                 关闭
