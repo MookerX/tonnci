@@ -3094,36 +3094,36 @@ export default function BOMManagementPage() {
                   </div>
                 </div>
               )}
+              
+              {/* BOM子件树 - 当物料有子件时显示 */}
+              {(materialBomTree.length > 0 || loadingBomTree) && (
+                <div className="mb-4">
+                  <h4 className="text-sm font-semibold text-gray-600 mb-2 pb-1 border-b">BOM子件结构</h4>
+                  {loadingBomTree ? (
+                    <div className="text-center py-4 text-sm text-gray-400">加载中...</div>
+                  ) : (
+                    <div className="border border-gray-200 rounded-lg overflow-hidden">
+                      <table className="w-full text-sm">
+                        <thead className="bg-gray-50">
+                          <tr>
+                            <th className="text-left px-3 py-2 font-medium text-gray-600" style={{minWidth: '200px'}}>物料名称</th>
+                            <th className="text-left px-3 py-2 font-medium text-gray-600" style={{minWidth: '100px'}}>内部编码</th>
+                            <th className="text-left px-3 py-2 font-medium text-gray-600" style={{minWidth: '100px'}}>图纸编码</th>
+                            <th className="text-left px-3 py-2 font-medium text-gray-600" style={{minWidth: '60px'}}>图号</th>
+                            <th className="text-left px-3 py-2 font-medium text-gray-600" style={{minWidth: '60px'}}>类型</th>
+                            <th className="text-right px-3 py-2 font-medium text-gray-600" style={{minWidth: '60px'}}>用量</th>
+                            <th className="text-left px-3 py-2 font-medium text-gray-600" style={{minWidth: '100px'}}>BOM备注</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {renderBomTreeRows(materialBomTree, 0)}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
-            
-            {/* BOM子件树 - 当物料有子件时显示 */}
-            {(materialBomTree.length > 0 || loadingBomTree) && (
-              <div className="mb-6">
-                <h4 className="text-sm font-semibold text-gray-600 mb-3 pb-2 border-b">BOM子件结构</h4>
-                {loadingBomTree ? (
-                  <div className="text-center py-4 text-sm text-gray-400">加载中...</div>
-                ) : (
-                  <div className="border rounded-lg overflow-hidden">
-                    <table className="w-full text-sm">
-                      <thead className="bg-gray-50">
-                        <tr>
-                          <th className="text-left px-3 py-2 font-medium text-gray-600" style={{minWidth: '200px'}}>物料名称</th>
-                          <th className="text-left px-3 py-2 font-medium text-gray-600" style={{minWidth: '100px'}}>内部编码</th>
-                          <th className="text-left px-3 py-2 font-medium text-gray-600" style={{minWidth: '100px'}}>图纸编码</th>
-                          <th className="text-left px-3 py-2 font-medium text-gray-600" style={{minWidth: '60px'}}>图号</th>
-                          <th className="text-left px-3 py-2 font-medium text-gray-600" style={{minWidth: '60px'}}>类型</th>
-                          <th className="text-right px-3 py-2 font-medium text-gray-600" style={{minWidth: '60px'}}>用量</th>
-                          <th className="text-left px-3 py-2 font-medium text-gray-600" style={{minWidth: '100px'}}>BOM备注</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {renderBomTreeRows(materialBomTree, 0)}
-                      </tbody>
-                    </table>
-                  </div>
-                )}
-              </div>
-            )}
             
             <div className="px-6 py-4 border-t flex justify-end">
               <button
