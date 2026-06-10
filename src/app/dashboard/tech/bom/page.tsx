@@ -1548,6 +1548,9 @@ export default function BOMManagementPage() {
       materialType: node.materialType as 'LJ' | 'ZJ' | 'CL' | 'WG' | 'BZ' | 'FC',
       remark: node.remark || '',
       quantity: node.quantity || 1,
+      weight: node.weight ?? null,
+      unit: node.unit || '',
+      spec: node.spec || '',
       groupId: node.groupId ?? 0,
       isDelete: false,
     } as unknown as Material;

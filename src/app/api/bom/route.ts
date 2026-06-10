@@ -52,6 +52,7 @@ export async function GET(request: NextRequest) {
         drawingCode: true,
         drawingNo: true,
         materialType: true,
+        weight: true,
         unit: true,
         spec: true,
         customerId: true,
