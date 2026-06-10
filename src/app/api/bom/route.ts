@@ -334,6 +334,7 @@ export async function GET(request: NextRequest) {
           materialType: detail.materialType || '',
           unit: detail.unit || '',
           spec: detail.spec || '',
+          weight: detail.weight || null,
           groupId: detail.groupId || null,
           customerGroupName: detail.customerGroupName || null,
           remark: detail.remark || '',
