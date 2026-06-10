@@ -88,7 +88,7 @@ export async function PUT(
     }
 
     // 判断物料数据是否真正改变（与原始数据比较）
-    const materialFields = ['materialName', 'internalCode', 'drawingCode', 'drawingNo', 'materialType', 'unit', 'spec', 'groupId', 'remark'] as const;
+    const materialFields = ['materialName', 'internalCode', 'drawingCode', 'drawingNo', 'materialType', 'unit', 'spec', 'weight', 'groupId', 'remark'] as const;
     const materialChanges: Record<string, any> = {};
     
     for (const key of materialFields) {
