@@ -73,6 +73,7 @@ export async function GET(
           quantity: Number(item.quantity),
           unit: child.unit,
           spec: child.spec,
+          weight: child.weight ? parseFloat(child.weight.toString()) : null,
           bomRemark: item.bomRemark,
           levelCode: item.levelCode,
           remark: child.remark,
