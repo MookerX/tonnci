@@ -1000,6 +1000,9 @@ export default function BOMManagementPage() {
     groupId: null as number | null,
     customerId: null as number | null, // 添加客户ID用于图纸编码唯一性检查
     quantity: 1,
+    weight: null as number | null, // 重量
+    unit: '', // 单位
+    spec: '', // 规格（对应TreeNode的spec字段）
     remark: '',
     bomRemark: '', // BOM备注
   });
@@ -1562,6 +1565,9 @@ export default function BOMManagementPage() {
           materialType: node.materialType,
           groupId: parentNode.groupId ?? 0, // 使用父物料的groupId
           quantity: node.quantity || 1, // 子物料有单层用量
+          weight: node.weight ?? null,
+          unit: node.unit || '',
+          spec: node.spec || '',
           remark: node.remark || '',
           bomRemark: node.bomRemark || '',
         });
@@ -1577,6 +1583,9 @@ export default function BOMManagementPage() {
           materialType: node.materialType,
           groupId: node.groupId ?? 0,
           quantity: node.quantity || 1,
+          weight: node.weight ?? null,
+          unit: node.unit || '',
+          spec: node.spec || '',
           remark: node.remark || '',
           bomRemark: node.bomRemark || '',
         });
@@ -1596,6 +1605,9 @@ export default function BOMManagementPage() {
         materialType: node.materialType,
         groupId: node.groupId ?? 0,
         quantity: 1, // 顶层物料无单层用量
+        weight: node.weight ?? null,
+        unit: node.unit || '',
+        spec: node.spec || '',
         remark: node.remark || '',
         bomRemark: '', // 顶层物料无BOM备注
       });
@@ -1804,6 +1816,9 @@ export default function BOMManagementPage() {
           drawingCode: formData.drawingCode, 
           drawingNo: formData.drawingNo, 
           quantity: formData.quantity, 
+          weight: formData.weight,
+          unit: formData.unit,
+          spec: formData.spec,
           remark: formData.remark,
           bomRemark: formData.bomRemark,
           bomItemId: editingBOMItemId
@@ -3003,6 +3018,50 @@ export default function BOMManagementPage() {
                     onChange={e => setFormData({ ...formData, drawingNo: e.target.value })}
                     disabled={!!selectedExistingMaterial && !!parentMaterialId && !editingMaterial}
                     className={`w-full px-3 py-2 border rounded-lg ${(!!selectedExistingMaterial && !!parentMaterialId && !editingMaterial) ? 'border-gray-200 bg-gray-50 text-gray-500 cursor-not-allowed' : 'border-gray-300'}`}
+                  />
+                </div>
+              </div>
+              {/* 重量、单位、规格 */}
+              <div className="grid grid-cols-3 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    重量
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.001"
+                    value={formData.weight ?? ''}
+                    onChange={e => setFormData({ ...formData, weight: e.target.value ? parseFloat(e.target.value) : null })}
+                    disabled={!!selectedExistingMaterial && !!parentMaterialId && !editingMaterial}
+                    className={`w-full px-3 py-2 border rounded-lg ${(!!selectedExistingMaterial && !!parentMaterialId && !editingMaterial) ? 'border-gray-200 bg-gray-50 text-gray-500 cursor-not-allowed' : 'border-gray-300'}`}
+                    placeholder="kg"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    单位
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.unit}
+                    onChange={e => setFormData({ ...formData, unit: e.target.value })}
+                    disabled={!!selectedExistingMaterial && !!parentMaterialId && !editingMaterial}
+                    className={`w-full px-3 py-2 border rounded-lg ${(!!selectedExistingMaterial && !!parentMaterialId && !editingMaterial) ? 'border-gray-200 bg-gray-50 text-gray-500 cursor-not-allowed' : 'border-gray-300'}`}
+                    placeholder="如：件、个、kg等"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    规格
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.spec}
+                    onChange={e => setFormData({ ...formData, spec: e.target.value })}
+                    disabled={!!selectedExistingMaterial && !!parentMaterialId && !editingMaterial}
+                    className={`w-full px-3 py-2 border rounded-lg ${(!!selectedExistingMaterial && !!parentMaterialId && !editingMaterial) ? 'border-gray-200 bg-gray-50 text-gray-500 cursor-not-allowed' : 'border-gray-300'}`}
+                    placeholder="物料规格"
                   />
                 </div>
               </div>
