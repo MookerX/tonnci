@@ -3030,7 +3030,7 @@ export default function BOMManagementPage() {
                   <input
                     type="number"
                     min="0"
-                    step="0.01"
+                    step="0.001"
                     value={formData.weight ?? ''}
                     onChange={e => setFormData({ ...formData, weight: e.target.value ? parseFloat(e.target.value) : null })}
                     disabled={!!selectedExistingMaterial && !!parentMaterialId && !editingMaterial}
@@ -3042,19 +3042,14 @@ export default function BOMManagementPage() {
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     单位
                   </label>
-                  <select
+                  <input
+                    type="text"
                     value={formData.unit}
                     onChange={e => setFormData({ ...formData, unit: e.target.value })}
                     disabled={!!selectedExistingMaterial && !!parentMaterialId && !editingMaterial}
                     className={`w-full px-3 py-2 border rounded-lg ${(!!selectedExistingMaterial && !!parentMaterialId && !editingMaterial) ? 'border-gray-200 bg-gray-50 text-gray-500 cursor-not-allowed' : 'border-gray-300'}`}
-                  >
-                    <option value="">请选择</option>
-                    <option value="件">件</option>
-                    <option value="套">套</option>
-                    <option value="千克">千克</option>
-                    <option value="米">米</option>
-                    <option value="个">个</option>
-                  </select>
+                    placeholder="如：件、个、kg等"
+                  />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
