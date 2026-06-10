@@ -392,6 +392,7 @@ export async function GET(request: NextRequest) {
             materialType: true,
             unit: true,
             spec: true,
+            weight: true,
             customerId: true,
             groupId: true,
             remark: true,
@@ -407,6 +408,7 @@ export async function GET(request: NextRequest) {
             const groupName = m.groupId ? groupNameMap.get(m.groupId) || null : null;
             materialMap.set(m.id, {
               ...m,
+              weight: m.weight ? parseFloat(m.weight.toString()) : null,
               customerGroupName: groupName,
               materialCreatorName: m.createdBy ? userNameMap.get(m.createdBy) || null : null,
               materialModifierName: m.modifiedBy ? userNameMap.get(m.modifiedBy) || null : null,
