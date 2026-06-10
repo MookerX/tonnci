@@ -1342,6 +1342,9 @@ export default function BOMManagementPage() {
       groupId: null,
       customerId: null,
       quantity: 1,
+      weight: null,
+      unit: '',
+      spec: '',
       remark: '',
       bomRemark: '',
     });
@@ -1364,6 +1367,9 @@ export default function BOMManagementPage() {
       groupId: parentGroupId,
       customerId: null,
       quantity: 1,
+      weight: null,
+      unit: '',
+      spec: '',
       remark: '',
       bomRemark: '',
     });
@@ -1443,6 +1449,9 @@ export default function BOMManagementPage() {
       materialType: material.materialType,
       groupId: material.groupId,
       quantity: formData.quantity, // 保持当前用量
+      weight: material.weight ?? null,
+      unit: material.unit || '',
+      spec: material.spec || '',
       remark: material.remark || '',
       bomRemark: formData.bomRemark || '', // 保持当前BOM备注
     });
@@ -1462,8 +1471,11 @@ export default function BOMManagementPage() {
       drawingCode: '',
       drawingNo: '',
       materialType: 'LJ',
-      groupId: null,
+      groupId: formData.groupId, // 保持当前客户群组
       quantity: 1,
+      weight: null,
+      unit: '',
+      spec: '',
       remark: '',
       bomRemark: '',
     });
@@ -1512,6 +1524,9 @@ export default function BOMManagementPage() {
       materialType: material.materialType,
       groupId: material.groupId,
       quantity: formData.quantity, // 保持当前用量
+      weight: material.weight ?? null,
+      unit: material.unit || '',
+      spec: material.spec || '',
       remark: material.remark || '',
       bomRemark: formData.bomRemark, // 保持当前BOM备注
       customerId: formData.customerId, // 保持当前客户
