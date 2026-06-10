@@ -1846,6 +1846,11 @@ export default function BOMManagementPage() {
         }
       : { ...formData };
     
+    // 确保weight是有效数字或null，排除NaN和空字符串
+    if (payload.weight === '' || payload.weight === undefined || (typeof payload.weight === 'number' && isNaN(payload.weight))) {
+      payload.weight = null;
+    }
+    
     if (!editingMaterial && !payload.internalCode) {
       try {
         const codeRes = await fetch('/api/bom/material/next-code', {

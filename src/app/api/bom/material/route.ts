@@ -195,7 +195,7 @@ export async function POST(request: NextRequest) {
         materialType: data.materialType,
         unit: data.unit,
         spec: data.spec,
-        weight: data.weight,
+        weight: data.weight !== null && data.weight !== undefined ? data.weight : null,
         customerId: data.customerId || null,
         groupId: data.groupId || null,
         remark: data.remark || null,
