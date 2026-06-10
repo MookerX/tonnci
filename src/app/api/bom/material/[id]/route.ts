@@ -43,7 +43,13 @@ export async function GET(
       return notFoundResponse('物料不存在');
     }
 
-    return successResponse(material);
+    // 将Decimal类型的weight转换为数字
+    const responseData = {
+      ...material,
+      weight: material.weight ? parseFloat(material.weight.toString()) : null,
+    };
+
+    return successResponse(responseData);
   } catch (error: any) {
     console.error('获取物料详情失败:', error);
     return serverErrorResponse(error.message || '获取物料详情失败');

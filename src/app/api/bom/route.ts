@@ -95,6 +95,7 @@ export async function GET(request: NextRequest) {
       const groupName = m.groupId ? groupNameMap.get(m.groupId) || null : null;
       return [m.id, {
         ...m,
+        weight: m.weight ? parseFloat(m.weight.toString()) : null,
         customerGroupName: groupName,
         materialCreatorName: m.createdBy ? userNameMap.get(m.createdBy) || null : null,
         materialModifierName: m.modifiedBy ? userNameMap.get(m.modifiedBy) || null : null,

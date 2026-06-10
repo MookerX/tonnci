@@ -123,6 +123,7 @@ export async function GET(request: NextRequest) {
 
     const enrichedList = list.map((m: any) => ({
       ...m,
+      weight: m.weight ? parseFloat(m.weight.toString()) : null,
       customerGroupName: m.groupId ? (groupNameMap[m.groupId] || `群组${m.groupId}`) : null,
     }));
 
