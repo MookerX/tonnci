@@ -24,7 +24,7 @@ const materialSchema = z.object({
   materialType: z.enum(['part', 'component', 'material', 'purchased', 'standard', 'auxiliary']).default('part'),
   unit: z.string().optional(),
   spec: z.string().optional(),
-  weight: z.number().optional(),
+  weight: z.number().nullable().optional(),
   customerId: z.number().nullable().optional(),
   groupId: z.number().nullable().optional(),
   remark: z.string().optional(),

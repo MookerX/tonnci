@@ -3047,7 +3047,14 @@ export default function BOMManagementPage() {
                     min="0"
                     step="0.01"
                     value={formData.weight ?? ''}
-                    onChange={e => setFormData({ ...formData, weight: e.target.value ? parseFloat(e.target.value) : null })}
+                    onChange={e => {
+                      const val = e.target.value;
+                      const num = val ? parseFloat(val) : null;
+                      // 只有是有效数字或null才更新
+                      if (num === null || !isNaN(num)) {
+                        setFormData({ ...formData, weight: num });
+                      }
+                    }}
                     disabled={!!selectedExistingMaterial && !!parentMaterialId && !editingMaterial}
                     className={`w-full px-3 py-2 border rounded-lg ${(!!selectedExistingMaterial && !!parentMaterialId && !editingMaterial) ? 'border-gray-200 bg-gray-50 text-gray-500 cursor-not-allowed' : 'border-gray-300'}`}
                     placeholder="kg"
