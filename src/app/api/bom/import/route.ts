@@ -241,19 +241,32 @@ function parseLevel(sequence: string): { valid: boolean; level: number; parentSe
   return { valid: false, level: 0, parentSequence: null };
 }
 
-// 生成内部编码
+// 物料类型前缀映射（与BOM管理页面新增顶层物料一致）
+const MATERIAL_TYPE_PREFIX: Record<string, string> = {
+  part: 'LJ',        // 零件
+  component: 'ZJ',    // 组件
+  material: 'CL',     // 原材料
+  purchased: 'WG',    // 外购件
+  standard: 'BZ',     // 标准件
+  auxiliary: 'FC',    // 辅材
+};
+
+// 生成内部编码（与BOM管理页面新增顶层物料一致）
 async function generateInternalCode(materialType: string): Promise<string> {
-  const prefix = materialType === 'part' ? 'PT' :
-                 materialType === 'component' ? 'CP' :
-                 materialType === 'material' ? 'MT' :
-                 materialType === 'purchased' ? 'PU' :
-                 materialType === 'standard' ? 'SD' : 'AX';
+  const prefix = MATERIAL_TYPE_PREFIX[materialType] || 'XX';
 
-  const result = await prisma.$queryRawUnsafe<[{cnt: bigint}][]>(
-    `SELECT COUNT(*) as cnt FROM material WHERE material_type = ? AND is_delete = 0`,
-    materialType
+  // 获取该类型物料的最大编码序号（与新增顶层物料逻辑一致）
+  const result = await prisma.$queryRawUnsafe<[{max_code: string | null}][]>(
+    `SELECT MAX(internal_code) as max_code FROM material WHERE material_type = ? AND internal_code LIKE ?`,
+    materialType,
+    prefix + '%'
   );
-  const count = Number(result[0]?.cnt || 0);
+  const maxCode = result[0]?.max_code;
+  let nextNum = 1;
+  if (maxCode) {
+    const numStr = maxCode.replace(prefix, '');
+    nextNum = parseInt(numStr) + 1;
+  }
 
-  return `${prefix}${String(count + 1).padStart(8, '0')}`;
+  return `${prefix}${String(nextNum).padStart(8, '0')}`;
 }
