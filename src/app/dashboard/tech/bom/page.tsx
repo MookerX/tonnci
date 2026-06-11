@@ -3306,7 +3306,9 @@ export default function BOMManagementPage() {
                                 className="w-full border border-gray-300 rounded px-1 py-0.5"
                               />
                             </td>
-                            <td className="px-2 py-1">{row.internalCode || '-'}</td>
+                                                        <td className="px-2 py-1">
+                              {row.internalCode || <span className="text-gray-400 text-xs italic">保存时自动生成</span>}
+                            </td>
                             <td className="px-2 py-1">
                               <input
                                 type="text"
