@@ -2080,7 +2080,7 @@ export default function BOMManagementPage() {
     });
 
     if (res.code === 200) {
-      const data = res.data || [];
+      const data = res.data?.success || [];
       setImportData(data);
       setEditedImportData(data.map((item: any) => ({ ...item })));
       setImportErrors({});
