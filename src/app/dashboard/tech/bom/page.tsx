@@ -3,7 +3,8 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import {
   Search, Plus, Upload, Download, ChevronRight, ChevronDown, FileText, Edit2, Trash2,
-  X, Save, AlertCircle, CheckCircle, RefreshCw, FolderTree, Eye, DownloadCloud, Settings2, Layers, Settings
+  X, Save, AlertCircle, CheckCircle, RefreshCw, FolderTree, Eye, DownloadCloud, Settings2, Layers, Settings,
+  Maximize2, Minimize2
 } from 'lucide-react';
 import { useToast } from '@/components/ToastProvider';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
@@ -971,6 +972,7 @@ export default function BOMManagementPage() {
 
   // 弹窗状态
   const [showImportModal, setShowImportModal] = useState(false);
+  const [isImportModalMaximized, setIsImportModalMaximized] = useState(false);
   const [showMaterialModal, setShowMaterialModal] = useState(false);
   const [editingMaterial, setEditingMaterial] = useState<Material | null>(null);
   const [parentMaterialId, setParentMaterialId] = useState<number | null>(null);
@@ -3164,12 +3166,27 @@ export default function BOMManagementPage() {
       {/* 导入弹窗 */}
       {showImportModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg shadow-xl w-[900px] max-h-[80vh] overflow-auto">
+          <div className={`bg-white rounded-lg shadow-xl overflow-auto ${isImportModalMaximized ? 'w-full h-full rounded-none' : 'w-[95vw] max-w-[1400px] max-h-[80vh]'}`}>
             <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200">
               <h3 className="font-semibold">Excel导入BOM</h3>
-              <button onClick={() => { setShowImportModal(false); setImportStep(1); }} className="p-1 hover:bg-gray-100 rounded">
-                <X className="w-5 h-5" />
-              </button>
+              <div className="flex items-center gap-2">
+                <button 
+                  onClick={() => setIsImportModalMaximized(!isImportModalMaximized)} 
+                  className="p-1 hover:bg-gray-100 rounded"
+                >
+                  {isImportModalMaximized ? <Minimize2 className="w-5 h-5" /> : <Maximize2 className="w-5 h-5" />}
+                </button>
+                <button 
+                  onClick={() => { 
+                    setShowImportModal(false); 
+                    setImportStep(1); 
+                    setIsImportModalMaximized(false);
+                  }} 
+                  className="p-1 hover:bg-gray-100 rounded"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
             </div>
             <div className="p-4">
               {importStep === 1 && (
