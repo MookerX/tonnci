@@ -164,10 +164,13 @@ async function generateInternalCode(materialType: string): Promise<string> {
                  materialType === 'purchased' ? 'PU' :
                  materialType === 'standard' ? 'SD' : 'AX';
 
-  const result = await prisma.$queryRaw<[{cnt: bigint}][]>`
-    SELECT COUNT(*) as cnt FROM material WHERE material_type = ${materialType} AND is_delete = 0
-  `;
-  const count = Number(result[0]?.cnt || 0);
+  // 使用Prisma查询代替原生SQL，避免字段名映射问题
+  const count = await prisma.material.count({
+    where: {
+      materialType: materialType,
+      isDelete: false
+    }
+  });
 
   return `${prefix}${String(count + 1).padStart(8, '0')}`;
 }
