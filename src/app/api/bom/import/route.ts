@@ -129,7 +129,7 @@ export async function PUT(request: NextRequest) {
     const user = authResult;
 
     const body = await request.json();
-    const { data } = body;
+    const { data, groupId } = body;
 
     if (!data || !Array.isArray(data) || data.length === 0) {
       return badRequestResponse('导入数据不能为空');
@@ -139,11 +139,18 @@ export async function PUT(request: NextRequest) {
     const createdBomRelations: any[] = [];
     const sequenceToMaterialId: Record<string, number> = {};
 
-    // 按层级排序（先处理父级，再处理子级）
-    const sortedData = [...data].sort((a, b) => a.level - b.level);
+    // 按层级排序（如果有层级字段），否则保持原顺序
+    const sortedData = [...data].sort((a, b) => (a.level || 1) - (b.level || 1));
 
-    for (const row of sortedData) {
+    for (let i = 0; i < sortedData.length; i++) {
+      const row = sortedData[i];
       let materialId: number;
+
+      // 为没有内部编码的物料生成编码
+      let internalCode = row.internalCode;
+      if (!internalCode) {
+        internalCode = await generateInternalCode(row.materialType || 'part');
+      }
 
       if (row.existingMaterial) {
         // 已存在物料，直接使用
@@ -154,31 +161,34 @@ export async function PUT(request: NextRequest) {
           data: {
             uuid: uuidv4(),
             materialName: row.materialName,
-            internalCode: row.internalCode,
-            drawingCode: row.drawingCode,
-            drawingNo: row.drawingNo,
-            materialType: row.materialType,
-            weight: row.weight,
-            unit: row.unit,
-            spec: row.spec,
-            customerId: row.customerId,
-            remark: row.materialRemark,
+            internalCode: internalCode,
+            drawingCode: row.drawingCode || null,
+            drawingNo: row.drawingNo || null,
+            materialType: row.materialType || 'part',
+            weight: row.weight ? parseFloat(row.weight) : null,
+            unit: row.unit || null,
+            spec: row.spec || null,
+            groupId: groupId || row.groupId || null,
+            remark: row.remark || row.materialRemark || null,
             status: 'active',
-            createdBy: user.id,
+            createdBy: user?.id || null,
           },
         });
         materialId = material.id;
-        createdMaterials.push({ id: material.id, materialName: row.materialName });
+        createdMaterials.push({ id: material.id, materialName: row.materialName, internalCode: material.internalCode });
       }
 
-      sequenceToMaterialId[row.sequence] = materialId;
+      // 记录序号对应的物料ID（用于处理层级关系）
+      const sequence = row.sequence || `${i + 1}`;
+      sequenceToMaterialId[sequence] = materialId;
 
-      // 如果有父级，创建BOM关系
-      if (row.parentSequence && sequenceToMaterialId[row.parentSequence]) {
-        const parentId = sequenceToMaterialId[row.parentSequence];
+      // 如果有父级序号，创建BOM关系
+      const parentSequence = row.parentSequence;
+      if (parentSequence && sequenceToMaterialId[parentSequence]) {
+        const parentId = sequenceToMaterialId[parentSequence];
         
         // 检查是否已存在BOM关系
-        const exists = await prisma.bOMItem.findFirst({
+        const exists = await prisma.bomItem.findFirst({
           where: {
             parentMaterialId: parentId,
             childMaterialId: materialId,
@@ -187,19 +197,20 @@ export async function PUT(request: NextRequest) {
         });
 
         if (!exists) {
-          const bomItem = await prisma.bOMItem.create({
+          const bomItem = await prisma.bomItem.create({
             data: {
               parentMaterialId: parentId,
               childMaterialId: materialId,
-              quantity: row.unitUsage || 1,
-              remark: row.bomRemark,
-              createdBy: user.id,
+              rootMaterialId: parentId,
+              quantity: row.quantity || row.unitUsage || 1,
+              bomRemark: row.bomRemark || null,
+              createdBy: user?.id || null,
             },
           });
           createdBomRelations.push({
             parentId,
             childId: materialId,
-            quantity: row.unitUsage,
+            quantity: row.quantity || row.unitUsage || 1,
           });
         }
       }
@@ -208,6 +219,7 @@ export async function PUT(request: NextRequest) {
     return successResponse({
       createdMaterials: createdMaterials.length,
       createdBomRelations: createdBomRelations.length,
+      materials: createdMaterials,
     }, `导入成功：创建${createdMaterials.length}个物料，${createdBomRelations.length}个BOM关系`);
   } catch (error: any) {
     console.error('BOM导入确认失败:', error);

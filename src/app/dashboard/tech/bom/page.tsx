@@ -2096,12 +2096,16 @@ export default function BOMManagementPage() {
     // 应用编辑的数据
     const validData = editedImportData.filter((_, idx) => !importErrors[idx]);
     
+    if (validData.length === 0) {
+      error('没有有效的导入数据');
+      return;
+    }
+    
     const res = await fetchApi('/api/bom/import', {
-      method: 'POST',
+      method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        groupId: importGroupId,
-        materials: validData,
+        data: validData,
       }),
     });
 
