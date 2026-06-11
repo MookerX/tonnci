@@ -2439,12 +2439,12 @@ export default function BOMManagementPage() {
   };
 
   const downloadTemplate = () => {
-    const headers = ['序号', '物料名称', '图纸编码', '内部编码', '图号', '单层用量', '物料类型', '物料备注', 'BOM备注', '层级编码'];
+    const headers = ['层级编码', '物料名称', '图纸编码', '内部编码', '图号', '单层用量', '物料类型', '重量', '单位', '规格', '物料备注', 'BOM备注'];
     const sampleData = [
-      ['1', '产品A', 'DWG001', '', 'P-001', '1', '组件', '', '', '1'],
-      ['1.1', '零件X', 'DWG002', '', 'P-002', '2', '零件', '', '', '1.1'],
-      ['1.2', '零件Y', 'DWG003', '', 'P-003', '4', '零件', '', '', '1.2'],
-      ['2', '产品B', 'DWG004', '', 'P-004', '1', '组件', '', '', '2'],
+      ['1', '产品A', 'DWG001', '', 'P-001', '1', '组件', '10.5', '套', '规格A', '', ''],
+      ['1.1', '零件X', 'DWG002', '', 'P-002', '2', '零件', '2.3', '个', '规格X', '零件备注', ''],
+      ['1.2', '零件Y', 'DWG003', '', 'P-003', '4', '零件', '', '', '', '', 'BOM备注'],
+      ['2', '产品B', 'DWG004', '', 'P-004', '1', '组件', '', '', '', '', ''],
     ];
     
     const csv = [headers, ...sampleData].map(row => row.join(',')).join('\n');
@@ -3241,6 +3241,11 @@ export default function BOMManagementPage() {
                           <th className="px-2 py-1 text-left">内部编码</th>
                           <th className="px-2 py-1 text-left">图号</th>
                           <th className="px-2 py-1 text-left">用量</th>
+                          <th className="px-2 py-1 text-left">重量</th>
+                          <th className="px-2 py-1 text-left">单位</th>
+                          <th className="px-2 py-1 text-left">规格</th>
+                          <th className="px-2 py-1 text-left">物料备注</th>
+                          <th className="px-2 py-1 text-left">BOM备注</th>
                           <th className="px-2 py-1 text-left">层级</th>
                         </tr>
                       </thead>
@@ -3296,9 +3301,58 @@ export default function BOMManagementPage() {
                             <td className="px-2 py-1">
                               <input
                                 type="number"
+                                step="1"
+                                min="1"
                                 value={row.quantity || 1}
                                 onChange={e => updateImportRow(idx, 'quantity', parseFloat(e.target.value) || 1)}
                                 className="w-16 border border-gray-300 rounded px-1 py-0.5"
+                              />
+                            </td>
+                            <td className="px-2 py-1">
+                              <input
+                                type="number"
+                                step="0.01"
+                                min="0"
+                                value={row.weight || ''}
+                                onChange={e => updateImportRow(idx, 'weight', e.target.value ? parseFloat(e.target.value) : null)}
+                                className="w-16 border border-gray-300 rounded px-1 py-0.5"
+                              />
+                            </td>
+                            <td className="px-2 py-1">
+                              <select
+                                value={row.unit || ''}
+                                onChange={e => updateImportRow(idx, 'unit', e.target.value)}
+                                className="border border-gray-300 rounded px-1 py-0.5"
+                              >
+                                <option value="">请选择</option>
+                                <option value="套">套</option>
+                                <option value="个">个</option>
+                                <option value="米">米</option>
+                                <option value="千克">千克</option>
+                              </select>
+                            </td>
+                            <td className="px-2 py-1">
+                              <input
+                                type="text"
+                                value={row.spec || ''}
+                                onChange={e => updateImportRow(idx, 'spec', e.target.value)}
+                                className="w-full border border-gray-300 rounded px-1 py-0.5"
+                              />
+                            </td>
+                            <td className="px-2 py-1">
+                              <input
+                                type="text"
+                                value={row.materialRemark || ''}
+                                onChange={e => updateImportRow(idx, 'materialRemark', e.target.value)}
+                                className="w-full border border-gray-300 rounded px-1 py-0.5"
+                              />
+                            </td>
+                            <td className="px-2 py-1">
+                              <input
+                                type="text"
+                                value={row.bomRemark || ''}
+                                onChange={e => updateImportRow(idx, 'bomRemark', e.target.value)}
+                                className="w-full border border-gray-300 rounded px-1 py-0.5"
                               />
                             </td>
                             <td className="px-2 py-1 font-mono">{row.levelCode || '-'}</td>

@@ -70,9 +70,12 @@ export async function POST(request: NextRequest) {
         internalCode: internalCode,
         drawingNo: row.drawingNo,
         materialType,
+        weight: row.weight ? parseFloat(row.weight) : null,
         unit: row.unit,
         spec: row.spec,
         remark: row.remark,
+        bomRemark: row.bomRemark,
+        quantity: row.quantity ? parseFloat(row.quantity) : 1,
         customerId: row.customerId,
         existingMaterial: material ? {
           id: material.id,
