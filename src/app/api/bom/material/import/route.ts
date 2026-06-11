@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { getUserFromToken } from '@/lib/auth/jwt';
 import { successResponse, badRequestResponse, serverErrorResponse } from '@/lib/response';
 import { v4 as uuidv4 } from 'uuid';
+import * as xlsx from 'xlsx';
 
 // 物料类型映射
 const MATERIAL_TYPE_MAP: Record<string, string> = {
@@ -21,12 +22,65 @@ export async function POST(request: NextRequest) {
     if (authResult instanceof Response) return authResult;
     const user = authResult;
 
-    const body = await request.json();
-    const { data } = body;
+    // 处理FormData文件上传
+    const formData = await request.formData();
+    const file = formData.get('file') as File;
+    const groupId = formData.get('groupId') as string;
 
-    if (!data || !Array.isArray(data) || data.length === 0) {
-      return badRequestResponse('导入数据不能为空');
+    if (!file) {
+      return badRequestResponse('请上传文件');
     }
+
+    // 读取文件内容
+    const arrayBuffer = await file.arrayBuffer();
+    const buffer = Buffer.from(arrayBuffer);
+
+    // 解析Excel/CSV文件
+    const workbook = xlsx.read(buffer, { type: 'buffer' });
+    const sheetName = workbook.SheetNames[0];
+    const sheet = workbook.Sheets[sheetName];
+    const jsonData = xlsx.utils.sheet_to_json(sheet, { defval: '' });
+
+    if (!jsonData || jsonData.length === 0) {
+      return badRequestResponse('文件内容为空');
+    }
+
+    // 列名映射（中文 -> 英文字段名）
+    const columnMap: Record<string, string> = {
+      '层级编码': 'levelCode',
+      '物料名称': 'materialName',
+      '图纸编码': 'drawingCode',
+      '内部编码': 'internalCode',
+      '图号': 'drawingNo',
+      '单层用量': 'quantity',
+      '物料类型': 'materialType',
+      '重量': 'weight',
+      '单位': 'unit',
+      '规格': 'spec',
+      '物料备注': 'remark',
+      'BOM备注': 'bomRemark',
+    };
+
+    // 转换列名并处理数据
+    const data = jsonData.map((row: any) => {
+      const newRow: any = {};
+      for (const [key, value] of Object.entries(row)) {
+        const mappedKey = columnMap[key] || key;
+        newRow[mappedKey] = value;
+      }
+      // 处理物料类型（中文转英文）
+      if (newRow.materialType && MATERIAL_TYPE_MAP[newRow.materialType]) {
+        newRow.materialType = MATERIAL_TYPE_MAP[newRow.materialType];
+      }
+      // 处理数字字段
+      if (newRow.quantity) {
+        newRow.quantity = parseFloat(newRow.quantity) || 1;
+      }
+      if (newRow.weight) {
+        newRow.weight = parseFloat(newRow.weight) || null;
+      }
+      return newRow;
+    });
 
     const results: any[] = [];
     const errors: any[] = [];
