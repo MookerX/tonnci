@@ -78,6 +78,17 @@ export async function POST(request: NextRequest) {
       if (newRow.weight) {
         newRow.weight = parseFloat(newRow.weight) || null;
       }
+      // 解析层级编码，计算层级深度
+      if (newRow.levelCode) {
+        const levelStr = String(newRow.levelCode);
+        // 层级编码格式：1, 1.1, 1.2.1 等
+        const levelDepth = levelStr.split('.').length;
+        newRow.level = levelDepth;
+        newRow.levelCode = levelStr;
+      } else {
+        newRow.level = 1; // 默认为顶层
+        newRow.levelCode = '';
+      }
       return newRow;
     });
 
@@ -127,6 +138,8 @@ export async function POST(request: NextRequest) {
         bomRemark: row.bomRemark,
         quantity: row.quantity ? parseFloat(row.quantity) : 1,
         customerId: row.customerId,
+        level: row.level || 1,
+        levelCode: row.levelCode || '',
         existingMaterial: material ? {
           id: material.id,
           materialName: material.materialName,

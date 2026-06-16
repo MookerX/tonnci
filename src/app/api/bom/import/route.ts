@@ -139,8 +139,25 @@ export async function PUT(request: NextRequest) {
     const createdBomRelations: any[] = [];
     const sequenceToMaterialId: Record<string, number> = {};
 
-    // 按层级排序（如果有层级字段），否则保持原顺序
-    const sortedData = [...data].sort((a, b) => (a.level || 1) - (b.level || 1));
+    // 按层级编码排序，确保父级物料先被创建
+    // 排序规则：1, 1.1, 1.2, 1.2.1, 2, 2.1 等
+    const sortedData = [...data].sort((a, b) => {
+      const aCode = a.levelCode || '';
+      const bCode = b.levelCode || '';
+      if (!aCode && !bCode) return 0;
+      if (!aCode) return 1;
+      if (!bCode) return -1;
+      
+      const aParts = aCode.split('.').map(Number);
+      const bParts = bCode.split('.').map(Number);
+      
+      for (let i = 0; i < Math.max(aParts.length, bParts.length); i++) {
+        const aVal = aParts[i] || 0;
+        const bVal = bParts[i] || 0;
+        if (aVal !== bVal) return aVal - bVal;
+      }
+      return 0;
+    });
 
     for (let i = 0; i < sortedData.length; i++) {
       const row = sortedData[i];
@@ -178,40 +195,47 @@ export async function PUT(request: NextRequest) {
         createdMaterials.push({ id: material.id, materialName: row.materialName, internalCode: material.internalCode });
       }
 
-      // 记录序号对应的物料ID（用于处理层级关系）
-      const sequence = row.sequence || `${i + 1}`;
-      sequenceToMaterialId[sequence] = materialId;
+      // 记录层级编码对应的物料ID（用于处理层级关系）
+      const levelCode = row.levelCode || '';
+      if (levelCode) {
+        sequenceToMaterialId[levelCode] = materialId;
+      }
 
-      // 如果有父级序号，创建BOM关系
-      const parentSequence = row.parentSequence;
-      if (parentSequence && sequenceToMaterialId[parentSequence]) {
-        const parentId = sequenceToMaterialId[parentSequence];
+      // 根据层级编码建立父子关系
+      // 层级编码格式：1, 1.1, 1.2, 1.2.1 等
+      // 父级编码：去掉最后一级，如 1.2 -> 1, 1.2.1 -> 1.2
+      if (levelCode && levelCode.includes('.')) {
+        const parts = levelCode.split('.');
+        const parentLevelCode = parts.slice(0, -1).join('.');
+        const parentId = sequenceToMaterialId[parentLevelCode];
         
-        // 检查是否已存在BOM关系
-        const exists = await prisma.bomItem.findFirst({
-          where: {
-            parentMaterialId: parentId,
-            childMaterialId: materialId,
-            isDelete: false,
-          },
-        });
-
-        if (!exists) {
-          const bomItem = await prisma.bomItem.create({
-            data: {
+        if (parentId) {
+          // 检查是否已存在BOM关系
+          const exists = await prisma.bomItem.findFirst({
+            where: {
               parentMaterialId: parentId,
               childMaterialId: materialId,
-              rootMaterialId: parentId,
-              quantity: row.quantity || row.unitUsage || 1,
-              bomRemark: row.bomRemark || null,
-              createdBy: user?.id || null,
+              isDelete: false,
             },
           });
-          createdBomRelations.push({
-            parentId,
-            childId: materialId,
-            quantity: row.quantity || row.unitUsage || 1,
-          });
+
+          if (!exists) {
+            const bomItem = await prisma.bomItem.create({
+              data: {
+                parentMaterialId: parentId,
+                childMaterialId: materialId,
+                rootMaterialId: parentId,
+                quantity: row.quantity || row.unitUsage || 1,
+                bomRemark: row.bomRemark || null,
+                createdBy: user?.id || null,
+              },
+            });
+            createdBomRelations.push({
+              parentId,
+              childId: materialId,
+              quantity: row.quantity || row.unitUsage || 1,
+            });
+          }
         }
       }
     }
