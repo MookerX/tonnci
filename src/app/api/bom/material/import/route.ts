@@ -4,7 +4,7 @@ import { getUserFromToken } from '@/lib/auth/jwt';
 import { successResponse, badRequestResponse, serverErrorResponse } from '@/lib/response';
 import * as xlsx from 'xlsx';
 
-// 物料类型映射
+// 物料类型映射（支持中文和英文）
 const MATERIAL_TYPE_MAP: Record<string, string> = {
   '零件': 'part',
   '组件': 'component',
@@ -12,6 +12,13 @@ const MATERIAL_TYPE_MAP: Record<string, string> = {
   '外购件': 'purchased',
   '标准件': 'standard',
   '辅材': 'auxiliary',
+  // 英文值直接映射
+  'part': 'part',
+  'component': 'component',
+  'material': 'material',
+  'purchased': 'purchased',
+  'standard': 'standard',
+  'auxiliary': 'auxiliary',
 };
 
 /** POST /api/bom/material/import - 导入物料预览 */
