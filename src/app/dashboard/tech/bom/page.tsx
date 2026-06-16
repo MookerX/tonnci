@@ -2106,6 +2106,7 @@ export default function BOMManagementPage() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         data: validData,
+        groupId: importGroupId,
       }),
     });
 
