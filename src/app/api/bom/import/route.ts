@@ -220,6 +220,10 @@ export async function PUT(request: NextRequest) {
           });
 
           if (!exists) {
+            // 计算 levelIndex：取层级编码的最后一部分
+            const levelParts = levelCode.split('.');
+            const levelIndex = levelParts[levelParts.length - 1] || '1';
+            
             const bomItem = await prisma.bomItem.create({
               data: {
                 parentMaterialId: parentId,
@@ -228,6 +232,7 @@ export async function PUT(request: NextRequest) {
                 quantity: row.quantity || row.unitUsage || 1,
                 bomRemark: row.bomRemark || null,
                 createdBy: user?.id || null,
+                levelIndex: levelIndex,
               },
             });
             createdBomRelations.push({
