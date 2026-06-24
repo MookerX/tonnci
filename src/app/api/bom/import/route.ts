@@ -173,6 +173,17 @@ export async function PUT(request: NextRequest) {
         // 已存在物料，直接使用
         materialId = row.existingMaterial.id;
       } else {
+        // 如果提供了groupId，查询该群组下的第一个客户
+        let customerId: number | null = null;
+        const targetGroupId = groupId || row.groupId;
+        if (targetGroupId) {
+          const firstCustomer = await prisma.customer.findFirst({
+            where: { groupId: targetGroupId, isDelete: false },
+            select: { id: true },
+          });
+          customerId = firstCustomer?.id || null;
+        }
+        
         // 创建新物料
         const material = await prisma.material.create({
           data: {
@@ -185,7 +196,8 @@ export async function PUT(request: NextRequest) {
             weight: row.weight ? parseFloat(row.weight) : null,
             unit: row.unit || null,
             spec: row.spec || null,
-            groupId: groupId || row.groupId || null,
+            customerId: customerId,
+            groupId: targetGroupId || null,
             remark: row.remark || row.materialRemark || null,
             status: 'active',
             createdBy: user?.id || null,
