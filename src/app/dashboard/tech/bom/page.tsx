@@ -2117,9 +2117,14 @@ export default function BOMManagementPage() {
       setImportData([]);
       setEditedImportData([]);
       setImportErrors({});
+      // 保存当前的groupId，用于刷新BOM树
+      const currentGroupId = importGroupId;
       setImportGroupId(null);
-      if (importGroupId) {
-        fetchBOMTree(importGroupId);
+      // 刷新BOM树和物料列表
+      if (currentGroupId) {
+        fetchBOMTree(currentGroupId);
+      } else {
+        fetchBOMTree();
       }
       fetchMaterials();
     } else {
