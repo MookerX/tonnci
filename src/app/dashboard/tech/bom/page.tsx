@@ -3175,8 +3175,8 @@ export default function BOMManagementPage() {
               <h3 className="font-semibold">
                 Excel导入BOM
                 {importGroupId && (
-                  <span className="text-sm text-gray-500 ml-2">
-                    (正在为{customerGroups.find(g => g.id === importGroupId)?.groupName || ''}导入BOM)
+                  <span className="ml-2">
+                    (正在为<span className="text-red-600">{customerGroups.find(g => g.id === importGroupId)?.groupName || ''}</span>导入BOM)
                   </span>
                 )}
               </h3>
