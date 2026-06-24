@@ -170,7 +170,33 @@ export async function PUT(request: NextRequest) {
       }
 
       if (row.existingMaterial) {
-        // 已存在物料，直接使用
+        // 已存在物料，更新物料信息
+        const targetGroupId = groupId || row.groupId;
+        let customerId: number | null = null;
+        if (targetGroupId) {
+          const firstCustomer = await prisma.customer.findFirst({
+            where: { groupId: targetGroupId, isDelete: false },
+            select: { id: true },
+          });
+          customerId = firstCustomer?.id || null;
+        }
+        
+        await prisma.material.update({
+          where: { id: row.existingMaterial.id },
+          data: {
+            materialName: row.materialName,
+            drawingCode: row.drawingCode || null,
+            drawingNo: row.drawingNo || null,
+            materialType: row.materialType || 'part',
+            weight: row.weight ? parseFloat(row.weight) : null,
+            unit: row.unit || null,
+            spec: row.spec || null,
+            customerId: customerId,
+            groupId: targetGroupId || null,
+            remark: row.remark || row.materialRemark || null,
+            modifiedBy: user?.id || null,
+          },
+        });
         materialId = row.existingMaterial.id;
       } else {
         // 如果提供了groupId，查询该群组下的第一个客户
