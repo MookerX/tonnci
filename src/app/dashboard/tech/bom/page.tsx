@@ -2117,15 +2117,9 @@ export default function BOMManagementPage() {
       setImportData([]);
       setEditedImportData([]);
       setImportErrors({});
-      // 保存当前的groupId，用于刷新BOM树
-      const currentGroupId = importGroupId;
       setImportGroupId(null);
-      // 刷新BOM树和物料列表
-      if (currentGroupId) {
-        fetchBOMTree(currentGroupId);
-      } else {
-        fetchBOMTree();
-      }
+      // 刷新BOM树和物料列表（获取所有物料，不按群组过滤）
+      fetchBOMTree();
       fetchMaterials();
     } else {
       error(res.message || '导入失败');
