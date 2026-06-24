@@ -3256,7 +3256,7 @@ export default function BOMManagementPage() {
                       <thead className="bg-gray-50 sticky top-0">
                         <tr>
                           <th className="px-2 py-1 text-left">状态</th>
-                          <th className="px-2 py-1 text-left">序号</th>
+                          <th className="px-2 py-1 text-left">层级</th>
                           <th className="px-2 py-1 text-left">物料名称</th>
                           <th className="px-2 py-1 text-left">物料类型</th>
                           <th className="px-2 py-1 text-left">图纸编码</th>
@@ -3268,7 +3268,6 @@ export default function BOMManagementPage() {
                           <th className="px-2 py-1 text-left">规格</th>
                           <th className="px-2 py-1 text-left">物料备注</th>
                           <th className="px-2 py-1 text-left">BOM备注</th>
-                          <th className="px-2 py-1 text-left">层级</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -3276,14 +3275,23 @@ export default function BOMManagementPage() {
                           <tr key={idx} className={`border-t border-gray-100 ${importErrors[idx] ? 'bg-red-50' : ''}`}>
                             <td className="px-2 py-1">
                               {importErrors[idx] ? (
-                                <span className="text-red-500" title={importErrors[idx]}>
+                                <span className="text-red-500 flex items-center gap-1" title={importErrors[idx]}>
                                   <AlertCircle className="w-4 h-4" />
+                                  <span className="text-xs">异常</span>
+                                </span>
+                              ) : row.existingMaterial ? (
+                                <span className="text-blue-500 flex items-center gap-1" title="物料已存在，将更新信息">
+                                  <CheckCircle className="w-4 h-4" />
+                                  <span className="text-xs">已存在</span>
                                 </span>
                               ) : (
-                                <span className="text-green-500"><CheckCircle className="w-4 h-4" /></span>
+                                <span className="text-green-500 flex items-center gap-1" title="新物料，将创建">
+                                  <CheckCircle className="w-4 h-4" />
+                                  <span className="text-xs">新增</span>
+                                </span>
                               )}
                             </td>
-                            <td className="px-2 py-1">{row.serialNumber || idx + 1}</td>
+                            <td className="px-2 py-1 font-mono">{row.levelCode || '-'}</td>
                             <td className="px-2 py-1">
                               <input
                                 type="text"
@@ -3379,7 +3387,6 @@ export default function BOMManagementPage() {
                                 className="w-full border border-gray-300 rounded px-1 py-0.5"
                               />
                             </td>
-                            <td className="px-2 py-1 font-mono">{row.levelCode || '-'}</td>
                           </tr>
                         ))}
                       </tbody>
