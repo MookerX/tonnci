@@ -133,16 +133,16 @@ export async function POST(request: NextRequest) {
 
       results.push({
         row: rowNum,
-        materialName: row.materialName,
+        materialName: String(row.materialName || ''),
         drawingCode: row.drawingCode ? String(row.drawingCode) : null,
         internalCode: internalCode ? String(internalCode) : null, // 空值表示保存时自动生成
         drawingNo: row.drawingNo ? String(row.drawingNo) : null,
         materialType,
         weight: row.weight ? parseFloat(row.weight) : null,
-        unit: row.unit,
-        spec: row.spec,
-        remark: row.remark,
-        bomRemark: row.bomRemark,
+        unit: row.unit ? String(row.unit) : null,
+        spec: row.spec ? String(row.spec) : null,
+        remark: row.remark ? String(row.remark) : null,
+        bomRemark: row.bomRemark ? String(row.bomRemark) : null,
         quantity: row.quantity ? parseFloat(row.quantity) : 1,
         customerId: row.customerId,
         level: row.level || 1,

@@ -184,16 +184,16 @@ export async function PUT(request: NextRequest) {
         await prisma.material.update({
           where: { id: row.existingMaterial.id },
           data: {
-            materialName: row.materialName,
+            materialName: row.materialName ? String(row.materialName) : '',
             drawingCode: row.drawingCode ? String(row.drawingCode) : null,
             drawingNo: row.drawingNo ? String(row.drawingNo) : null,
-            materialType: row.materialType || 'part',
+            materialType: row.materialType ? String(row.materialType) : 'part',
             weight: row.weight ? parseFloat(row.weight) : null,
-            unit: row.unit || null,
-            spec: row.spec || null,
+            unit: row.unit ? String(row.unit) : null,
+            spec: row.spec ? String(row.spec) : null,
             customerId: customerId,
             groupId: targetGroupId || null,
-            remark: row.remark || row.materialRemark || null,
+            remark: (row.remark || row.materialRemark) ? String(row.remark || row.materialRemark) : null,
             modifiedBy: user?.id || null,
           },
         });
@@ -214,23 +214,23 @@ export async function PUT(request: NextRequest) {
         const material = await prisma.material.create({
           data: {
             uuid: uuidv4(),
-            materialName: row.materialName,
+            materialName: row.materialName ? String(row.materialName) : '',
             internalCode: internalCode,
             drawingCode: row.drawingCode ? String(row.drawingCode) : null,
             drawingNo: row.drawingNo ? String(row.drawingNo) : null,
-            materialType: row.materialType || 'part',
+            materialType: row.materialType ? String(row.materialType) : 'part',
             weight: row.weight ? parseFloat(row.weight) : null,
-            unit: row.unit || null,
-            spec: row.spec || null,
+            unit: row.unit ? String(row.unit) : null,
+            spec: row.spec ? String(row.spec) : null,
             customerId: customerId,
             groupId: targetGroupId || null,
-            remark: row.remark || row.materialRemark || null,
+            remark: (row.remark || row.materialRemark) ? String(row.remark || row.materialRemark) : null,
             status: 'active',
             createdBy: user?.id || null,
           },
         });
         materialId = material.id;
-        createdMaterials.push({ id: material.id, materialName: row.materialName, internalCode: material.internalCode });
+        createdMaterials.push({ id: material.id, materialName: material.materialName, internalCode: material.internalCode });
       }
 
       // 记录层级编码对应的物料ID（用于处理层级关系）
