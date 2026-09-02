@@ -257,11 +257,22 @@ export async function PUT(request: NextRequest) {
             },
           });
 
-          if (!exists) {
-            // 计算 levelIndex：取层级编码的最后一部分
-            const levelParts = levelCode.split('.');
-            const levelIndex = levelParts[levelParts.length - 1] || '1';
-            
+          // 计算 levelIndex：取层级编码的最后一部分
+          const levelParts = levelCode.split('.');
+          const levelIndex = levelParts[levelParts.length - 1] || '1';
+          
+          if (exists) {
+            // BOM关系已存在，更新用量和BOM备注
+            await prisma.bomItem.update({
+              where: { id: exists.id },
+              data: {
+                quantity: row.quantity || row.unitUsage || 1,
+                bomRemark: row.bomRemark || null,
+                modifiedBy: user?.id || null,
+              },
+            });
+          } else {
+            // 创建新的BOM关系
             const bomItem = await prisma.bomItem.create({
               data: {
                 parentMaterialId: parentId,
