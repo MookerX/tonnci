@@ -3262,12 +3262,12 @@ export default function BOMManagementPage() {
                     <table className="w-full text-xs">
                       <thead className="bg-gray-50 sticky top-0">
                         <tr>
-                          <th className="px-2 py-1 text-left">状态</th>
+                          <th className="px-2 py-1 text-left" style={{ width: '100px' }}>状态</th>
                           <th className="px-2 py-1 text-left">层级</th>
                           <th className="px-2 py-1 text-left">物料名称</th>
                           <th className="px-2 py-1 text-left">物料类型</th>
                           <th className="px-2 py-1 text-left">图纸编码</th>
-                          <th className="px-2 py-1 text-left">内部编码</th>
+                          <th className="px-2 py-1 text-left" style={{ width: '120px' }}>内部编码</th>
                           <th className="px-2 py-1 text-left">图号</th>
                           <th className="px-2 py-1 text-left">用量</th>
                           <th className="px-2 py-1 text-left">重量</th>
@@ -3284,7 +3284,7 @@ export default function BOMManagementPage() {
                           const isTopLevel = row.levelCode && !String(row.levelCode).includes('.');
                           return (
                           <tr key={idx} className={`border-t border-gray-100 ${importErrors[idx] ? 'bg-red-50' : ''}`}>
-                            <td className="px-2 py-1">
+                            <td className="px-2 py-1" style={{ width: '80px' }}>
                               {importErrors[idx] ? (
                                 <span className="text-red-500 flex items-center gap-1" title={importErrors[idx]}>
                                   <AlertCircle className="w-4 h-4" />
@@ -3333,7 +3333,7 @@ export default function BOMManagementPage() {
                                 className="w-full border border-gray-300 rounded px-1 py-0.5 disabled:bg-gray-100 disabled:text-gray-400"
                               />
                             </td>
-                                                        <td className="px-2 py-1">
+                                                        <td className="px-2 py-1" style={{ width: '120px' }}>
                               {row.internalCode || <span className="text-gray-400 text-xs italic">保存时自动生成</span>}
                             </td>
                             <td className="px-2 py-1">
