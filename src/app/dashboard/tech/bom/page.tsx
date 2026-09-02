@@ -3177,7 +3177,7 @@ export default function BOMManagementPage() {
       {/* 导入弹窗 */}
       {showImportModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className={`bg-white rounded-lg shadow-xl overflow-auto ${isImportModalMaximized ? 'w-full h-full rounded-none' : 'w-[95vw] max-w-[1400px] max-h-[80vh]'}`}>
+          <div className={`bg-white rounded-lg shadow-xl overflow-auto ${isImportModalMaximized ? 'w-full h-full rounded-none' : 'w-[95vw] max-w-[1500px] max-h-[80vh]'}`}>
             <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200">
               <h3 className="font-semibold">
                 Excel导入BOM
