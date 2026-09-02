@@ -2458,7 +2458,7 @@ export default function BOMManagementPage() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = 'BOM下载导入模板.csv';
+    a.download = 'BOM导入模板.csv';
     a.click();
     URL.revokeObjectURL(url);
   };
@@ -2477,7 +2477,7 @@ export default function BOMManagementPage() {
               className="flex items-center gap-1 px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-100 rounded-lg"
             >
               <Download className="w-4 h-4" />
-              导入模板
+              下载BOM模板
             </button>
             <button
               onClick={() => { setImportGroupId(null); setShowImportModal(true); }}
