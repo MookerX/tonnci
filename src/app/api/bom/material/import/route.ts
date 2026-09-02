@@ -118,6 +118,7 @@ export async function POST(request: NextRequest) {
 
       // 查询是否已存在（数值类型转字符串）
       // 使用OR关系：只要有一个字段匹配就认为是已存在
+      // 同时必须属于同一客户群组（groupId）
       let material = null;
       const orConditions: any[] = [];
       if (row.drawingCode) orConditions.push({ drawingCode: String(row.drawingCode), isDelete: false });
@@ -125,9 +126,11 @@ export async function POST(request: NextRequest) {
       if (row.drawingNo) orConditions.push({ drawingNo: String(row.drawingNo), isDelete: false });
 
       if (orConditions.length > 0) {
-        material = await prisma.material.findFirst({
-          where: { OR: orConditions },
-        });
+        const where: any = { OR: orConditions };
+        if (groupId) {
+          where.groupId = parseInt(groupId);
+        }
+        material = await prisma.material.findFirst({ where });
       }
 
       const materialType = MATERIAL_TYPE_MAP[row.materialType] || 'part';
