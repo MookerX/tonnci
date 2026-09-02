@@ -116,11 +116,11 @@ export async function POST(request: NextRequest) {
         continue;
       }
 
-      // 查询是否已存在
+      // 查询是否已存在（数值类型转字符串）
       const where: any = { isDelete: false };
-      if (row.drawingCode) where.drawingCode = row.drawingCode;
-      if (row.internalCode) where.internalCode = row.internalCode;
-      if (row.drawingNo) where.drawingNo = row.drawingNo;
+      if (row.drawingCode) where.drawingCode = String(row.drawingCode);
+      if (row.internalCode) where.internalCode = String(row.internalCode);
+      if (row.drawingNo) where.drawingNo = String(row.drawingNo);
 
       let material = null;
       if (Object.keys(where).length > 1 || (where.drawingCode || where.internalCode || where.drawingNo)) {
@@ -134,9 +134,9 @@ export async function POST(request: NextRequest) {
       results.push({
         row: rowNum,
         materialName: row.materialName,
-        drawingCode: row.drawingCode,
-        internalCode: internalCode, // 空值表示保存时自动生成
-        drawingNo: row.drawingNo,
+        drawingCode: row.drawingCode ? String(row.drawingCode) : null,
+        internalCode: internalCode ? String(internalCode) : null, // 空值表示保存时自动生成
+        drawingNo: row.drawingNo ? String(row.drawingNo) : null,
         materialType,
         weight: row.weight ? parseFloat(row.weight) : null,
         unit: row.unit,
