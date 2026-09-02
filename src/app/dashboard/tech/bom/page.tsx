@@ -2084,7 +2084,14 @@ export default function BOMManagementPage() {
     if (res.code === 200) {
       const data = res.data?.success || [];
       setImportData(data);
-      setEditedImportData(data.map((item: any) => ({ ...item })));
+      setEditedImportData(data.map((item: any) => {
+        const isTopLevel = !item.levelCode || item.levelCode === '-' || item.levelCode === '';
+        if (isTopLevel) {
+          item.quantity = null;
+          item.bomRemark = '';
+        }
+        return { ...item };
+      }));
       setImportErrors({});
       setImportStep(2);
     } else {
@@ -3271,7 +3278,10 @@ export default function BOMManagementPage() {
                         </tr>
                       </thead>
                       <tbody>
-                        {editedImportData.map((row, idx) => (
+                        {editedImportData.map((row, idx) => {
+                          const isExisting = !!row.existingMaterial;
+                          const isTopLevel = !row.levelCode || row.levelCode === '-' || row.levelCode === '';
+                          return (
                           <tr key={idx} className={`border-t border-gray-100 ${importErrors[idx] ? 'bg-red-50' : ''}`}>
                             <td className="px-2 py-1">
                               {importErrors[idx] ? (
@@ -3297,14 +3307,16 @@ export default function BOMManagementPage() {
                                 type="text"
                                 value={row.materialName || ''}
                                 onChange={e => updateImportRow(idx, 'materialName', e.target.value)}
-                                className="w-full border border-gray-300 rounded px-1 py-0.5"
+                                disabled={isExisting}
+                                className="w-full border border-gray-300 rounded px-1 py-0.5 disabled:bg-gray-100 disabled:text-gray-400"
                               />
                             </td>
                             <td className="px-2 py-1">
                               <select
                                 value={row.materialType || 'part'}
                                 onChange={e => updateImportRow(idx, 'materialType', e.target.value)}
-                                className="border border-gray-300 rounded px-1 py-0.5"
+                                disabled={isExisting}
+                                className="border border-gray-300 rounded px-1 py-0.5 disabled:bg-gray-100 disabled:text-gray-400"
                               >
                                 {materialTypeOptions.map(t => (
                                   <option key={t.value} value={t.value}>{t.label}</option>
@@ -3316,7 +3328,8 @@ export default function BOMManagementPage() {
                                 type="text"
                                 value={row.drawingCode || ''}
                                 onChange={e => updateImportRow(idx, 'drawingCode', e.target.value)}
-                                className="w-full border border-gray-300 rounded px-1 py-0.5"
+                                disabled={isExisting}
+                                className="w-full border border-gray-300 rounded px-1 py-0.5 disabled:bg-gray-100 disabled:text-gray-400"
                               />
                             </td>
                                                         <td className="px-2 py-1">
@@ -3327,7 +3340,8 @@ export default function BOMManagementPage() {
                                 type="text"
                                 value={row.drawingNo || ''}
                                 onChange={e => updateImportRow(idx, 'drawingNo', e.target.value)}
-                                className="w-full border border-gray-300 rounded px-1 py-0.5"
+                                disabled={isExisting}
+                                className="w-full border border-gray-300 rounded px-1 py-0.5 disabled:bg-gray-100 disabled:text-gray-400"
                               />
                             </td>
                             <td className="px-2 py-1">
@@ -3335,9 +3349,10 @@ export default function BOMManagementPage() {
                                 type="number"
                                 step="1"
                                 min="1"
-                                value={row.quantity || 1}
+                                value={isTopLevel ? '' : (row.quantity || 1)}
                                 onChange={e => updateImportRow(idx, 'quantity', parseFloat(e.target.value) || 1)}
-                                className="w-16 border border-gray-300 rounded px-1 py-0.5"
+                                disabled={isTopLevel}
+                                className="w-16 border border-gray-300 rounded px-1 py-0.5 disabled:bg-gray-100 disabled:text-gray-400"
                               />
                             </td>
                             <td className="px-2 py-1">
@@ -3347,14 +3362,16 @@ export default function BOMManagementPage() {
                                 min="0"
                                 value={row.weight || ''}
                                 onChange={e => updateImportRow(idx, 'weight', e.target.value ? parseFloat(e.target.value) : null)}
-                                className="w-16 border border-gray-300 rounded px-1 py-0.5"
+                                disabled={isExisting}
+                                className="w-16 border border-gray-300 rounded px-1 py-0.5 disabled:bg-gray-100 disabled:text-gray-400"
                               />
                             </td>
                             <td className="px-2 py-1">
                               <select
                                 value={row.unit || ''}
                                 onChange={e => updateImportRow(idx, 'unit', e.target.value)}
-                                className="border border-gray-300 rounded px-1 py-0.5"
+                                disabled={isExisting}
+                                className="border border-gray-300 rounded px-1 py-0.5 disabled:bg-gray-100 disabled:text-gray-400"
                               >
                                 <option value="">请选择</option>
                                 <option value="套">套</option>
@@ -3368,7 +3385,8 @@ export default function BOMManagementPage() {
                                 type="text"
                                 value={row.spec || ''}
                                 onChange={e => updateImportRow(idx, 'spec', e.target.value)}
-                                className="w-full border border-gray-300 rounded px-1 py-0.5"
+                                disabled={isExisting}
+                                className="w-full border border-gray-300 rounded px-1 py-0.5 disabled:bg-gray-100 disabled:text-gray-400"
                               />
                             </td>
                             <td className="px-2 py-1">
@@ -3376,19 +3394,22 @@ export default function BOMManagementPage() {
                                 type="text"
                                 value={row.materialRemark || ''}
                                 onChange={e => updateImportRow(idx, 'materialRemark', e.target.value)}
-                                className="w-full border border-gray-300 rounded px-1 py-0.5"
+                                disabled={isExisting}
+                                className="w-full border border-gray-300 rounded px-1 py-0.5 disabled:bg-gray-100 disabled:text-gray-400"
                               />
                             </td>
                             <td className="px-2 py-1">
                               <input
                                 type="text"
-                                value={row.bomRemark || ''}
+                                value={isTopLevel ? '' : (row.bomRemark || '')}
                                 onChange={e => updateImportRow(idx, 'bomRemark', e.target.value)}
-                                className="w-full border border-gray-300 rounded px-1 py-0.5"
+                                disabled={isTopLevel}
+                                className="w-full border border-gray-300 rounded px-1 py-0.5 disabled:bg-gray-100 disabled:text-gray-400"
                               />
                             </td>
                           </tr>
-                        ))}
+                          );
+                        })}
                       </tbody>
                     </table>
                   </div>
