@@ -1,192 +1,265 @@
-// =============================================================================
-// 腾曦生产管理系统 - 图纸管理 API
-// 描述: 图纸列表、上传、搜索
-// =============================================================================
-
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { getAuthContext } from '@/lib/auth/middleware';
-import { successResponse, badRequestResponse, unauthorizedResponse, serverErrorResponse } from '@/lib/response';
+import { getUserFromToken } from '@/lib/auth/jwt';
+import { successResponse, badRequestResponse, serverErrorResponse } from '@/lib/response';
 import { writeFile, mkdir } from 'fs/promises';
+import { createHash } from 'crypto';
+import { join } from 'path';
 import { existsSync } from 'fs';
-import path from 'path';
-import crypto from 'crypto';
 
-const STORAGE_BASE = process.env.LOCAL_STORAGE_PATH || '/workspace/projects/storage';
-const DRAWING_DIR = 'drawings';
+const STORAGE_BASE = process.env.LOCAL_STORAGE_PATH || join(process.cwd(), 'storage');
+const DRAWING_DIR = join(STORAGE_BASE, 'drawings');
 
-// =============================================================================
-// GET /api/drawing - 获取图纸列表（支持搜索/筛选）
-// =============================================================================
+// 获取文件MD5
+async function getFileMd5(buffer: Buffer): Promise<string> {
+  return createHash('md5').update(buffer).digest('hex');
+}
 
+// 确保目录存在
+async function ensureDir(dir: string) {
+  if (!existsSync(dir)) {
+    await mkdir(dir, { recursive: true });
+  }
+}
+
+// 获取文件大小
+function formatFileSize(bytes: number): string {
+  if (bytes < 1024) return bytes + ' B';
+  if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+  return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+}
+
+// 获取下一个版本号
+async function getNextVersion(drawingId: number): Promise<number> {
+  const lastVersion = await prisma.materialDrawing.findFirst({
+    where: { id: drawingId },
+    select: { version: true },
+    orderBy: { version: 'desc' },
+  });
+  return (lastVersion?.version || 0) + 1;
+}
+
+// 根据文件名匹配物料
+async function matchMaterialByFilename(filename: string): Promise<{ matched: boolean; materials: any[] }> {
+  const nameWithoutExt = filename.replace(/\.[^/.]+$/, '').trim();
+  if (!nameWithoutExt) return { matched: false, materials: [] };
+
+  const materials = await prisma.material.findMany({
+    where: {
+      isDelete: false,
+      OR: [
+        { internalCode: nameWithoutExt },
+        { drawingCode: nameWithoutExt },
+        { drawingNo: nameWithoutExt },
+      ],
+    },
+    select: {
+      id: true,
+      materialName: true,
+      internalCode: true,
+      drawingCode: true,
+      drawingNo: true,
+    },
+  });
+
+  return {
+    matched: materials.length > 0,
+    materials,
+  };
+}
+
+// GET /api/drawing - 列表查询
 export async function GET(request: NextRequest) {
   try {
-    const auth = await getAuthContext(request);
-    if (!auth) return unauthorizedResponse('请先登录');
+    const user = await getUserFromToken(request);
+    if (!user) return NextResponse.json({ code: 401, message: '未登录', data: null });
 
     const { searchParams } = new URL(request.url);
-    const keyword = searchParams.get('keyword') || '';
-    const materialId = searchParams.get('materialId') ? parseInt(searchParams.get('materialId')!) : undefined;
+    const page = parseInt(searchParams.get('page') || '1');
+    const pageSize = parseInt(searchParams.get('pageSize') || '20');
+    const fileName = searchParams.get('fileName') || '';
     const drawingType = searchParams.get('drawingType') || '';
-    const status = searchParams.get('status') || '';
-    const page = Math.max(1, parseInt(searchParams.get('page') || '1'));
-    const pageSize = Math.min(100, Math.max(1, parseInt(searchParams.get('pageSize') || '20')));
+    const version = searchParams.get('version') || '';
+    const startDate = searchParams.get('startDate') || '';
+    const endDate = searchParams.get('endDate') || '';
 
     const where: any = { isDelete: false };
 
-    if (materialId) where.materialId = materialId;
+    if (fileName) where.fileName = { contains: fileName };
     if (drawingType) where.drawingType = drawingType;
-    if (status) where.status = status;
+    if (version) where.version = parseInt(version);
+    if (startDate) where.createdAt = { ...(where.createdAt || {}), gte: new Date(startDate) };
+    if (endDate) where.createdAt = { ...(where.createdAt || {}), lte: new Date(endDate + 'T23:59:59') };
 
-    if (keyword) {
-      where.OR = [
-        { fileName: { contains: keyword } },
-        { filePath: { contains: keyword } },
-      ];
-    }
-
-    const [total, drawings] = await Promise.all([
-      prisma.materialDrawing.count({ where }),
+    const [list, total] = await Promise.all([
       prisma.materialDrawing.findMany({
         where,
+        select: {
+          id: true,
+          materialId: true,
+          drawingType: true,
+          version: true,
+          fileName: true,
+          filePath: true,
+          fileSize: true,
+          md5: true,
+          isLatest: true,
+          status: true,
+          createdAt: true,
+          createdBy: true,
+        },
         orderBy: { createdAt: 'desc' },
         skip: (page - 1) * pageSize,
         take: pageSize,
       }),
+      prisma.materialDrawing.count({ where }),
     ]);
 
-    // 补充物料和创建者信息
-    const materialIds = [...new Set(drawings.filter(d => d.materialId).map(d => d.materialId))];
-    const creatorIds = [...new Set(drawings.filter(d => d.createdBy).map(d => d.createdBy!))];
-
-    const [materials, creators] = await Promise.all([
-      materialIds.length > 0
-        ? prisma.material.findMany({ where: { id: { in: materialIds } }, select: { id: true, materialName: true, internalCode: true, drawingCode: true } })
-        : Promise.resolve([]),
-      creatorIds.length > 0
-        ? prisma.user.findMany({ where: { id: { in: creatorIds } }, select: { id: true, realName: true, username: true } })
-        : Promise.resolve([]),
-    ]);
-
+    // 获取关联物料信息
+    const materialIds = list.map(d => d.materialId).filter(Boolean) as number[];
+    const materials = materialIds.length > 0
+      ? await prisma.material.findMany({
+          where: { id: { in: materialIds }, isDelete: false },
+          select: { id: true, materialName: true, internalCode: true, drawingCode: true },
+        })
+      : [];
     const materialMap = new Map(materials.map(m => [m.id, m]));
-    const creatorMap = new Map(creators.map(c => [c.id, c]));
 
-    const list = drawings.map(d => ({
+    const listWithMaterial = list.map(d => ({
       ...d,
-      material: d.materialId ? materialMap.get(d.materialId) || null : null,
-      creator: d.createdBy ? creatorMap.get(d.createdBy) || null : null,
+      fileSize: d.fileSize ? formatFileSize(Number(d.fileSize)) : '-',
+      materialName: d.materialId ? materialMap.get(d.materialId)?.materialName || '-' : '-',
+      materialInfo: d.materialId ? materialMap.get(d.materialId) || null : null,
     }));
 
-    return NextResponse.json(successResponse({
-      list,
-      total,
-      page,
-      pageSize,
-      totalPages: Math.ceil(total / pageSize),
-    }));
-  } catch (error: any) {
-    return NextResponse.json(serverErrorResponse(error.message));
+    return NextResponse.json({ code: 200, message: 'ok', data: { list: listWithMaterial, total } });
+  } catch (error) {
+    console.error('查询图纸列表失败:', error);
+    return NextResponse.json({ code: 500, message: '查询失败', data: null });
   }
 }
 
-// =============================================================================
-// POST /api/drawing - 上传图纸
-// =============================================================================
-
+// POST /api/drawing - 单文件上传（含物料关联）
 export async function POST(request: NextRequest) {
   try {
-    const auth = await getAuthContext(request);
-    if (!auth) return unauthorizedResponse('请先登录');
+    const user = await getUserFromToken(request);
+    if (!user) return NextResponse.json({ code: 401, message: '未登录', data: null });
 
     const formData = await request.formData();
     const file = formData.get('file') as File | null;
-    const materialId = formData.get('materialId') ? parseInt(formData.get('materialId') as string) : null;
-    const drawingType = (formData.get('drawingType') as string) || 'production';
+    const materialIdStr = formData.get('materialId') as string | null;
 
-    if (!file) {
-      return NextResponse.json(badRequestResponse('请选择文件'));
-    }
+    if (!file) return NextResponse.json({ code: 400, message: '请选择文件', data: null });
 
-    // 支持的文件类型
-    const ext = path.extname(file.name).toLowerCase();
-    const allowedExts = ['.pdf', '.dwg', '.dxf', '.jpg', '.jpeg', '.png', '.gif', '.bmp', '.tiff', '.tif', '.zip', '.rar'];
-    if (!allowedExts.includes(ext)) {
-      return NextResponse.json(badRequestResponse('不支持的文件格式，仅支持 PDF/DWG/DXF/图片/压缩包'));
-    }
+    await ensureDir(DRAWING_DIR);
 
-    // 计算MD5
     const buffer = Buffer.from(await file.arrayBuffer());
-    const md5 = crypto.createHash('md5').update(buffer).digest('hex');
+    const md5 = await getFileMd5(buffer);
+    const fileName = file.name;
+    const fileSize = file.size;
 
     // MD5去重检查
     const existing = await prisma.materialDrawing.findFirst({
-      where: { md5, isDelete: false, status: 'active' },
+      where: { md5, isDelete: false },
+      select: { id: true, fileName: true, version: true },
     });
-
     if (existing) {
-      return NextResponse.json(successResponse({
-        id: existing.id,
-        duplicate: true,
-        message: '文件已存在（MD5匹配）',
-        file: existing,
-      }));
-    }
-
-    // 创建存储目录
-    const dateDir = new Date().toISOString().slice(0, 10).replace(/-/g, '/');
-    const storageDir = path.join(STORAGE_BASE, DRAWING_DIR, dateDir);
-    if (!existsSync(storageDir)) {
-      await mkdir(storageDir, { recursive: true });
-    }
-
-    // 生成唯一文件名
-    const timestamp = Date.now();
-    const uniqueName = `${timestamp}_${md5.slice(0, 8)}${ext}`;
-    const filePath = path.join(storageDir, uniqueName);
-    const relativePath = path.join(DRAWING_DIR, dateDir, uniqueName);
-
-    // 写入文件
-    await writeFile(filePath, buffer);
-
-    // 获取最新版本号
-    const lastVersion = await prisma.materialDrawing.findFirst({
-      where: { materialId: materialId || undefined, isDelete: false },
-      orderBy: { createdAt: 'desc' },
-      select: { version: true },
-    });
-    const lastVerNum = parseInt(lastVersion?.version?.replace('V', '') || '0');
-    const newVersion = `V${lastVerNum + 1}`;
-
-    // 如果之前有最新版本，取消isLatest标记
-    if (materialId) {
-      await prisma.materialDrawing.updateMany({
-        where: { materialId, isLatest: true, isDelete: false },
-        data: { isLatest: false },
+      return NextResponse.json({
+        code: 400,
+        message: `文件已存在（MD5: ${md5}），已上传为：${existing.fileName}（版本 ${existing.version}）`,
+        data: { md5, existingFile: existing.fileName },
       });
     }
 
-    // 创建图纸记录
-    const drawing = await prisma.materialDrawing.create({
+    // 物料关联
+    let materialId: number | null = null;
+    let matchResult: { matched: boolean; materials: any[] } = { matched: false, materials: [] };
+
+    if (materialIdStr) {
+      // 用户手动指定了物料
+      materialId = parseInt(materialIdStr);
+    } else {
+      // 根据文件名自动匹配
+      matchResult = await matchMaterialByFilename(fileName);
+      if (matchResult.matched && matchResult.materials.length === 1) {
+        materialId = matchResult.materials[0].id;
+      }
+    }
+
+    // 如果物料已匹配且该物料已有最新版本图纸，则创建新版本，否则创建新记录
+    let drawingRecord;
+    const existingDrawing = materialId
+      ? await prisma.materialDrawing.findFirst({
+          where: { materialId, isLatest: true, isDelete: false },
+          select: { id: true, version: true },
+        })
+      : null;
+
+    // 保存文件
+    const timestamp = Date.now();
+    const safeFileName = `${timestamp}_${fileName}`;
+    const filePath = join(DRAWING_DIR, safeFileName);
+    await writeFile(filePath, buffer);
+
+    if (existingDrawing) {
+      // 创建新版本，旧版本标记为非最新
+      await prisma.materialDrawing.updateMany({
+        where: { materialId: materialId!, isLatest: true, isDelete: false },
+        data: { isLatest: false },
+      });
+
+      drawingRecord = await prisma.materialDrawing.create({
+        data: {
+          materialId,
+          drawingType: fileName.split('.').pop()?.toLowerCase() || 'unknown',
+          version: existingDrawing.version + 1,
+          fileName,
+          filePath: safeFileName,
+          fileSize,
+          md5,
+          isLatest: true,
+          status: 'active',
+          createdBy: user.id,
+        },
+      });
+    } else {
+      drawingRecord = await prisma.materialDrawing.create({
+        data: {
+          materialId,
+          drawingType: fileName.split('.').pop()?.toLowerCase() || 'unknown',
+          version: 1,
+          fileName,
+          filePath: safeFileName,
+          fileSize,
+          md5,
+          isLatest: true,
+          status: 'active',
+          createdBy: user.id,
+        },
+      });
+    }
+
+    return NextResponse.json({
+      code: 200,
+      message: matchResult.matched && matchResult.materials.length > 1
+        ? '多个物料匹配，请选择关联'
+        : '上传成功',
       data: {
-        materialId,
-        drawingType,
-        version: newVersion,
-        fileName: file.name,
-        filePath: relativePath,
-        fileSize: file.size,
-        md5,
-        isLatest: true,
-        status: 'active',
-        createdBy: auth.userId,
+        drawing: {
+          id: drawingRecord.id,
+          fileName: drawingRecord.fileName,
+          fileSize: formatFileSize(fileSize),
+          version: drawingRecord.version,
+          md5,
+          isLatest: true,
+          materialId,
+        },
+        matchResult: matchResult.matched && matchResult.materials.length > 1 ? matchResult.materials : undefined,
+        autoMatched: matchResult.matched && matchResult.materials.length === 1,
       },
     });
-
-    return NextResponse.json(successResponse({
-      id: drawing.id,
-      duplicate: false,
-      file: drawing,
-    }));
-  } catch (error: any) {
-    return NextResponse.json(serverErrorResponse(error.message));
+  } catch (error) {
+    console.error('上传图纸失败:', error);
+    return NextResponse.json({ code: 500, message: '上传失败', data: null });
   }
 }
