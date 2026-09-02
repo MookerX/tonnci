@@ -3280,7 +3280,8 @@ export default function BOMManagementPage() {
                       <tbody>
                         {editedImportData.map((row, idx) => {
                           const isExisting = !!row.existingMaterial;
-                          const isTopLevel = !row.levelCode || row.levelCode === '-' || row.levelCode === '';
+                          // 顶层物料：层级编码中没有小数点（如 "1", "2"），而不是子物料（如 "1.1", "2.1"）
+                          const isTopLevel = row.levelCode && !String(row.levelCode).includes('.');
                           return (
                           <tr key={idx} className={`border-t border-gray-100 ${importErrors[idx] ? 'bg-red-50' : ''}`}>
                             <td className="px-2 py-1">
