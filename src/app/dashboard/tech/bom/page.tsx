@@ -2458,7 +2458,7 @@ export default function BOMManagementPage() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = 'BOM导入模板.csv';
+    a.download = 'BOM下载导入模板.csv';
     a.click();
     URL.revokeObjectURL(url);
   };
