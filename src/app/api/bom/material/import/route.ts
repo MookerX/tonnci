@@ -117,14 +117,17 @@ export async function POST(request: NextRequest) {
       }
 
       // 查询是否已存在（数值类型转字符串）
-      const where: any = { isDelete: false };
-      if (row.drawingCode) where.drawingCode = String(row.drawingCode);
-      if (row.internalCode) where.internalCode = String(row.internalCode);
-      if (row.drawingNo) where.drawingNo = String(row.drawingNo);
-
+      // 使用OR关系：只要有一个字段匹配就认为是已存在
       let material = null;
-      if (Object.keys(where).length > 1 || (where.drawingCode || where.internalCode || where.drawingNo)) {
-        material = await prisma.material.findFirst({ where });
+      const orConditions: any[] = [];
+      if (row.drawingCode) orConditions.push({ drawingCode: String(row.drawingCode), isDelete: false });
+      if (row.internalCode) orConditions.push({ internalCode: String(row.internalCode), isDelete: false });
+      if (row.drawingNo) orConditions.push({ drawingNo: String(row.drawingNo), isDelete: false });
+
+      if (orConditions.length > 0) {
+        material = await prisma.material.findFirst({
+          where: { OR: orConditions },
+        });
       }
 
       const materialType = MATERIAL_TYPE_MAP[row.materialType] || 'part';
