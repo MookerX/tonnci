@@ -3262,8 +3262,8 @@ export default function BOMManagementPage() {
                     <table className="w-full text-xs">
                       <thead className="bg-gray-50 sticky top-0">
                         <tr>
-                          <th className="px-2 py-1 text-left" style={{ width: '100px' }}>状态</th>
-                          <th className="px-2 py-1 text-left">层级</th>
+                          <th className="px-2 py-1 text-left" style={{ width: '70px' }}>状态</th>
+                          <th className="px-2 py-1 text-left" style={{ width: '80px' }}>层级</th>
                           <th className="px-2 py-1 text-left">物料名称</th>
                           <th className="px-2 py-1 text-left">物料类型</th>
                           <th className="px-2 py-1 text-left">图纸编码</th>
@@ -3284,7 +3284,7 @@ export default function BOMManagementPage() {
                           const isTopLevel = row.levelCode && !String(row.levelCode).includes('.');
                           return (
                           <tr key={idx} className={`border-t border-gray-100 ${importErrors[idx] ? 'bg-red-50' : ''}`}>
-                            <td className="px-2 py-1" style={{ width: '80px' }}>
+                            <td className="px-2 py-1" style={{ width: '70px' }}>
                               {importErrors[idx] ? (
                                 <span className="text-red-500 flex items-center gap-1" title={importErrors[idx]}>
                                   <AlertCircle className="w-4 h-4" />
@@ -3302,7 +3302,7 @@ export default function BOMManagementPage() {
                                 </span>
                               )}
                             </td>
-                            <td className="px-2 py-1 font-mono">{row.levelCode || '-'}</td>
+                            <td className="px-2 py-1 font-mono" style={{ width: '80px' }}>{row.levelCode || '-'}</td>
                             <td className="px-2 py-1">
                               <input
                                 type="text"
