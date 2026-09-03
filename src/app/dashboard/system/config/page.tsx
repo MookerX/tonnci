@@ -408,7 +408,7 @@ export default function SystemConfigPage() {
                 <thead>
                   <tr className="bg-gray-50 border-b">
                     <th className="text-left px-4 py-2.5 text-gray-600 font-medium w-1/3">图纸类型名称</th>
-                    <th className="text-left px-4 py-2.5 text-gray-600 font-medium w-2/3">文件后缀（逗号分隔）</th>
+                    <th className="text-left px-4 py-2.5 text-gray-600 font-medium w-2/3">文件类型</th>
                     <th className="text-center px-4 py-2.5 text-gray-600 font-medium w-16">操作</th>
                   </tr>
                 </thead>
