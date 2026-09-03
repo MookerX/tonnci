@@ -94,6 +94,31 @@ const formatDate = (dateStr: string) => {
   });
 };
 
+// 图纸类型颜色映射
+const typeColors: Record<string, string> = {
+  '工程图': 'bg-blue-100 text-blue-700',
+  '工艺图': 'bg-purple-100 text-purple-700',
+  '三维图': 'bg-cyan-100 text-cyan-700',
+  '设计图': 'bg-blue-100 text-blue-700',
+  '生产图': 'bg-green-100 text-green-700',
+};
+const colorPalette = [
+  'bg-orange-100 text-orange-700',
+  'bg-teal-100 text-teal-700',
+  'bg-pink-100 text-pink-700',
+  'bg-indigo-100 text-indigo-700',
+  'bg-amber-100 text-amber-700',
+  'bg-lime-100 text-lime-700',
+  'bg-rose-100 text-rose-700',
+  'bg-violet-100 text-violet-700',
+];
+const getTypeColor = (type: string): string => {
+  if (typeColors[type]) return typeColors[type];
+  // 用类型名称的字符编码和取模分配颜色，确保同类型颜色一致
+  const hash = type.split('').reduce((acc, c) => acc + c.charCodeAt(0), 0);
+  return colorPalette[hash % colorPalette.length];
+};
+
 // =============================================================================
 // 图纸管理主页面
 // =============================================================================
@@ -711,11 +736,7 @@ export default function DrawingPage() {
         return <span className="text-gray-600 truncate">{formatFileSize(drawing.fileSize)}</span>;
       case 'drawingType':
         return (
-          <span className={`px-1.5 py-0.5 rounded text-xs ${
-            drawing.drawingType === '设计图' ? 'bg-blue-100 text-blue-700' :
-            drawing.drawingType === '生产图' ? 'bg-green-100 text-green-700' :
-            'bg-gray-100 text-gray-700'
-          }`}>{drawing.drawingType || '-'}</span>
+          <span className={`px-1.5 py-0.5 rounded text-xs ${getTypeColor(drawing.drawingType)}`}>{drawing.drawingType || '-'}</span>
         );
       case 'version':
         return <span className="font-mono text-xs text-gray-600 truncate">{drawing.version}</span>;
