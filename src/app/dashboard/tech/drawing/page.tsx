@@ -878,7 +878,7 @@ export default function DrawingPage() {
                   <div className="w-32 flex-shrink-0 flex items-center justify-center gap-0.5 px-1">
                     <button onClick={() => handlePreview(drawing)} className="p-1 text-blue-600 hover:bg-blue-100 rounded transition-colors cursor-pointer" title="预览"><Eye className="w-4 h-4" /></button>
                     <button onClick={() => handleShowVersions(drawing)} className="p-1 text-indigo-600 hover:bg-indigo-100 rounded transition-colors cursor-pointer" title="版本历史"><FileText className="w-4 h-4" /></button>
-                    <button onClick={() => handleShowAssociateDialog(drawing)} className="p-1 text-emerald-600 hover:bg-emerald-100 rounded transition-colors cursor-pointer" title="关联物料"><Link2 className="w-4 h-4" /></button>
+                    <button onClick={() => handleShowAssociateDialog(drawing)} className={`p-1 rounded transition-colors cursor-pointer ${drawing.materialId ? 'text-emerald-600 hover:bg-emerald-100' : 'text-red-600 hover:bg-red-100'}`} title={drawing.materialId ? '更换物料' : '关联物料'}><Link2 className="w-4 h-4" /></button>
                     <button onClick={() => handleDelete(drawing.id)} className="p-1 text-red-600 hover:bg-red-100 rounded transition-colors cursor-pointer" title="删除"><Trash2 className="w-4 h-4" /></button>
                   </div>
                 </div>
