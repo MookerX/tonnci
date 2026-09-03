@@ -690,12 +690,11 @@ export default function DrawingPage() {
     const actionText = isDisabled ? '启用' : '禁用';
     if (!window.confirm(`确定${actionText}图纸"${drawing.fileName}"吗？${actionText === '禁用' ? '禁用后可以恢复' : ''}`)) return;
     try {
-      const res = await fetchApi(`/api/drawing/${drawing.id}`, {
+      const result = await fetchApi(`/api/drawing/${drawing.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action }),
       });
-      const result = await res.json();
       if (result.code === 200) {
         success(`已${actionText}: ${drawing.fileName}`);
         fetchDrawings();
