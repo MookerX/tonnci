@@ -127,37 +127,36 @@ export async function POST(request: NextRequest) {
       }, { status: 409 });
     }
 
-    // 必须有materialId才能保存
-    if (!materialId) {
-      return badRequestResponse('请关联物料后再上传');
-    }
-
-    // 验证物料是否存在
-    const material = await prisma.material.findFirst({
-      where: { id: materialId, isDelete: false },
-    });
-    if (!material) {
-      return badRequestResponse('关联的物料不存在');
-    }
-
     // 保存文件到存储配置的路径下
     const basePath = storageConfig.basePath || '/workspace/projects/storage';
     const dateStr = new Date().toISOString().slice(0, 10).replace(/-/g, '');
-    const dir = path.join(basePath, 'drawings', dateStr);
+    const dir = path.join(basePath, dateStr);
+
+    // 验证物料是否存在（如果提供）
+    if (materialId) {
+      const material = await prisma.material.findFirst({
+        where: { id: materialId, isDelete: false },
+      });
+      if (!material) {
+        return badRequestResponse('关联的物料不存在');
+      }
+    }
     if (!existsSync(dir)) await mkdir(dir, { recursive: true });
     const filePath = path.join(dir, `${Date.now()}_${fileName}`);
     await writeFile(filePath, buffer);
 
-    // 检查该物料是否已有图纸记录，如有则标记为非最新版本
-    await prisma.materialDrawing.updateMany({
-      where: { materialId, isLatest: true, isDelete: false },
-      data: { isLatest: false },
-    });
+    // 检查该物料是否已有图纸记录（仅当有materialId时）
+    if (materialId) {
+      await prisma.materialDrawing.updateMany({
+        where: { materialId, isLatest: true, isDelete: false },
+        data: { isLatest: false },
+      });
+    }
 
     // 创建新图纸记录
     const drawing = await prisma.materialDrawing.create({
       data: {
-        materialId,
+        materialId: materialId || null,
         drawingType: '设计图',
         fileName,
         filePath,
@@ -170,9 +169,17 @@ export async function POST(request: NextRequest) {
       },
     });
 
+    // 获取物料名称（如果有关联）
+    let materialName = '';
+    if (materialId) {
+      const material = await prisma.material.findUnique({ where: { id: materialId }, select: { materialName: true } });
+      materialName = material?.materialName || '';
+    }
+
     return successResponse({
+      id: drawing.id,
       drawing,
-      materialName: material.materialName,
+      materialName,
     });
   } catch (err: any) {
     console.error('上传图纸失败:', err);
