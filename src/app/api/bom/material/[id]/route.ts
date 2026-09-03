@@ -26,27 +26,37 @@ export async function GET(
 ) {
   try {
     const { id } = await params;
+    const materialId = parseInt(id);
     const material = await prisma.material.findFirst({
-      where: { id: parseInt(id), isDelete: false },
-      include: {
-        customer: {
-          select: { id: true, customerName: true }
-        },
-        drawings: {
-          where: { isDelete: false, isLatest: true },
-          orderBy: { createdAt: 'desc' },
-        },
-      },
+      where: { id: materialId, isDelete: false },
     });
 
     if (!material) {
       return notFoundResponse('物料不存在');
     }
 
+    // 获取客户信息
+    let customer = null;
+    if (material.customerId) {
+      const customerData = await prisma.customer.findFirst({
+        where: { id: material.customerId, isDelete: false },
+        select: { id: true, customerName: true },
+      });
+      customer = customerData;
+    }
+
+    // 获取关联图纸
+    const drawings = await prisma.materialDrawing.findMany({
+      where: { materialId, isDelete: false, isLatest: true },
+      orderBy: { createdAt: 'desc' },
+    });
+
     // 将Decimal类型的weight转换为数字
     const responseData = {
       ...material,
       weight: material.weight ? parseFloat(material.weight.toString()) : null,
+      customer,
+      drawings,
     };
 
     return successResponse(responseData);
