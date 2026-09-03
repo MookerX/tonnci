@@ -842,6 +842,7 @@ export default function DrawingPage() {
                 {drawingTypeOptions.map(t => (
                   <option key={t} value={t}>{t}</option>
                 ))}
+                <option value="未知">未知</option>
               </select>
             </div>
           </div>
