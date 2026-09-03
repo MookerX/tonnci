@@ -168,6 +168,7 @@ export default function DrawingPage() {
 
   // 删除确认
   const [deleteConfirmId, setDeleteConfirmId] = useState<number | null>(null);
+  const [disableConfirmId, setDisableConfirmId] = useState<{ id: number; fileName: string; action: 'disable' | 'enable' } | null>(null);
 
   // 版本历史
   const [versionDraw, setVersionDraw] = useState<Drawing | null>(null);
@@ -684,19 +685,25 @@ export default function DrawingPage() {
   // ===========================================================================
   // 删除 / 批量下载 / 版本 / 预览
   // ===========================================================================
-  const handleDisable = async (drawing: Drawing) => {
+  const handleDisable = (drawing: Drawing) => {
     const isDisabled = drawing.isDelete || drawing.status === 'deleted';
     const action = isDisabled ? 'enable' : 'disable';
-    const actionText = isDisabled ? '启用' : '禁用';
-    if (!window.confirm(`确定${actionText}图纸"${drawing.fileName}"吗？${actionText === '禁用' ? '禁用后可以恢复' : ''}`)) return;
+    setDisableConfirmId({ id: drawing.id, fileName: drawing.fileName, action });
+  };
+
+  const handleDisableConfirm = async () => {
+    if (!disableConfirmId) return;
+    const { id, fileName, action } = disableConfirmId;
+    const actionText = action === 'disable' ? '禁用' : '启用';
+    setDisableConfirmId(null);
     try {
-      const result = await fetchApi(`/api/drawing/${drawing.id}`, {
+      const result = await fetchApi(`/api/drawing/${id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action }),
       });
       if (result.code === 200) {
-        success(`已${actionText}: ${drawing.fileName}`);
+        success(`已${actionText}: ${fileName}`);
         fetchDrawings();
       } else {
         error(result.message || `${actionText}失败`);
@@ -1418,6 +1425,33 @@ export default function DrawingPage() {
             <div className="px-5 py-3 bg-gray-50 border-t border-gray-100 flex justify-end gap-2">
               <button onClick={() => setDeleteConfirmId(null)} className="px-4 py-2 text-sm border border-gray-300 rounded-lg hover:bg-gray-50 cursor-pointer">取消</button>
               <button onClick={handleDeleteConfirm} className="px-4 py-2 text-sm bg-red-600 text-white rounded-lg hover:bg-red-700 cursor-pointer">确认删除</button>
+            </div>
+          </div>
+        </div>
+      )}
+      {disableConfirmId !== null && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={() => setDisableConfirmId(null)}>
+          <div className="bg-white rounded-xl shadow-lg w-[420px]" onClick={e => e.stopPropagation()}>
+            <div className="px-5 py-4">
+              <div className="flex items-start gap-4">
+                <div className="w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center flex-shrink-0 mt-0.5">
+                  <AlertTriangle className="w-5 h-5 text-amber-600" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-800">{disableConfirmId.action === 'disable' ? '确认禁用' : '确认启用'}</h3>
+                  <p className="text-sm text-gray-500 mt-0.5">
+                    {disableConfirmId.action === 'disable'
+                      ? `确定禁用图纸"${disableConfirmId.fileName}"吗？禁用后可在列表中看到并恢复。`
+                      : `确定启用图纸"${disableConfirmId.fileName}"吗？`}
+                  </p>
+                </div>
+              </div>
+            </div>
+            <div className="px-5 py-3 bg-gray-50 border-t border-gray-100 flex justify-end gap-2">
+              <button onClick={() => setDisableConfirmId(null)} className="px-4 py-2 text-sm border border-gray-300 rounded-lg hover:bg-gray-50 cursor-pointer">取消</button>
+              <button onClick={handleDisableConfirm} className={`px-4 py-2 text-sm text-white rounded-lg cursor-pointer ${disableConfirmId.action === 'disable' ? 'bg-amber-600 hover:bg-amber-700' : 'bg-emerald-600 hover:bg-emerald-700'}`}>
+                {disableConfirmId.action === 'disable' ? '确认禁用' : '确认启用'}
+              </button>
             </div>
           </div>
         </div>
