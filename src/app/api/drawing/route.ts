@@ -128,8 +128,7 @@ export async function GET(request: NextRequest) {
     const listWithMaterial = list.map(d => ({
       ...d,
       fileSize: d.fileSize ? formatFileSize(Number(d.fileSize)) : '-',
-      materialName: d.materialId ? materialMap.get(d.materialId)?.materialName || '-' : '-',
-      materialInfo: d.materialId ? materialMap.get(d.materialId) || null : null,
+      material: d.materialId ? materialMap.get(d.materialId) || null : null,
     }));
 
     return NextResponse.json({ code: 200, message: 'ok', data: { list: listWithMaterial, total } });
