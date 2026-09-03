@@ -474,12 +474,17 @@ export default function DrawingPage() {
     try {
       const token = localStorage.getItem('token');
       const res = await fetch('/api/drawing/download', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }, body: JSON.stringify({ ids: [drawing.id] }) });
-      if (res.headers.get('Content-Type')?.includes('application/zip')) {
+      const contentType = res.headers.get('Content-Type') || '';
+      if (contentType.includes('application/zip')) {
         const blob = await res.blob();
         const url = window.URL.createObjectURL(blob);
         const a = document.createElement('a'); a.href = url; a.download = drawing.fileName; a.click();
         window.URL.revokeObjectURL(url);
-      } else { toast.error('下载失败'); }
+        toast.success('下载成功');
+      } else {
+        const text = await res.text();
+        try { const err = JSON.parse(text); toast.error(err.message || '下载失败'); } catch { toast.error('下载失败'); }
+      }
     } catch (err: any) { toast.error('下载失败: ' + err.message); }
   };
 
@@ -488,12 +493,17 @@ export default function DrawingPage() {
     try {
       const token = localStorage.getItem('token');
       const res = await fetch('/api/drawing/download', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }, body: JSON.stringify({ ids: selectedIds }) });
-      if (res.headers.get('Content-Type')?.includes('application/zip')) {
+      const contentType = res.headers.get('Content-Type') || '';
+      if (contentType.includes('application/zip')) {
         const blob = await res.blob();
         const url = window.URL.createObjectURL(blob);
         const a = document.createElement('a'); a.href = url; a.download = `图纸_${new Date().toISOString().slice(0, 10)}.zip`; a.click();
         window.URL.revokeObjectURL(url);
-      } else { toast.error('下载失败'); }
+        toast.success('下载成功');
+      } else {
+        const text = await res.text();
+        try { const err = JSON.parse(text); toast.error(err.message || '下载失败'); } catch { toast.error('下载失败'); }
+      }
     } catch (err: any) { toast.error('下载失败: ' + err.message); }
   };
 
