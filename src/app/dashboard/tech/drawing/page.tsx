@@ -1000,15 +1000,15 @@ export default function DrawingPage() {
       {/* MD5重复检测弹窗 */}
       {/* ========================================================================= */}
       {showDuplicateDialog && duplicateInfo && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={() => setShowDuplicateDialog(false)}>
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
           <div className="bg-white rounded-xl shadow-2xl w-[500px] max-h-[500px] overflow-hidden" onClick={e => e.stopPropagation()}>
             <div className="p-4 border-b border-gray-200 flex items-center justify-between bg-yellow-50">
               <h3 className="text-lg font-semibold text-yellow-800">文件已存在</h3>
-              <button onClick={() => setShowDuplicateDialog(false)} className="text-gray-400 hover:text-gray-600 cursor-pointer"><X className="w-5 h-5" /></button>
+              <button onClick={() => { setShowDuplicateDialog(false); setUploading(false); setUploadProgress(''); }} className="text-gray-400 hover:text-gray-600 cursor-pointer"><X className="w-5 h-5" /></button>
             </div>
             <div className="p-4 overflow-y-auto">
               <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg text-sm text-yellow-700">
-                文件 <strong>{duplicateInfo.duplicateFile.name}</strong> 的MD5与已存在的文件相同，以下是已存在的文件信息：
+                文件 <strong>{duplicateInfo.duplicateFile?.name || '该文件'}</strong> 的MD5与已存在的文件相同，以下是已存在的文件信息：
               </div>
               <div className="space-y-2 text-sm">
                 <div className="flex justify-between p-2 bg-gray-50 rounded">
@@ -1051,7 +1051,7 @@ export default function DrawingPage() {
               </div>
             </div>
             <div className="p-4 border-t border-gray-200 flex justify-end gap-2">
-              <button onClick={() => setShowDuplicateDialog(false)} className="px-4 py-2 text-sm border border-gray-300 rounded-lg hover:bg-gray-50 cursor-pointer">关闭</button>
+              <button onClick={() => { setShowDuplicateDialog(false); setUploading(false); setUploadProgress(''); }} className="px-4 py-2 text-sm border border-gray-300 rounded-lg hover:bg-gray-50 cursor-pointer">关闭</button>
             </div>
           </div>
         </div>
