@@ -300,6 +300,7 @@ export default function DrawingPage() {
       toast.error('上传失败: ' + err.message);
     } finally {
       setUploading(false);
+      setUploadProgress('');
       setUploadFile(null);
       setSelectedMaterial(null);
       setMatchedMaterials([]);
