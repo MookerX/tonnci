@@ -577,7 +577,7 @@ export default function DrawingPage() {
       case 'version':
         return <span className="font-mono text-xs text-gray-600 truncate">{drawing.version}</span>;
       case 'md5':
-        return <span className="font-mono text-xs text-gray-400 truncate" title={drawing.md5}>{drawing.md5 ? drawing.md5.slice(0, 8) + '...' : '-'}</span>;
+        return <span className="font-mono text-xs text-gray-400 truncate max-w-[120px]" title={drawing.md5}>{drawing.md5 || '-'}</span>;
       case 'materialName':
         return drawing.material?.materialName ? (
           <button onClick={() => fetchMaterialDetail(drawing.materialId!)} className="text-blue-600 hover:text-blue-800 hover:underline cursor-pointer truncate text-left">

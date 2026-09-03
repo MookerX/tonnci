@@ -127,7 +127,7 @@ export async function GET(request: NextRequest) {
 
     const listWithMaterial = list.map(d => ({
       ...d,
-      fileSize: d.fileSize ? formatFileSize(Number(d.fileSize)) : '-',
+      fileSize: d.fileSize ?? 0,
       material: d.materialId ? materialMap.get(d.materialId) || null : null,
     }));
 
