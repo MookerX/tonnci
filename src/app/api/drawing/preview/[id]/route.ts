@@ -20,15 +20,15 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
 
     const { id } = await params;
     const drawingId = parseInt(id);
-    if (isNaN(drawingId)) return NextResponse.json(badRequestResponse('参数错误'));
+    if (isNaN(drawingId)) return badRequestResponse('参数错误');
 
     const drawing = await prisma.materialDrawing.findFirst({
       where: { id: drawingId, isDelete: false, status: 'active' },
     });
-    if (!drawing) return NextResponse.json(badRequestResponse('图纸不存在'));
+    if (!drawing) return badRequestResponse('图纸不存在');
 
     const filePath = path.join(STORAGE_BASE, drawing.filePath);
-    if (!existsSync(filePath)) return NextResponse.json(badRequestResponse('文件不存在'));
+    if (!existsSync(filePath)) return badRequestResponse('文件不存在');
 
     const buffer = await readFile(filePath);
     const ext = path.extname(drawing.fileName).toLowerCase();
@@ -54,6 +54,6 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       },
     });
   } catch (error: any) {
-    return NextResponse.json(serverErrorResponse(error.message));
+    return serverErrorResponse(error.message);
   }
 }

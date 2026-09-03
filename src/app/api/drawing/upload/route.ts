@@ -21,7 +21,7 @@ export async function POST(request: NextRequest) {
     const materialId = formData.get('materialId') ? Number(formData.get('materialId')) : null;
 
     if (!file) {
-      return NextResponse.json(badRequestResponse('请选择文件'), { status: 400 });
+      return badRequestResponse('请选择文件');
     }
 
     // 提取文件名（不含扩展名）用于物料匹配
@@ -51,7 +51,7 @@ export async function POST(request: NextRequest) {
         where: { id: materialId, isDelete: false },
       });
       if (!material) {
-        return NextResponse.json(badRequestResponse('关联的物料不存在'), { status: 400 });
+        return badRequestResponse('关联的物料不存在');
       }
     }
 
@@ -94,11 +94,11 @@ export async function POST(request: NextRequest) {
           },
         });
 
-        return NextResponse.json(successResponse({
+        return successResponse({
           drawing,
           materialMatch: null,
           message: '未匹配到物料，已保存为未关联图纸。可在编辑中关联物料',
-        }));
+        });
       }
 
       // 如果匹配到1个，自动关联
@@ -123,18 +123,18 @@ export async function POST(request: NextRequest) {
           },
         });
 
-        return NextResponse.json(successResponse({
+        return successResponse({
           drawing,
           materialMatch: {
             matched: true,
             material: matchedMaterials[0],
             message: `已自动关联物料「${matchedMaterials[0].materialName}」`,
           },
-        }));
+        });
       }
 
       // 如果匹配到多个，返回列表让用户选择
-      return NextResponse.json(successResponse({
+      return successResponse({
         materialMatch: {
           matched: false,
           multiple: true,
@@ -142,7 +142,7 @@ export async function POST(request: NextRequest) {
           fileName,
           message: `找到 ${matchedMaterials.length} 个匹配的物料，请选择要关联的物料`,
         },
-      }));
+      });
     }
 
     // 有materialId，直接保存
@@ -166,9 +166,9 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    return NextResponse.json(successResponse({ drawing, materialMatch: { matched: true, material: null } }));
+    return successResponse({ drawing, materialMatch: { matched: true, material: null } });
   } catch (err: any) {
     console.error('上传图纸失败:', err);
-    return NextResponse.json(serverErrorResponse('上传失败: ' + err.message), { status: 500 });
+    return serverErrorResponse('上传失败: ' + err.message);
   }
 }

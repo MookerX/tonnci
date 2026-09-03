@@ -26,7 +26,7 @@ export async function POST(request: NextRequest) {
     const { ids } = body;
 
     if (!ids || !Array.isArray(ids) || ids.length === 0) {
-      return NextResponse.json(badRequestResponse('请选择要下载的图纸'));
+      return badRequestResponse('请选择要下载的图纸');
     }
 
     // 获取图纸列表
@@ -35,7 +35,7 @@ export async function POST(request: NextRequest) {
     });
 
     if (drawings.length === 0) {
-      return NextResponse.json(badRequestResponse('未找到图纸'));
+      return badRequestResponse('未找到图纸');
     }
 
     // 创建临时目录用于打包
@@ -72,6 +72,6 @@ export async function POST(request: NextRequest) {
       },
     });
   } catch (error: any) {
-    return NextResponse.json(serverErrorResponse(error.message));
+    return serverErrorResponse(error.message);
   }
 }

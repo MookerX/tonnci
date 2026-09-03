@@ -26,7 +26,7 @@ export async function POST(request: NextRequest) {
     const drawingType = (formData.get('drawingType') as string) || 'production';
 
     if (!files || files.length === 0) {
-      return NextResponse.json(badRequestResponse('请选择文件'));
+      return badRequestResponse('请选择文件');
     }
 
     const allowedExts = ['.pdf', '.dwg', '.dxf', '.jpg', '.jpeg', '.png', '.gif', '.bmp', '.tiff', '.tif', '.zip', '.rar'];
@@ -111,13 +111,13 @@ export async function POST(request: NextRequest) {
 
     const successCount = results.filter(r => r.success).length;
 
-    return NextResponse.json(successResponse({
+    return successResponse({
       results,
       total: files.length,
       successCount,
       failCount: files.length - successCount,
-    }));
+    });
   } catch (error: any) {
-    return NextResponse.json(serverErrorResponse(error.message));
+    return serverErrorResponse(error.message);
   }
 }

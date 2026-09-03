@@ -15,12 +15,12 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
 
     const { id } = await params;
     const drawingId = parseInt(id);
-    if (isNaN(drawingId)) return NextResponse.json(badRequestResponse('参数错误'));
+    if (isNaN(drawingId)) return badRequestResponse('参数错误');
 
     const drawing = await prisma.materialDrawing.findFirst({
       where: { id: drawingId, isDelete: false },
     });
-    if (!drawing) return NextResponse.json(badRequestResponse('图纸不存在'));
+    if (!drawing) return badRequestResponse('图纸不存在');
 
     // 查找同一物料的所有版本
     const versions = await prisma.materialDrawing.findMany({
@@ -40,8 +40,8 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       creator: v.createdBy ? creatorMap.get(v.createdBy) || null : null,
     }));
 
-    return NextResponse.json(successResponse(list));
+    return successResponse(list);
   } catch (error: any) {
-    return NextResponse.json(serverErrorResponse(error.message));
+    return serverErrorResponse(error.message);
   }
 }

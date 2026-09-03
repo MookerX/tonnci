@@ -13,13 +13,13 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { fileName } = body;
     if (!fileName) {
-      return NextResponse.json(badRequestResponse('缺少文件名'));
+      return badRequestResponse('缺少文件名');
     }
 
     // 提取文件名（不含扩展名）
     const nameWithoutExt = fileName.replace(/\.[^/.]+$/, '').trim();
     if (!nameWithoutExt) {
-      return NextResponse.json(successResponse([]));
+      return successResponse([]);
     }
 
     // 查找物料：内部编码、图纸编码、图号与文件名匹配
@@ -41,9 +41,9 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    return NextResponse.json(successResponse(materials));
+    return successResponse(materials);
   } catch (error: any) {
     console.error('物料匹配失败:', error);
-    return NextResponse.json(serverErrorResponse('物料匹配失败: ' + error.message));
+    return serverErrorResponse('物料匹配失败: ' + error.message);
   }
 }

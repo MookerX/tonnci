@@ -19,14 +19,14 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
 
     const { id } = await params;
     const drawingId = parseInt(id);
-    if (isNaN(drawingId)) return NextResponse.json(badRequestResponse('参数错误'));
+    if (isNaN(drawingId)) return badRequestResponse('参数错误');
 
     const drawing = await prisma.materialDrawing.findFirst({
       where: { id: drawingId, isDelete: false },
     });
 
     if (!drawing) {
-      return NextResponse.json(badRequestResponse('图纸不存在'));
+      return badRequestResponse('图纸不存在');
     }
 
     // 补充物料和创建者信息
@@ -39,9 +39,9 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       creator = await prisma.user.findUnique({ where: { id: drawing.createdBy }, select: { id: true, realName: true, username: true } });
     }
 
-    return NextResponse.json(successResponse({ ...drawing, material, creator }));
+    return successResponse({ ...drawing, material, creator });
   } catch (error: any) {
-    return NextResponse.json(serverErrorResponse(error.message));
+    return serverErrorResponse(error.message);
   }
 }
 
@@ -53,7 +53,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
 
     const { id } = await params;
     const drawingId = parseInt(id);
-    if (isNaN(drawingId)) return NextResponse.json(badRequestResponse('参数错误'));
+    if (isNaN(drawingId)) return badRequestResponse('参数错误');
 
     const body = await request.json();
     const { materialId, drawingType, status } = body;
@@ -61,7 +61,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
     const drawing = await prisma.materialDrawing.findFirst({
       where: { id: drawingId, isDelete: false },
     });
-    if (!drawing) return NextResponse.json(badRequestResponse('图纸不存在'));
+    if (!drawing) return badRequestResponse('图纸不存在');
 
     const updateData: any = {};
     if (materialId !== undefined) updateData.materialId = materialId;
@@ -73,9 +73,9 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
       data: updateData,
     });
 
-    return NextResponse.json(successResponse(updated));
+    return successResponse(updated);
   } catch (error: any) {
-    return NextResponse.json(serverErrorResponse(error.message));
+    return serverErrorResponse(error.message);
   }
 }
 
@@ -87,12 +87,12 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
 
     const { id } = await params;
     const drawingId = parseInt(id);
-    if (isNaN(drawingId)) return NextResponse.json(badRequestResponse('参数错误'));
+    if (isNaN(drawingId)) return badRequestResponse('参数错误');
 
     const drawing = await prisma.materialDrawing.findFirst({
       where: { id: drawingId, isDelete: false },
     });
-    if (!drawing) return NextResponse.json(badRequestResponse('图纸不存在'));
+    if (!drawing) return badRequestResponse('图纸不存在');
 
     // 软删除
     await prisma.materialDrawing.update({
@@ -100,8 +100,8 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
       data: { isDelete: true, status: 'deleted' },
     });
 
-    return NextResponse.json(successResponse(null, '删除成功'));
+    return successResponse(null, '删除成功');
   } catch (error: any) {
-    return NextResponse.json(serverErrorResponse(error.message));
+    return serverErrorResponse(error.message);
   }
 }
