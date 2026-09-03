@@ -2,6 +2,17 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { toast } from 'react-hot-toast';
+import { X } from 'lucide-react';
+
+// 物料类型标签映射
+const typeLabelMap: Record<string, string> = {
+  part: '零件',
+  component: '组件',
+  material: '材料',
+  purchased: '外购件',
+  standard: '标准件',
+  auxiliary: '辅料',
+};
 
 // =============================================================================
 // 类型定义
@@ -102,6 +113,7 @@ export default function DrawingPage() {
   const [materialDetail, setMaterialDetail] = useState<any>(null);
   const [showMaterialDetail, setShowMaterialDetail] = useState(false);
   const [materialDetailLoading, setMaterialDetailLoading] = useState(false);
+  const [isDetailModalMaximized, setIsDetailModalMaximized] = useState(false);
 
   // ===========================================================================
   // API 请求封装（自动携带认证token）
@@ -770,79 +782,127 @@ export default function DrawingPage() {
       {/* 物料详情弹窗 */}
       {/* ========================================================================= */}
       {showMaterialDetail && materialDetail && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center" onClick={() => setShowMaterialDetail(false)}>
-          <div className="bg-white rounded-lg shadow-xl w-[500px] max-h-[80vh] flex flex-col" onClick={e => e.stopPropagation()}>
-            <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200">
-              <h3 className="font-semibold text-gray-800">物料详情 - {materialDetail.materialName}</h3>
-              <button onClick={() => setShowMaterialDetail(false)} className="text-gray-400 hover:text-gray-600 text-xl leading-none">&times;</button>
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className={`bg-white shadow-xl overflow-hidden flex flex-col ${
+            isDetailModalMaximized 
+              ? 'inset-0 absolute w-full h-full rounded-none' 
+              : 'rounded-lg w-[95vw] max-w-[1400px] mx-auto max-h-[90vh]'
+          }`}>
+            <div className="px-6 py-4 border-b flex justify-between items-center">
+              <h3 className="text-lg font-semibold text-gray-800">物料详情 - {materialDetail.materialName}</h3>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setIsDetailModalMaximized(!isDetailModalMaximized)}
+                  className="text-gray-400 hover:text-gray-600 p-1"
+                  title={isDetailModalMaximized ? '还原' : '最大化'}
+                >
+                  {isDetailModalMaximized ? (
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 4H6a2 2 0 00-2 2v2m0 8v2a2 2 0 002 2h2m8-16h2a2 2 0 012 2v2m0 8v2a2 2 0 01-2 2h-2" />
+                    </svg>
+                  ) : (
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" />
+                    </svg>
+                  )}
+                </button>
+                <button
+                  onClick={() => {
+                    setShowMaterialDetail(false);
+                    setIsDetailModalMaximized(false);
+                  }}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
             </div>
-            <div className="flex-1 overflow-auto p-4">
+            <div className={`p-6 overflow-y-auto ${isDetailModalMaximized ? 'flex-1' : 'max-h-[calc(90vh-120px)]'}`}>
               {materialDetailLoading ? (
-                <p className="text-center text-gray-400 py-8">加载中...</p>
+                <div className="text-center py-8 text-sm text-gray-400">加载中...</div>
               ) : (
-                <div className="space-y-3">
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <label className="text-xs text-gray-500">物料名称</label>
-                      <p className="text-sm font-medium text-gray-800">{materialDetail.materialName}</p>
-                    </div>
-                    <div>
-                      <label className="text-xs text-gray-500">物料类型</label>
-                      <p className="text-sm text-gray-700">
-                        {materialDetail.materialType === 'part' ? '零件' :
-                         materialDetail.materialType === 'component' ? '组件' :
-                         materialDetail.materialType === 'material' ? '材料' :
-                         materialDetail.materialType === 'purchased' ? '外购件' :
-                         materialDetail.materialType === 'standard' ? '标准件' :
-                         materialDetail.materialType === 'auxiliary' ? '辅料' : materialDetail.materialType || '-'}
-                      </p>
-                    </div>
-                    <div>
-                      <label className="text-xs text-gray-500">内部编码</label>
-                      <p className="text-sm text-gray-700">{materialDetail.internalCode || '-'}</p>
-                    </div>
-                    <div>
-                      <label className="text-xs text-gray-500">图纸编码</label>
-                      <p className="text-sm text-gray-700">{materialDetail.drawingCode || '-'}</p>
-                    </div>
-                    <div>
-                      <label className="text-xs text-gray-500">图号</label>
-                      <p className="text-sm text-gray-700">{materialDetail.drawingNo || '-'}</p>
-                    </div>
-                    <div>
-                      <label className="text-xs text-gray-500">规格</label>
-                      <p className="text-sm text-gray-700">{materialDetail.spec || '-'}</p>
-                    </div>
-                    <div>
-                      <label className="text-xs text-gray-500">单位</label>
-                      <p className="text-sm text-gray-700">{materialDetail.unit || '-'}</p>
-                    </div>
-                    <div>
-                      <label className="text-xs text-gray-500">重量</label>
-                      <p className="text-sm text-gray-700">{materialDetail.weight != null ? materialDetail.weight + ' kg' : '-'}</p>
-                    </div>
-                    <div>
-                      <label className="text-xs text-gray-500">客户</label>
-                      <p className="text-sm text-gray-700">{materialDetail.customer?.customerName || '-'}</p>
-                    </div>
-                    <div>
-                      <label className="text-xs text-gray-500">备注</label>
-                      <p className="text-sm text-gray-700">{materialDetail.remark || '-'}</p>
+                <>
+                  {/* 物料基本信息 */}
+                  <div className="mb-4">
+                    <h4 className="text-sm font-semibold text-gray-600 mb-2 pb-1 border-b">
+                      物料信息
+                      <span className="font-bold text-red-600 ml-2">(所属客户：{materialDetail.customer?.customerName || '无'})</span>
+                    </h4>
+                    <div className="border border-gray-200 rounded-lg overflow-hidden">
+                      <table className="w-full text-sm border-collapse">
+                        <tbody>
+                          {/* 第一行：物料名称、图纸编码、内部编码、图号 */}
+                          <tr>
+                            <td className="py-1.5 px-2 bg-gray-50 text-gray-500 w-20 border border-gray-200">物料名称</td>
+                            <td className="py-1.5 px-2 border border-gray-200 font-medium">{materialDetail.materialName || '-'}</td>
+                            <td className="py-1.5 px-2 bg-gray-50 text-gray-500 w-20 border border-gray-200">图纸编码</td>
+                            <td className="py-1.5 px-2 border border-gray-200">{materialDetail.drawingCode || '-'}</td>
+                            <td className="py-1.5 px-2 bg-gray-50 text-gray-500 w-20 border border-gray-200">内部编码</td>
+                            <td className="py-1.5 px-2 border border-gray-200 font-mono">{materialDetail.internalCode || '-'}</td>
+                            <td className="py-1.5 px-2 bg-gray-50 text-gray-500 w-16 border border-gray-200">图号</td>
+                            <td className="py-1.5 px-2 border border-gray-200">{materialDetail.drawingNo || '-'}</td>
+                          </tr>
+                          {/* 第二行：物料类型、重量、单位、规格 */}
+                          <tr>
+                            <td className="py-1.5 px-2 bg-gray-50 text-gray-500 border border-gray-200">物料类型</td>
+                            <td className="py-1.5 px-2 border border-gray-200">{typeLabelMap[materialDetail.materialType] || materialDetail.materialType || '-'}</td>
+                            <td className="py-1.5 px-2 bg-gray-50 text-gray-500 border border-gray-200">重量</td>
+                            <td className="py-1.5 px-2 border border-gray-200">{materialDetail.weight ? `${materialDetail.weight} kg` : '-'}</td>
+                            <td className="py-1.5 px-2 bg-gray-50 text-gray-500 border border-gray-200">单位</td>
+                            <td className="py-1.5 px-2 border border-gray-200">{materialDetail.unit || '-'}</td>
+                            <td className="py-1.5 px-2 bg-gray-50 text-gray-500 border border-gray-200">规格</td>
+                            <td className="py-1.5 px-2 border border-gray-200">{materialDetail.spec || '-'}</td>
+                          </tr>
+                          {/* 第三行：创建者、创建时间、修改者、修改时间 */}
+                          <tr>
+                            <td className="py-1.5 px-2 bg-gray-50 text-gray-500 border border-gray-200">创建者</td>
+                            <td className="py-1.5 px-2 border border-gray-200">{materialDetail.createdBy || '-'}</td>
+                            <td className="py-1.5 px-2 bg-gray-50 text-gray-500 border border-gray-200">创建时间</td>
+                            <td className="py-1.5 px-2 border border-gray-200">{materialDetail.createdAt ? new Date(materialDetail.createdAt).toLocaleDateString('zh-CN') : '-'}</td>
+                            <td className="py-1.5 px-2 bg-gray-50 text-gray-500 border border-gray-200">修改者</td>
+                            <td className="py-1.5 px-2 border border-gray-200">{materialDetail.modifiedBy || '-'}</td>
+                            <td className="py-1.5 px-2 bg-gray-50 text-gray-500 border border-gray-200">修改时间</td>
+                            <td className="py-1.5 px-2 border border-gray-200">{materialDetail.updatedAt ? new Date(materialDetail.updatedAt).toLocaleDateString('zh-CN') : '-'}</td>
+                          </tr>
+                          {/* 物料备注单独一行 */}
+                          <tr>
+                            <td className="py-1.5 px-2 bg-gray-50 text-gray-500 border border-gray-200">物料备注</td>
+                            <td className="py-1.5 px-2 border border-gray-200 whitespace-pre-wrap" colSpan={7}>{materialDetail.remark || '-'}</td>
+                          </tr>
+                        </tbody>
+                      </table>
                     </div>
                   </div>
+                  
+                  {/* 关联图纸 */}
                   {materialDetail.drawings && materialDetail.drawings.length > 0 && (
-                    <div className="border-t border-gray-200 pt-3 mt-3">
-                      <label className="text-xs text-gray-500 mb-2 block">关联图纸</label>
-                      <div className="space-y-1">
-                        {materialDetail.drawings.map((d: any) => (
-                          <div key={d.id} className="text-sm text-blue-600">
-                            {d.fileName} <span className="text-gray-400">(v{d.version})</span>
-                          </div>
-                        ))}
+                    <div className="mb-4">
+                      <h4 className="text-sm font-semibold text-gray-600 mb-2 pb-1 border-b">关联图纸</h4>
+                      <div className="border border-gray-200 rounded-lg overflow-hidden">
+                        <table className="w-full text-sm border-collapse">
+                          <thead>
+                            <tr className="bg-gray-50">
+                              <th className="py-2 px-3 text-left text-gray-600 font-medium border border-gray-200">文件名称</th>
+                              <th className="py-2 px-3 text-left text-gray-600 font-medium border border-gray-200">版本</th>
+                              <th className="py-2 px-3 text-left text-gray-600 font-medium border border-gray-200">文件大小</th>
+                              <th className="py-2 px-3 text-left text-gray-600 font-medium border border-gray-200">上传时间</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {materialDetail.drawings.map((d: any) => (
+                              <tr key={d.id} className="hover:bg-gray-50">
+                                <td className="py-1.5 px-3 border border-gray-200 text-blue-600">{d.fileName}</td>
+                                <td className="py-1.5 px-3 border border-gray-200">{d.version}</td>
+                                <td className="py-1.5 px-3 border border-gray-200">{d.fileSize ? formatFileSize(d.fileSize) : '-'}</td>
+                                <td className="py-1.5 px-3 border border-gray-200">{d.createdAt ? new Date(d.createdAt).toLocaleString('zh-CN') : '-'}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
                       </div>
                     </div>
                   )}
-                </div>
+                </>
               )}
             </div>
           </div>
