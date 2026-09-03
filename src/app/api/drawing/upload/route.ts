@@ -154,19 +154,22 @@ export async function POST(request: NextRequest) {
     }
 
     // 创建新图纸记录
+    const createData: any = {
+      drawingType: '设计图',
+      fileName,
+      filePath,
+      fileSize: buffer.length,
+      md5,
+      version: 'V1',
+      isLatest: true,
+      isDelete: false,
+      createdBy: user.id,
+    };
+    if (materialId) {
+      createData.materialId = materialId;
+    }
     const drawing = await prisma.materialDrawing.create({
-      data: {
-        materialId: materialId || null,
-        drawingType: '设计图',
-        fileName,
-        filePath,
-        fileSize: buffer.length,
-        md5,
-        version: 'V1',
-        isLatest: true,
-        isDelete: false,
-        createdBy: user.id,
-      },
+      data: createData,
     });
 
     // 获取物料名称（如果有关联）
