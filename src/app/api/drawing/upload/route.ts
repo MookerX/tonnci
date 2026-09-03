@@ -168,9 +168,19 @@ export async function POST(request: NextRequest) {
     if (materialId) {
       createData.materialId = materialId;
     }
-    const drawing = await prisma.materialDrawing.create({
-      data: createData,
-    });
+    // 使用 $executeRawUnsafe 插入记录，绕过 Prisma 客户端缓存
+    await prisma.$executeRawUnsafe(
+      `INSERT INTO material_drawing (file_name, file_path, file_size, md5, material_id, drawing_type, version, is_latest, status, isDelete, created_at, updated_at, created_by) 
+       VALUES (?, ?, ?, ?, ${materialId ? materialId : 'NULL'}, '设计图', 'V1', 1, 'active', 0, NOW(), NOW(), ?)`,
+      fileName,
+      filePath,
+      buffer.length,
+      md5,
+      user.id
+    );
+    const idResult = await prisma.$queryRawUnsafe<{ id: number }[]>(`SELECT LAST_INSERT_ID() as id`);
+    const newId = (idResult as any[])[0]?.id || 0;
+    const drawing = { id: newId, fileName, filePath, fileSize: buffer.length, md5, version: 'V1', isLatest: true, status: 'active' };
 
     // 获取物料名称（如果有关联）
     let materialName = '';
