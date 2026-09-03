@@ -102,6 +102,7 @@ export default function DrawingPage() {
   // ===========================================================================
   const fetchApi = async (url: string, options: RequestInit = {}) => {
     const token = localStorage.getItem('token');
+    console.log('[Drawing] fetchApi calling:', url, 'token:', token ? 'exists' : 'missing');
     const res = await fetch(url, {
       ...options,
       headers: {
@@ -109,6 +110,7 @@ export default function DrawingPage() {
         Authorization: `Bearer ${token}`,
       },
     });
+    console.log('[Drawing] fetchApi response status:', res.status);
     return res.json();
   };
 
@@ -213,11 +215,13 @@ export default function DrawingPage() {
       setUploading(true);
       setUploadProgress(`正在分析文件 "${file.name}" 匹配物料...`);
       try {
+        console.log('[Drawing] Calling match-material API for:', file.name);
         const data = await fetchApi('/api/drawing/match-material', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ fileName: file.name }),
         });
+        console.log('[Drawing] Match-material response:', data);
         if (data.code === 200) {
           const materials = data.data;
           setMatchedMaterials(materials);
@@ -239,6 +243,7 @@ export default function DrawingPage() {
           setUploading(false);
         }
       } catch (err: any) {
+        console.error('[Drawing] Upload error:', err);
         toast.error('分析失败: ' + err.message);
         setUploading(false);
       }
