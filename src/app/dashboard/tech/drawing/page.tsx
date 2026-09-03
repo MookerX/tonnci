@@ -98,6 +98,21 @@ export default function DrawingPage() {
   const [showVersionModal, setShowVersionModal] = useState(false);
 
   // ===========================================================================
+  // API 请求封装（自动携带认证token）
+  // ===========================================================================
+  const fetchApi = async (url: string, options: RequestInit = {}) => {
+    const token = localStorage.getItem('token');
+    const res = await fetch(url, {
+      ...options,
+      headers: {
+        ...options.headers,
+        Authorization: `Bearer ${token}`,
+      },
+    });
+    return res.json();
+  };
+
+  // ===========================================================================
   // 数据加载
   // ===========================================================================
   const fetchDrawings = useCallback(async () => {
@@ -108,8 +123,7 @@ export default function DrawingPage() {
       params.set('pageSize', pageSize.toString());
       if (searchText) params.set('search', searchText);
 
-      const res = await fetch(`/api/drawing?${params}`);
-      const data = await res.json();
+      const data = await fetchApi(`/api/drawing?${params}`);
       if (data.code === 200) {
         setDrawings(data.data.list);
         setTotal(data.data.total);
@@ -142,11 +156,10 @@ export default function DrawingPage() {
         formData.append('files', files[i]);
       }
 
-      const res = await fetch('/api/drawing/batch', {
+      const data = await fetchApi('/api/drawing/batch', {
         method: 'POST',
         body: formData,
       });
-      const data = await res.json();
       if (data.code === 200) {
         const { results, successCount, failCount } = data.data;
         toast.success(`上传成功: ${successCount} 个，失败: ${failCount} 个`);
@@ -174,8 +187,7 @@ export default function DrawingPage() {
     if (!confirm('确定要删除此图纸吗？')) return;
 
     try {
-      const res = await fetch(`/api/drawing/${id}`, { method: 'DELETE' });
-      const data = await res.json();
+      const data = await fetchApi(`/api/drawing/${id}`, { method: 'DELETE' });
       if (data.code === 200) {
         toast.success('删除成功');
         fetchDrawings();
@@ -201,12 +213,11 @@ export default function DrawingPage() {
       setUploading(true);
       setUploadProgress(`正在分析文件 "${file.name}" 匹配物料...`);
       try {
-        const res = await fetch('/api/drawing/match-material', {
+        const data = await fetchApi('/api/drawing/match-material', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ fileName: file.name }),
         });
-        const data = await res.json();
         if (data.code === 200) {
           const materials = data.data;
           setMatchedMaterials(materials);
@@ -244,11 +255,10 @@ export default function DrawingPage() {
       if (materialId) {
         formData.append('materialId', materialId.toString());
       }
-      const res = await fetch('/api/drawing/upload', {
+      const data = await fetchApi('/api/drawing/upload', {
         method: 'POST',
         body: formData,
       });
-      const data = await res.json();
       if (data.code === 200) {
         toast.success('上传成功' + (data.data.materialName ? `，已关联物料: ${data.data.materialName}` : ''));
         fetchDrawings();
@@ -270,8 +280,7 @@ export default function DrawingPage() {
     if (!materialSearchKeyword.trim()) return;
     setSearching(true);
     try {
-      const res = await fetch(`/api/drawing/materials?keyword=${encodeURIComponent(materialSearchKeyword)}`);
-      const data = await res.json();
+      const data = await fetchApi(`/api/drawing/materials?keyword=${encodeURIComponent(materialSearchKeyword)}`);
       if (data.code === 200) {
         setSearchResults(data.data);
       }
@@ -300,9 +309,13 @@ export default function DrawingPage() {
     }
 
     try {
+      const token = localStorage.getItem('token');
       const res = await fetch('/api/drawing/download', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
         body: JSON.stringify({ ids: selectedIds }),
       });
 
@@ -332,8 +345,7 @@ export default function DrawingPage() {
     setShowVersionModal(true);
 
     try {
-      const res = await fetch(`/api/drawing/${drawing.id}/version`);
-      const data = await res.json();
+      const data = await fetchApi(`/api/drawing/${drawing.id}/version`);
       if (data.code === 200) {
         setVersions(data.data);
       } else {
