@@ -97,21 +97,18 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
     // 删除物理文件
     if (drawing.filePath) {
       try {
-        // 考虑两种路径：存储路径中的绝对路径，或相对路径
         const absolutePath = drawing.filePath.startsWith('/')
           ? drawing.filePath
           : path.join(STORAGE_BASE, drawing.filePath);
         await unlink(absolutePath);
       } catch (fileErr: any) {
-        // 文件不存在或删除失败不阻断主流程
         console.warn('文件删除失败（可能已不存在）:', drawing.filePath, fileErr.message);
       }
     }
 
-    // 软删除记录
-    await prisma.materialDrawing.update({
+    // 永久删除数据库记录
+    await prisma.materialDrawing.delete({
       where: { id: drawingId },
-      data: { isDelete: true, status: 'deleted' },
     });
 
     return successResponse(null, '删除成功');
