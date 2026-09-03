@@ -178,8 +178,8 @@ export async function POST(request: NextRequest) {
       md5,
       user.id
     );
-    const idResult = await prisma.$queryRawUnsafe<{ id: number }[]>(`SELECT LAST_INSERT_ID() as id`);
-    const newId = (idResult as any[])[0]?.id || 0;
+    const idResult = await prisma.$queryRawUnsafe<{ id: number | bigint }[]>(`SELECT LAST_INSERT_ID() as id`);
+    const newId = Number((idResult as any[])[0]?.id || 0);
     const drawing = { id: newId, fileName, filePath, fileSize: buffer.length, md5, version: 'V1', isLatest: true, status: 'active' };
 
     // 获取物料名称（如果有关联）
