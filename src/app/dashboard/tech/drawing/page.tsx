@@ -149,18 +149,13 @@ export default function DrawingPage() {
   // 上传
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState('');
-  const [showMaterialDialog, setShowMaterialDialog] = useState(false);
-  const [uploadFile, setUploadFile] = useState<File | null>(null);
-  const [matchedMaterials, setMatchedMaterials] = useState<any[]>([]);
-  const [selectedMaterial, setSelectedMaterial] = useState<any>(null);
-  const [materialSearchKeyword, setMaterialSearchKeyword] = useState('');
-  const [searchResults, setSearchResults] = useState<any[]>([]);
-  const [searching, setSearching] = useState(false);
 
   // MD5重复检测
   const [showDuplicateDialog, setShowDuplicateDialog] = useState(false);
   const [duplicateInfo, setDuplicateInfo] = useState<{ existingFile: any; material: any; duplicateFile: File } | null>(null);
-  const [pendingDrawingId, setPendingDrawingId] = useState<number | null>(null);
+
+  // 上传关联标识
+  const [isUploadAssociate, setIsUploadAssociate] = useState(false);
 
   // 预览
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
@@ -250,6 +245,8 @@ export default function DrawingPage() {
       if (data.code === 200) {
         success(`已关联物料: ${material.materialName}`);
         setShowAssociateDialog(false);
+        setIsUploadAssociate(false);
+        setAssociateDrawingId(null);
         fetchDrawings();
       } else {
         error(data.message || '关联失败');
@@ -575,7 +572,6 @@ export default function DrawingPage() {
     input.onchange = async (e: any) => {
       const file = e.target.files?.[0];
       if (!file) return;
-      setUploadFile(file);
       setUploading(true);
       setUploadProgress(`正在上传 "${file.name}"...`);
       try {
@@ -586,7 +582,6 @@ export default function DrawingPage() {
         if (data.code === 200) {
           // 文件上传成功（新文件）
           const drawingId = data.data.id;
-          setPendingDrawingId(drawingId);
           success('上传成功');
           fetchDrawings();
           // Step 2: 再匹配物料
@@ -594,10 +589,11 @@ export default function DrawingPage() {
           const matchData = await fetchApi('/api/drawing/match-material', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ fileName: file.name }) });
           if (matchData.code === 200) {
             const materials = matchData.data;
-            setMatchedMaterials(materials);
             if (materials.length === 0) {
-              // 无匹配，弹出物料选择对话框
-              setShowMaterialDialog(true);
+              // 无匹配，弹出物料选择对话框（使用统一弹窗）
+              setAssociateDrawingId(drawingId);
+              setIsUploadAssociate(true);
+              setShowAssociateDialog(true);
               setUploading(false);
               setUploadProgress('');
             } else if (materials.length === 1) {
@@ -610,8 +606,10 @@ export default function DrawingPage() {
               setUploading(false);
               setUploadProgress('');
             } else {
-              // 多个匹配，弹出选择对话框
-              setShowMaterialDialog(true);
+              // 多个匹配，弹出选择对话框（使用统一弹窗）
+              setAssociateDrawingId(drawingId);
+              setIsUploadAssociate(true);
+              setShowAssociateDialog(true);
               setUploading(false);
               setUploadProgress('');
             }
@@ -635,51 +633,10 @@ export default function DrawingPage() {
     input.click();
   };
 
-  const doUpload = async (file: File, materialId: number | null) => {
-    setUploading(true); setUploadProgress('正在上传...');
-    try {
-      const formData = new FormData();
-      formData.append('file', file);
-      if (materialId) formData.append('materialId', materialId.toString());
-      const data = await fetchApi('/api/drawing/upload', { method: 'POST', body: formData });
-      if (data.code === 200) { success('上传成功' + (data.data.materialName ? `，已关联物料: ${data.data.materialName}` : '')); fetchDrawings(); }
-      else if (data.code === 409) {
-        // MD5重复，显示对话框
-        setDuplicateInfo({ existingFile: data.data.existingFile, material: data.data.material, duplicateFile: file });
-        setShowDuplicateDialog(true);
-      }
-      else { error(data.message || '上传失败'); }
-    } catch (err: any) { error('上传失败: ' + err.message); }
-    finally { setUploading(false); setUploadProgress(''); setUploadFile(null); setSelectedMaterial(null); setMatchedMaterials([]); setShowMaterialDialog(false); }
-  };
-
-  const handleSearchMaterial = async () => {
-    if (!materialSearchKeyword.trim()) return;
-    setSearching(true);
-    try { const data = await fetchApi(`/api/drawing/materials?keyword=${encodeURIComponent(materialSearchKeyword)}`); if (data.code === 200) setSearchResults(data.data); }
-    catch { error('搜索失败'); }
-    finally { setSearching(false); }
-  };
-
-  const handleSelectMaterial = async (material: any) => {
-    setSelectedMaterial(material); setShowMaterialDialog(false);
-    if (pendingDrawingId) {
-      setUploadProgress('正在关联物料...');
-      try {
-        const data = await fetchApi(`/api/drawing/${pendingDrawingId}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ materialId: material.id }) });
-        if (data.code === 200) {
-          success(`已关联物料: ${material.materialName}`);
-          fetchDrawings();
-        } else {
-          error(data.message || '关联物料失败');
-        }
-      } catch (err: any) {
-        error('关联物料失败: ' + err.message);
-      } finally {
-        setPendingDrawingId(null);
-        setUploadProgress('');
-      }
-    }
+  const handleSkipAssociate = () => {
+    setShowAssociateDialog(false);
+    setAssociateDrawingId(null);
+    setIsUploadAssociate(false);
   };
 
   // ===========================================================================
@@ -1110,11 +1067,11 @@ export default function DrawingPage() {
       {/* 图纸关联物料对话框 */}
       {/* ========================================================================= */}
       {showAssociateDialog && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={() => setShowAssociateDialog(false)}>
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={() => { setShowAssociateDialog(false); setIsUploadAssociate(false); }}>
           <div className="bg-white rounded-xl shadow-2xl w-[500px] max-h-[600px] overflow-hidden" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between px-5 py-4 border-b border-gray-200">
               <h3 className="text-lg font-semibold">关联物料</h3>
-              <button onClick={() => setShowAssociateDialog(false)} className="text-gray-400 hover:text-gray-600 cursor-pointer">
+              <button onClick={() => { setShowAssociateDialog(false); setIsUploadAssociate(false); }} className="text-gray-400 hover:text-gray-600 cursor-pointer">
                 <X size={20} />
               </button>
             </div>
@@ -1151,67 +1108,9 @@ export default function DrawingPage() {
                   ))
                 )}
               </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ========================================================================= */}
-      {/* 物料关联对话框 */}
-      {/* ========================================================================= */}
-      {showMaterialDialog && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={() => setShowMaterialDialog(false)}>
-          <div className="bg-white rounded-xl shadow-2xl w-[500px] max-h-[600px] overflow-hidden" onClick={e => e.stopPropagation()}>
-            <div className="p-4 border-b border-gray-200 flex items-center justify-between">
-              <h3 className="text-lg font-semibold">{matchedMaterials.length > 0 ? '选择关联物料' : '搜索关联物料'}</h3>
-              <button onClick={() => setShowMaterialDialog(false)} className="text-gray-400 hover:text-gray-600 cursor-pointer"><X className="w-5 h-5" /></button>
-            </div>
-            <div className="p-4">
-              {matchedMaterials.length > 0 ? (
-                <div>
-                  <p className="text-sm text-gray-500 mb-3">文件名与以下物料匹配，请选择要关联的物料：</p>
-                  <div className="space-y-2 max-h-80 overflow-y-auto">
-                    {matchedMaterials.map((m: any) => (
-                      <div key={m.id} className="p-3 border rounded-lg hover:bg-blue-50 cursor-pointer transition-colors" onClick={() => handleSelectMaterial(m)}>
-                        <div className="font-medium text-sm">{m.materialName}</div>
-                        <div className="text-xs text-gray-500 mt-1">内部编码: {m.internalCode || '-'} | 图纸编码: {m.drawingCode || '-'} | 图号: {m.drawingNo || '-'}</div>
-                      </div>
-                    ))}
-                  </div>
-                  <div className="mt-3 pt-3 border-t border-gray-200">
-                    <p className="text-xs text-gray-400 mb-2">以上都不匹配？搜索其他物料：</p>
-                    <div className="flex gap-2">
-                      <input type="text" value={materialSearchKeyword} onChange={e => setMaterialSearchKeyword(e.target.value)} placeholder="输入物料名称/编码搜索..." className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" onKeyDown={e => e.key === 'Enter' && handleSearchMaterial()} />
-                      <button onClick={handleSearchMaterial} disabled={searching} className="px-4 py-2 bg-gray-600 text-white rounded-lg text-sm hover:bg-gray-700 disabled:opacity-50 cursor-pointer">{searching ? '搜索中...' : '搜索'}</button>
-                    </div>
-                    {searchResults.length > 0 && (
-                      <div className="mt-2 space-y-2 max-h-40 overflow-y-auto">
-                        {searchResults.map((m: any) => (
-                          <div key={m.id} className="p-2 border rounded-lg hover:bg-blue-50 cursor-pointer text-sm" onClick={() => handleSelectMaterial(m)}>{m.materialName} ({m.internalCode || m.drawingCode || '-'})</div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                </div>
-              ) : (
-                <div>
-                  <p className="text-sm text-gray-500 mb-3">未找到匹配的物料，请搜索并选择要关联的物料：</p>
-                  <div className="flex gap-2 mb-3">
-                    <input type="text" value={materialSearchKeyword} onChange={e => setMaterialSearchKeyword(e.target.value)} placeholder="输入物料名称/编码搜索..." className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" onKeyDown={e => e.key === 'Enter' && handleSearchMaterial()} />
-                    <button onClick={handleSearchMaterial} disabled={searching} className="px-4 py-2 bg-gray-600 text-white rounded-lg text-sm hover:bg-gray-700 disabled:opacity-50 cursor-pointer">{searching ? '搜索中...' : '搜索'}</button>
-                  </div>
-                  {searchResults.length > 0 ? (
-                    <div className="space-y-2 max-h-80 overflow-y-auto">
-                      {searchResults.map((m: any) => (
-                        <div key={m.id} className="p-3 border rounded-lg hover:bg-blue-50 cursor-pointer transition-colors" onClick={() => handleSelectMaterial(m)}>
-                          <div className="font-medium text-sm">{m.materialName}</div>
-                          <div className="text-xs text-gray-500 mt-1">内部编码: {m.internalCode || '-'} | 图纸编码: {m.drawingCode || '-'} | 图号: {m.drawingNo || '-'}</div>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <p className="text-xs text-gray-400 text-center py-4">输入关键词搜索物料，也可以 <button onClick={() => { setShowMaterialDialog(false); if (uploadFile) doUpload(uploadFile, null); }} className="text-blue-600 hover:underline cursor-pointer">不关联物料直接上传</button></p>
-                  )}
+              {isUploadAssociate && (
+                <div className="mt-4 pt-3 border-t border-gray-200 text-center">
+                  <button onClick={handleSkipAssociate} className="text-sm text-gray-500 hover:text-gray-700 underline cursor-pointer">不关联物料，直接完成</button>
                 </div>
               )}
             </div>
