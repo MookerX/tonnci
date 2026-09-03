@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
-import { toast } from 'react-hot-toast';
+import { useToast } from '@/components/ToastProvider';
 import {
   Search, Upload, Download, ChevronDown, ChevronRight, FileText, Trash2,
   X, Settings, Eye, FolderTree, Plus, Link2
@@ -172,6 +172,8 @@ export default function DrawingPage() {
 
   // ===========================================================================
   // API 请求封装
+  const { success, error } = useToast();
+
   // ===========================================================================
   const fetchApi = async (url: string, options: RequestInit = {}) => {
     const token = localStorage.getItem('token');
