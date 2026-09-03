@@ -27,7 +27,8 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     });
     if (!drawing) return badRequestResponse('图纸不存在');
 
-    const filePath = path.join(STORAGE_BASE, drawing.filePath);
+    // file_path 存储的是绝对路径，直接使用
+    const filePath = drawing.filePath.startsWith('/') ? drawing.filePath : path.join(STORAGE_BASE, drawing.filePath);
     if (!existsSync(filePath)) return badRequestResponse('文件不存在');
 
     const buffer = await readFile(filePath);

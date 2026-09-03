@@ -40,7 +40,8 @@ export async function POST(request: NextRequest) {
     let fileCount = 0;
 
     for (const drawing of drawings) {
-      const srcPath = path.join(STORAGE_BASE, drawing.filePath);
+      // file_path 存储的是绝对路径，直接使用
+      const srcPath = drawing.filePath.startsWith('/') ? drawing.filePath : path.join(STORAGE_BASE, drawing.filePath);
       if (existsSync(srcPath)) {
         const buffer = await readFile(srcPath);
         // 使用文件名避免重名，加序号
