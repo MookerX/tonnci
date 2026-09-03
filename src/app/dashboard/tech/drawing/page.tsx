@@ -472,6 +472,7 @@ export default function DrawingPage() {
               // 无匹配，弹出物料选择对话框
               setShowMaterialDialog(true);
               setUploading(false);
+              setUploadProgress('');
             } else if (materials.length === 1) {
               // 唯一匹配，自动关联
               const updateData = await fetchApi(`/api/drawing/${drawingId}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ materialId: materials[0].id }) });
@@ -479,22 +480,30 @@ export default function DrawingPage() {
                 toast.success(`已自动关联物料: ${materials[0].materialName}`);
                 fetchDrawings();
               }
+              setUploading(false);
+              setUploadProgress('');
             } else {
               // 多个匹配，弹出选择对话框
               setShowMaterialDialog(true);
               setUploading(false);
+              setUploadProgress('');
             }
+          } else {
+            setUploading(false);
+            setUploadProgress('');
           }
         } else if (data.code === 409) {
           // MD5重复，显示重复信息弹窗（不弹出物料选择）
           setDuplicateInfo({ existingFile: data.data.existingFile, material: data.data.material, duplicateFile: file });
           setShowDuplicateDialog(true);
           setUploading(false);
+          setUploadProgress('');
         } else {
           toast.error(data.message || '上传失败');
           setUploading(false);
+          setUploadProgress('');
         }
-      } catch (err: any) { toast.error('上传失败: ' + err.message); setUploading(false); }
+      } catch (err: any) { toast.error('上传失败: ' + err.message); setUploading(false); setUploadProgress(''); }
     };
     input.click();
   };
