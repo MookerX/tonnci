@@ -218,14 +218,14 @@ export default function DrawingPage() {
         body: JSON.stringify({ materialId: material.id }),
       });
       if (data.code === 200) {
-        toast.success(`已关联物料: ${material.materialName}`);
+        success(`已关联物料: ${material.materialName}`);
         setShowAssociateDialog(false);
         fetchDrawings();
       } else {
-        toast.error(data.message || '关联失败');
+        error(data.message || '关联失败');
       }
     } catch (err: any) {
-      toast.error('关联失败: ' + err.message);
+      error('关联失败: ' + err.message);
     }
   };
 
@@ -238,13 +238,13 @@ export default function DrawingPage() {
         body: JSON.stringify({ materialId: 0 }),
       });
       if (data.code === 200) {
-        toast.success('已解除物料关联');
+        success('已解除物料关联');
         fetchDrawings();
       } else {
-        toast.error(data.message || '解除关联失败');
+        error(data.message || '解除关联失败');
       }
     } catch (err: any) {
-      toast.error('解除关联失败: ' + err.message);
+      error('解除关联失败: ' + err.message);
     }
   };
 
@@ -365,8 +365,8 @@ export default function DrawingPage() {
       if (filterType) params.set('type', filterType);
       const data = await fetchApi(`/api/drawing?${params}`);
       if (data.code === 200) { setDrawings(data.data.list); setTotal(data.data.total); }
-      else { toast.error(data.message || '加载失败'); }
-    } catch (err: any) { toast.error('加载失败: ' + err.message); }
+      else { error(data.message || '加载失败'); }
+    } catch (err: any) { error('加载失败: ' + err.message); }
     finally { setLoading(false); }
   }, [page, pageSize, globalSearch, filterType]);
 
@@ -395,8 +395,8 @@ export default function DrawingPage() {
           }
         } catch (e) { console.error('加载BOM子树失败', e); }
         finally { setLoadingBomTree(false); }
-      } else { toast.error(data.message || '获取物料详情失败'); }
-    } catch (err: any) { toast.error('获取物料详情失败: ' + err.message); }
+      } else { error(data.message || '获取物料详情失败'); }
+    } catch (err: any) { error('获取物料详情失败: ' + err.message); }
     finally { setMaterialDetailLoading(false); }
   }, []);
 
@@ -508,11 +508,11 @@ export default function DrawingPage() {
       const data = await fetchApi('/api/drawing/batch', { method: 'POST', body: formData });
       if (data.code === 200) {
         const { results, successCount, failCount } = data.data;
-        toast.success(`上传成功: ${successCount} 个，失败: ${failCount} 个`);
-        if (results) results.forEach((r: any) => { if (!r.success) toast.error(`${r.fileName}: ${r.message}`); });
+        success(`上传成功: ${successCount} 个，失败: ${failCount} 个`);
+        if (results) results.forEach((r: any) => { if (!r.success) error(`${r.fileName}: ${r.message}`); });
         fetchDrawings();
-      } else { toast.error(data.message || '上传失败'); }
-    } catch (err: any) { toast.error('上传失败: ' + err.message); }
+      } else { error(data.message || '上传失败'); }
+    } catch (err: any) { error('上传失败: ' + err.message); }
     finally { setUploading(false); setUploadProgress(''); }
   };
 
@@ -535,7 +535,7 @@ export default function DrawingPage() {
           // 文件上传成功（新文件）
           const drawingId = data.data.id;
           setPendingDrawingId(drawingId);
-          toast.success('上传成功');
+          success('上传成功');
           fetchDrawings();
           // Step 2: 再匹配物料
           setUploadProgress(`正在匹配物料...`);
@@ -552,7 +552,7 @@ export default function DrawingPage() {
               // 唯一匹配，自动关联
               const updateData = await fetchApi(`/api/drawing/${drawingId}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ materialId: materials[0].id }) });
               if (updateData.code === 200) {
-                toast.success(`已自动关联物料: ${materials[0].materialName}`);
+                success(`已自动关联物料: ${materials[0].materialName}`);
                 fetchDrawings();
               }
               setUploading(false);
@@ -574,11 +574,11 @@ export default function DrawingPage() {
           setUploading(false);
           setUploadProgress('');
         } else {
-          toast.error(data.message || '上传失败');
+          error(data.message || '上传失败');
           setUploading(false);
           setUploadProgress('');
         }
-      } catch (err: any) { toast.error('上传失败: ' + err.message); setUploading(false); setUploadProgress(''); }
+      } catch (err: any) { error('上传失败: ' + err.message); setUploading(false); setUploadProgress(''); }
     };
     input.click();
   };
@@ -590,14 +590,14 @@ export default function DrawingPage() {
       formData.append('file', file);
       if (materialId) formData.append('materialId', materialId.toString());
       const data = await fetchApi('/api/drawing/upload', { method: 'POST', body: formData });
-      if (data.code === 200) { toast.success('上传成功' + (data.data.materialName ? `，已关联物料: ${data.data.materialName}` : '')); fetchDrawings(); }
+      if (data.code === 200) { success('上传成功' + (data.data.materialName ? `，已关联物料: ${data.data.materialName}` : '')); fetchDrawings(); }
       else if (data.code === 409) {
         // MD5重复，显示对话框
         setDuplicateInfo({ existingFile: data.data.existingFile, material: data.data.material, duplicateFile: file });
         setShowDuplicateDialog(true);
       }
-      else { toast.error(data.message || '上传失败'); }
-    } catch (err: any) { toast.error('上传失败: ' + err.message); }
+      else { error(data.message || '上传失败'); }
+    } catch (err: any) { error('上传失败: ' + err.message); }
     finally { setUploading(false); setUploadProgress(''); setUploadFile(null); setSelectedMaterial(null); setMatchedMaterials([]); setShowMaterialDialog(false); }
   };
 
@@ -605,7 +605,7 @@ export default function DrawingPage() {
     if (!materialSearchKeyword.trim()) return;
     setSearching(true);
     try { const data = await fetchApi(`/api/drawing/materials?keyword=${encodeURIComponent(materialSearchKeyword)}`); if (data.code === 200) setSearchResults(data.data); }
-    catch { toast.error('搜索失败'); }
+    catch { error('搜索失败'); }
     finally { setSearching(false); }
   };
 
@@ -616,13 +616,13 @@ export default function DrawingPage() {
       try {
         const data = await fetchApi(`/api/drawing/${pendingDrawingId}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ materialId: material.id }) });
         if (data.code === 200) {
-          toast.success(`已关联物料: ${material.materialName}`);
+          success(`已关联物料: ${material.materialName}`);
           fetchDrawings();
         } else {
-          toast.error(data.message || '关联物料失败');
+          error(data.message || '关联物料失败');
         }
       } catch (err: any) {
-        toast.error('关联物料失败: ' + err.message);
+        error('关联物料失败: ' + err.message);
       } finally {
         setPendingDrawingId(null);
         setUploadProgress('');
@@ -635,8 +635,8 @@ export default function DrawingPage() {
   // ===========================================================================
   const handleDelete = async (id: number) => {
     if (!confirm('确定要删除此图纸吗？')) return;
-    try { const data = await fetchApi(`/api/drawing/${id}`, { method: 'DELETE' }); if (data.code === 200) { toast.success('删除成功'); fetchDrawings(); } else toast.error(data.message || '删除失败'); }
-    catch (err: any) { toast.error('删除失败: ' + err.message); }
+    try { const data = await fetchApi(`/api/drawing/${id}`, { method: 'DELETE' }); if (data.code === 200) { success('删除成功'); fetchDrawings(); } else error(data.message || '删除失败'); }
+    catch (err: any) { error('删除失败: ' + err.message); }
   };
 
   const handleDownloadSingle = async (drawing: Drawing) => {
@@ -648,16 +648,16 @@ export default function DrawingPage() {
         const url = window.URL.createObjectURL(blob);
         const a = document.createElement('a'); a.href = url; a.download = drawing.fileName; a.click();
         window.URL.revokeObjectURL(url);
-        toast.success('下载成功');
+        success('下载成功');
       } else {
         const text = await res.text();
-        try { const err = JSON.parse(text); toast.error(err.message || '下载失败'); } catch { toast.error('下载失败'); }
+        try { const err = JSON.parse(text); error(err.message || '下载失败'); } catch { error('下载失败'); }
       }
-    } catch (err: any) { toast.error('下载失败: ' + err.message); }
+    } catch (err: any) { error('下载失败: ' + err.message); }
   };
 
   const handleBatchDownload = async () => {
-    if (selectedIds.length === 0) { toast.error('请先选择要下载的图纸'); return; }
+    if (selectedIds.length === 0) { error('请先选择要下载的图纸'); return; }
     try {
       const token = localStorage.getItem('token');
       const res = await fetch('/api/drawing/download', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }, body: JSON.stringify({ ids: selectedIds }) });
@@ -667,12 +667,12 @@ export default function DrawingPage() {
         const url = window.URL.createObjectURL(blob);
         const a = document.createElement('a'); a.href = url; a.download = `图纸_${new Date().toISOString().slice(0, 10)}.zip`; a.click();
         window.URL.revokeObjectURL(url);
-        toast.success('下载成功');
+        success('下载成功');
       } else {
         const text = await res.text();
-        try { const err = JSON.parse(text); toast.error(err.message || '下载失败'); } catch { toast.error('下载失败'); }
+        try { const err = JSON.parse(text); error(err.message || '下载失败'); } catch { error('下载失败'); }
       }
-    } catch (err: any) { toast.error('下载失败: ' + err.message); }
+    } catch (err: any) { error('下载失败: ' + err.message); }
   };
 
   const handleShowVersions = async (drawing: Drawing) => {
