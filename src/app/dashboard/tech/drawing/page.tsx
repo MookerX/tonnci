@@ -110,8 +110,15 @@ export default function DrawingPage() {
         Authorization: `Bearer ${token}`,
       },
     });
-    console.log('[Drawing] fetchApi response status:', res.status);
-    return res.json();
+    console.log('[Drawing] fetchApi response status:', res.status, 'content-type:', res.headers.get('content-type'));
+    const text = await res.text();
+    console.log('[Drawing] fetchApi response text:', text.substring(0, 500));
+    try {
+      return JSON.parse(text);
+    } catch (e) {
+      console.error('[Drawing] JSON parse error:', e, 'text:', text);
+      return { code: 500, message: '响应解析失败: ' + text.substring(0, 200) };
+    }
   };
 
   // ===========================================================================
@@ -223,7 +230,7 @@ export default function DrawingPage() {
           body: JSON.stringify({ fileName: file.name }),
         });
         console.log('[Drawing] Match-material response:', data);
-        alert(`匹配结果: ${JSON.stringify(data)}`);
+        alert(`匹配结果 code: ${data.code}, message: ${data.message}, data: ${JSON.stringify(data.data)}`);
         if (data.code === 200) {
           const materials = data.data;
           setMatchedMaterials(materials);
