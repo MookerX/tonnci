@@ -171,23 +171,22 @@ export default function DrawingPage() {
   // 存储配置（从存储管理读取允许的文件类型）
   const [allowedFileTypes, setAllowedFileTypes] = useState<string>('.pdf,.dwg,.dxf,.jpg,.jpeg,.png,.gif,.bmp,.tiff,.tif,.zip,.rar,.7z');
 
-  // 从存储管理获取允许的文件类型
+  // 从存储管理获取允许的文件类型（优先使用"图纸存储"配置）
   useEffect(() => {
     fetchApi('/api/system/storage-config')
       .then((res: any) => {
         if (res?.code === 200 && Array.isArray(res.data) && res.data.length > 0) {
-          // 合并所有存储配置的文件类型
-          const allTypes = new Set<string>();
-          res.data.forEach((config: any) => {
-            if (config.fileTypes) {
-              config.fileTypes.split(',').forEach((t: string) => {
-                const ext = t.trim().toLowerCase().replace(/^\./, '');
-                if (ext) allTypes.add('.' + ext);
-              });
+          // 优先查找"图纸存储"配置
+          const drawingStorage = res.data.find((c: any) => c.storageName === '图纸存储');
+          const target = drawingStorage || res.data.find((c: any) => c.isDefault) || res.data[0];
+          if (target?.fileTypes) {
+            const types = target.fileTypes
+              .split(',')
+              .map((t: string) => '.' + t.trim().toLowerCase().replace(/^\./, ''))
+              .filter((t: string) => t.length > 1);
+            if (types.length > 0) {
+              setAllowedFileTypes(types.join(','));
             }
-          });
-          if (allTypes.size > 0) {
-            setAllowedFileTypes(Array.from(allTypes).join(','));
           }
         }
       })

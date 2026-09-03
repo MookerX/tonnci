@@ -9,7 +9,7 @@ import crypto from 'crypto';
 
 /**
  * 获取图纸存储配置
- * 优先查找支持当前文件类型的存储，否则使用默认存储
+ * 优先查找名为"图纸存储"的配置，其次按文件扩展名匹配，最后使用默认配置
  */
 async function getDrawingStorageConfig(fileExt: string) {
   const storageConfigs = await prisma.storageConfig.findMany({
@@ -17,13 +17,18 @@ async function getDrawingStorageConfig(fileExt: string) {
     orderBy: { isDefault: 'desc' },
   });
 
-  // 优先查找支持该文件扩展名的存储配置
-  let matched = storageConfigs.find(s => {
-    const types = s.fileTypes.split(',').map(t => t.trim().toLowerCase().replace(/^\./, ''));
-    return types.includes(fileExt.replace(/^\./, ''));
-  });
+  // 1. 优先查找名为"图纸存储"的配置
+  let matched = storageConfigs.find(s => s.storageName === '图纸存储');
 
-  // 没有匹配的，使用默认存储
+  // 2. 没有"图纸存储"，按文件扩展名匹配
+  if (!matched) {
+    matched = storageConfigs.find(s => {
+      const types = s.fileTypes.split(',').map(t => t.trim().toLowerCase().replace(/^\./, ''));
+      return types.includes(fileExt.replace(/^\./, ''));
+    });
+  }
+
+  // 3. 没有匹配的，使用默认存储
   if (!matched) {
     matched = storageConfigs.find(s => s.isDefault);
   }
