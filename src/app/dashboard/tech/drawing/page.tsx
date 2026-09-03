@@ -134,6 +134,7 @@ export default function DrawingPage() {
   // MD5重复检测
   const [showDuplicateDialog, setShowDuplicateDialog] = useState(false);
   const [duplicateInfo, setDuplicateInfo] = useState<{ existingFile: any; material: any; duplicateFile: File } | null>(null);
+  const [pendingDrawingId, setPendingDrawingId] = useState<number | null>(null);
 
   // 预览
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
@@ -449,17 +450,51 @@ export default function DrawingPage() {
       if (!file) return;
       setUploadFile(file);
       setUploading(true);
-      setUploadProgress(`正在分析文件 "${file.name}" 匹配物料...`);
+      setUploadProgress(`正在上传 "${file.name}"...`);
       try {
-        const data = await fetchApi('/api/drawing/match-material', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ fileName: file.name }) });
+        // Step 1: 先上传文件（检查MD5）
+        const formData = new FormData();
+        formData.append('file', file);
+        const data = await fetchApi('/api/drawing/upload', { method: 'POST', body: formData });
         if (data.code === 200) {
-          const materials = data.data;
-          setMatchedMaterials(materials);
-          if (materials.length === 0) { setShowMaterialDialog(true); setUploading(false); }
-          else if (materials.length === 1) { setSelectedMaterial(materials[0]); await doUpload(file, materials[0].id); }
-          else { setShowMaterialDialog(true); setUploading(false); }
-        } else { toast.error(data.message || '物料匹配失败'); setUploading(false); }
-      } catch (err: any) { toast.error('分析失败: ' + err.message); setUploading(false); }
+          // 文件上传成功（新文件）
+          const drawingId = data.data.id;
+          setPendingDrawingId(drawingId);
+          toast.success('上传成功');
+          fetchDrawings();
+          // Step 2: 再匹配物料
+          setUploadProgress(`正在匹配物料...`);
+          const matchData = await fetchApi('/api/drawing/match-material', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ fileName: file.name }) });
+          if (matchData.code === 200) {
+            const materials = matchData.data;
+            setMatchedMaterials(materials);
+            if (materials.length === 0) {
+              // 无匹配，弹出物料选择对话框
+              setShowMaterialDialog(true);
+              setUploading(false);
+            } else if (materials.length === 1) {
+              // 唯一匹配，自动关联
+              const updateData = await fetchApi(`/api/drawing/${drawingId}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ materialId: materials[0].id }) });
+              if (updateData.code === 200) {
+                toast.success(`已自动关联物料: ${materials[0].materialName}`);
+                fetchDrawings();
+              }
+            } else {
+              // 多个匹配，弹出选择对话框
+              setShowMaterialDialog(true);
+              setUploading(false);
+            }
+          }
+        } else if (data.code === 409) {
+          // MD5重复，显示重复信息弹窗（不弹出物料选择）
+          setDuplicateInfo({ existingFile: data.data.existingFile, material: data.data.material, duplicateFile: file });
+          setShowDuplicateDialog(true);
+          setUploading(false);
+        } else {
+          toast.error(data.message || '上传失败');
+          setUploading(false);
+        }
+      } catch (err: any) { toast.error('上传失败: ' + err.message); setUploading(false); }
     };
     input.click();
   };
@@ -490,9 +525,25 @@ export default function DrawingPage() {
     finally { setSearching(false); }
   };
 
-  const handleSelectMaterial = (material: any) => {
+  const handleSelectMaterial = async (material: any) => {
     setSelectedMaterial(material); setShowMaterialDialog(false);
-    if (uploadFile) doUpload(uploadFile, material.id);
+    if (pendingDrawingId) {
+      setUploadProgress('正在关联物料...');
+      try {
+        const data = await fetchApi(`/api/drawing/${pendingDrawingId}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ materialId: material.id }) });
+        if (data.code === 200) {
+          toast.success(`已关联物料: ${material.materialName}`);
+          fetchDrawings();
+        } else {
+          toast.error(data.message || '关联物料失败');
+        }
+      } catch (err: any) {
+        toast.error('关联物料失败: ' + err.message);
+      } finally {
+        setPendingDrawingId(null);
+        setUploadProgress('');
+      }
+    }
   };
 
   // ===========================================================================
