@@ -136,6 +136,7 @@ export default function DrawingPage() {
   const [globalSearch, setGlobalSearch] = useState('');
   const [searchFields, setSearchFields] = useState({ fileName: true, materialName: true });
   const [filterType, setFilterType] = useState('');
+  const [drawingTypeOptions, setDrawingTypeOptions] = useState<string[]>([]);
 
   // 列配置
   const [columns, setColumns] = useState<ColumnConfig[]>(DEFAULT_COLUMNS);
@@ -396,6 +397,28 @@ export default function DrawingPage() {
   }, [page, pageSize, globalSearch, filterType]);
 
   useEffect(() => { fetchDrawings(); }, [fetchDrawings]);
+
+  // 获取图纸类型选项（从系统参数配置中读取）
+  useEffect(() => {
+    const fetchDrawingTypes = async () => {
+      try {
+        const data = await fetchApi('/api/system/config?type=param');
+        if (data.code === 200 && data.data) {
+          const config = data.data.find((c: any) => c.paramKey === 'drawingTypeRules');
+          if (config?.paramValue) {
+            const rules = JSON.parse(config.paramValue);
+            if (Array.isArray(rules)) {
+              setDrawingTypeOptions(rules.map((r: any) => r.typeName).filter(Boolean));
+              return;
+            }
+          }
+        }
+      } catch {}
+      // 降级：从默认配置中读取
+      setDrawingTypeOptions(['工程图', '工艺图', '三维图']);
+    };
+    fetchDrawingTypes();
+  }, []);
 
   // ===========================================================================
   // 物料详情
@@ -816,8 +839,9 @@ export default function DrawingPage() {
               <span className="text-sm text-gray-600">类型：</span>
               <select value={filterType} onChange={e => { setFilterType(e.target.value); setPage(1); }} className="px-2 py-1 border border-gray-300 rounded text-sm">
                 <option value="">全部</option>
-                <option value="设计图">设计图</option>
-                <option value="生产图">生产图</option>
+                {drawingTypeOptions.map(t => (
+                  <option key={t} value={t}>{t}</option>
+                ))}
               </select>
             </div>
           </div>
