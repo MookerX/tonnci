@@ -211,6 +211,7 @@ export default function DrawingPage() {
     input.onchange = async (e: any) => {
       const file = e.target.files?.[0];
       if (!file) return;
+      alert(`选中文件: ${file.name}, 开始分析...`);
       setUploadFile(file);
       setUploading(true);
       setUploadProgress(`正在分析文件 "${file.name}" 匹配物料...`);
@@ -222,6 +223,7 @@ export default function DrawingPage() {
           body: JSON.stringify({ fileName: file.name }),
         });
         console.log('[Drawing] Match-material response:', data);
+        alert(`匹配结果: ${JSON.stringify(data)}`);
         if (data.code === 200) {
           const materials = data.data;
           setMatchedMaterials(materials);
