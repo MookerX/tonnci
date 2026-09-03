@@ -36,6 +36,33 @@ async function getDrawingStorageConfig(fileExt: string) {
   return matched;
 }
 
+/**
+ * 根据文件扩展名获取图纸类型
+ * 从系统参数 drawingTypeRules 中读取配置，匹配文件后缀
+ */
+async function getDrawingTypeByExt(fileExt: string): Promise<string> {
+  try {
+    const config = await prisma.systemConfig.findFirst({
+      where: { paramKey: 'drawingTypeRules', isDelete: false },
+    });
+    if (config?.paramValue) {
+      const rules = JSON.parse(config.paramValue);
+      if (Array.isArray(rules)) {
+        const cleanExt = fileExt.replace(/^\./, '').toLowerCase();
+        for (const rule of rules) {
+          if (rule.extensions) {
+            const exts = rule.extensions.split(',').map((e: string) => e.trim().toLowerCase().replace(/^\./, ''));
+            if (exts.includes(cleanExt)) {
+              return rule.typeName;
+            }
+          }
+        }
+      }
+    }
+  } catch {}
+  return '设计图'; // 默认
+}
+
 export async function POST(request: NextRequest) {
   try {
     const user = await getUserFromToken(request);
@@ -145,6 +172,9 @@ export async function POST(request: NextRequest) {
     const filePath = path.join(dir, `${Date.now()}_${fileName}`);
     await writeFile(filePath, buffer);
 
+    // 获取图纸类型（根据文件后缀自动归类）
+    const drawingType = await getDrawingTypeByExt(ext);
+
     // 检查该物料是否已有图纸记录（仅当有materialId时）
     if (materialId) {
       await prisma.materialDrawing.updateMany({
@@ -155,7 +185,7 @@ export async function POST(request: NextRequest) {
 
     // 创建新图纸记录
     const createData: any = {
-      drawingType: '设计图',
+      drawingType,
       fileName,
       filePath,
       fileSize: buffer.length,
@@ -171,11 +201,12 @@ export async function POST(request: NextRequest) {
     // 使用 $executeRawUnsafe 插入记录，绕过 Prisma 客户端缓存
     await prisma.$executeRawUnsafe(
       `INSERT INTO material_drawing (file_name, file_path, file_size, md5, material_id, drawing_type, version, is_latest, status, isDelete, created_at, updated_at, created_by) 
-       VALUES (?, ?, ?, ?, ${materialId ? materialId : 'NULL'}, '设计图', 'V1', 1, 'active', 0, NOW(), NOW(), ?)`,
+       VALUES (?, ?, ?, ?, ${materialId ? materialId : 'NULL'}, ?, 'V1', 1, 'active', 0, NOW(), NOW(), ?)`,
       fileName,
       filePath,
       buffer.length,
       md5,
+      drawingType,
       user.id
     );
     const idResult = await prisma.$queryRawUnsafe<{ id: number | bigint }[]>(`SELECT LAST_INSERT_ID() as id`);
