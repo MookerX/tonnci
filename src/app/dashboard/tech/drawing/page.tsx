@@ -4,7 +4,7 @@ import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react'
 import { useToast } from '@/components/ToastProvider';
 import {
   Search, Upload, Download, ChevronDown, ChevronRight, FileText, Trash2,
-  X, Settings, Eye, FolderTree, Plus, Link2
+  X, Settings, Eye, FolderTree, Plus, Link2, AlertTriangle
 } from 'lucide-react';
 
 // 物料类型标签映射
@@ -165,6 +165,9 @@ export default function DrawingPage() {
   // 预览
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [previewFile, setPreviewFile] = useState<Drawing | null>(null);
+
+  // 删除确认
+  const [deleteConfirmId, setDeleteConfirmId] = useState<number | null>(null);
 
   // 版本历史
   const [versionDraw, setVersionDraw] = useState<Drawing | null>(null);
@@ -681,10 +684,15 @@ export default function DrawingPage() {
   // ===========================================================================
   // 删除 / 批量下载 / 版本 / 预览
   // ===========================================================================
-  const handleDelete = async (id: number) => {
-    if (!confirm('确定要删除此图纸吗？')) return;
-    try { const data = await fetchApi(`/api/drawing/${id}`, { method: 'DELETE' }); if (data.code === 200) { success('删除成功'); fetchDrawings(); } else error(data.message || '删除失败'); }
+  const handleDeleteConfirm = async () => {
+    if (deleteConfirmId === null) return;
+    try { const data = await fetchApi(`/api/drawing/${deleteConfirmId}`, { method: 'DELETE' }); if (data.code === 200) { success('删除成功'); fetchDrawings(); } else error(data.message || '删除失败'); }
     catch (err: any) { error('删除失败: ' + err.message); }
+    finally { setDeleteConfirmId(null); }
+  };
+
+  const handleDelete = async (id: number) => {
+    setDeleteConfirmId(id);
   };
 
   const handleDownloadSingle = async (drawing: Drawing) => {
@@ -1358,6 +1366,31 @@ export default function DrawingPage() {
             </div>
             <div className="px-6 py-4 border-t flex justify-end">
               <button onClick={() => { setShowMaterialDetail(false); setIsDetailModalMaximized(false); setDetailExpandedKeys(new Set()); }} className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded cursor-pointer">关闭</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* 删除确认弹窗 */}
+      {/* ========================================================================= */}
+      {deleteConfirmId !== null && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl shadow-2xl w-[400px] overflow-hidden" onClick={e => e.stopPropagation()}>
+            <div className="p-5">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center flex-shrink-0">
+                  <AlertTriangle className="w-5 h-5 text-red-600" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-800">确认删除</h3>
+                  <p className="text-sm text-gray-500 mt-0.5">此操作将从服务器删除文件并清除数据库记录，不可恢复。</p>
+                </div>
+              </div>
+            </div>
+            <div className="px-5 py-3 bg-gray-50 border-t border-gray-100 flex justify-end gap-2">
+              <button onClick={() => setDeleteConfirmId(null)} className="px-4 py-2 text-sm border border-gray-300 rounded-lg hover:bg-gray-50 cursor-pointer">取消</button>
+              <button onClick={handleDeleteConfirm} className="px-4 py-2 text-sm bg-red-600 text-white rounded-lg hover:bg-red-700 cursor-pointer">确认删除</button>
             </div>
           </div>
         </div>
