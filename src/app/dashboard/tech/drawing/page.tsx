@@ -498,9 +498,8 @@ export default function DrawingPage() {
   const handleDownloadSingle = async (drawing: Drawing) => {
     try {
       const token = localStorage.getItem('token');
-      const res = await fetch('/api/drawing/download', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }, body: JSON.stringify({ ids: [drawing.id] }) });
-      const contentType = res.headers.get('Content-Type') || '';
-      if (contentType.includes('application/zip')) {
+      const res = await fetch(`/api/drawing/download/${drawing.id}`, { headers: { Authorization: `Bearer ${token}` } });
+      if (res.ok) {
         const blob = await res.blob();
         const url = window.URL.createObjectURL(blob);
         const a = document.createElement('a'); a.href = url; a.download = drawing.fileName; a.click();
