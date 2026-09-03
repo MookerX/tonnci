@@ -4,7 +4,7 @@ import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react'
 import { toast } from 'react-hot-toast';
 import {
   Search, Upload, Download, ChevronDown, ChevronRight, FileText, Trash2,
-  X, Settings, Eye, FolderTree, Plus
+  X, Settings, Eye, FolderTree, Plus, Link
 } from 'lucide-react';
 
 // 物料类型标签映射
@@ -145,6 +145,13 @@ export default function DrawingPage() {
   const [versions, setVersions] = useState<Version[]>([]);
   const [showVersionModal, setShowVersionModal] = useState(false);
 
+  // 物料关联
+  const [showAssociateDialog, setShowAssociateDialog] = useState(false);
+  const [associateDrawingId, setAssociateDrawingId] = useState<number | null>(null);
+  const [associateSearchText, setAssociateSearchText] = useState('');
+  const [associateSearchResults, setAssociateSearchResults] = useState<any[]>([]);
+  const [associateSearching, setAssociateSearching] = useState(false);
+
   // 物料详情弹窗
   const [materialDetail, setMaterialDetail] = useState<any>(null);
   const [showMaterialDetail, setShowMaterialDetail] = useState(false);
@@ -171,6 +178,72 @@ export default function DrawingPage() {
     const res = await fetch(url, { ...options, headers: { ...options.headers, Authorization: `Bearer ${token}` } });
     const text = await res.text();
     try { return JSON.parse(text); } catch { return { code: 500, message: '响应解析失败' }; }
+  };
+
+  // 物料关联弹窗
+  const handleShowAssociateDialog = (drawing: Drawing) => {
+    setAssociateDrawingId(drawing.id);
+    setAssociateSearchText('');
+    setAssociateSearchResults([]);
+    setShowAssociateDialog(true);
+  };
+
+  const handleAssociateSearch = async (keyword: string) => {
+    setAssociateSearchText(keyword);
+    if (!keyword.trim()) {
+      setAssociateSearchResults([]);
+      return;
+    }
+    setAssociateSearching(true);
+    try {
+      const data = await fetchApi(`/api/bom/material?search=${encodeURIComponent(keyword)}`);
+      if (data.code === 200) {
+        setAssociateSearchResults(data.data?.list || []);
+      }
+    } catch (err: any) {
+      console.error('搜索物料失败:', err);
+    } finally {
+      setAssociateSearching(false);
+    }
+  };
+
+  const handleAssociateMaterial = async (material: any) => {
+    if (!associateDrawingId) return;
+    try {
+      const data = await fetchApi(`/api/drawing/${associateDrawingId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ materialId: material.id }),
+      });
+      if (data.code === 200) {
+        toast.success(`已关联物料: ${material.materialName}`);
+        setShowAssociateDialog(false);
+        fetchDrawings();
+      } else {
+        toast.error(data.message || '关联失败');
+      }
+    } catch (err: any) {
+      toast.error('关联失败: ' + err.message);
+    }
+  };
+
+  const handleRemoveMaterial = async (drawing: Drawing) => {
+    if (!confirm('确定要解除物料关联吗？')) return;
+    try {
+      const data = await fetchApi(`/api/drawing/${drawing.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ materialId: 0 }),
+      });
+      if (data.code === 200) {
+        toast.success('已解除物料关联');
+        fetchDrawings();
+      } else {
+        toast.error(data.message || '解除关联失败');
+      }
+    } catch (err: any) {
+      toast.error('解除关联失败: ' + err.message);
+    }
   };
 
   // 存储配置（从存储管理读取允许的文件类型）
@@ -803,6 +876,7 @@ export default function DrawingPage() {
                   <div className="w-32 flex-shrink-0 flex items-center justify-center gap-0.5 px-1">
                     <button onClick={() => handlePreview(drawing)} className="p-1 text-blue-600 hover:bg-blue-100 rounded transition-colors cursor-pointer" title="预览"><Eye className="w-4 h-4" /></button>
                     <button onClick={() => handleShowVersions(drawing)} className="p-1 text-indigo-600 hover:bg-indigo-100 rounded transition-colors cursor-pointer" title="版本历史"><FileText className="w-4 h-4" /></button>
+                    <button onClick={() => handleShowAssociateDialog(drawing)} className="p-1 text-emerald-600 hover:bg-emerald-100 rounded transition-colors cursor-pointer" title="关联物料"><Link2 className="w-4 h-4" /></button>
                     <button onClick={() => handleDelete(drawing.id)} className="p-1 text-red-600 hover:bg-red-100 rounded transition-colors cursor-pointer" title="删除"><Trash2 className="w-4 h-4" /></button>
                   </div>
                 </div>
@@ -937,6 +1011,56 @@ export default function DrawingPage() {
                   </tbody>
                 </table>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* 图纸关联物料对话框 */}
+      {/* ========================================================================= */}
+      {showAssociateDialog && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={() => setShowAssociateDialog(false)}>
+          <div className="bg-white rounded-xl shadow-2xl w-[500px] max-h-[600px] overflow-hidden" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between px-5 py-4 border-b border-gray-200">
+              <h3 className="text-lg font-semibold">关联物料</h3>
+              <button onClick={() => setShowAssociateDialog(false)} className="text-gray-400 hover:text-gray-600 cursor-pointer">
+                <X size={20} />
+              </button>
+            </div>
+            <div className="p-5">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="relative flex-1">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
+                  <input type="text" placeholder="输入物料名称搜索..."
+                    className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/30"
+                    value={associateSearchText}
+                    onChange={e => setAssociateSearchText(e.target.value)}
+                    onKeyDown={e => e.key === 'Enter' && handleAssociateSearch(associateSearchText)}
+                  />
+                </div>
+                <button onClick={() => handleAssociateSearch(associateSearchText)} className="px-4 py-2 bg-blue-500 text-white text-sm rounded-lg hover:bg-blue-600 transition-colors cursor-pointer">搜索</button>
+              </div>
+              <div className="max-h-72 overflow-y-auto border border-gray-100 rounded-lg">
+                {associateSearching ? (
+                  <div className="text-center py-8 text-gray-500 text-sm">搜索中...</div>
+                ) : associateSearchResults.length === 0 ? (
+                  <div className="text-center py-8 text-gray-500 text-sm">{associateSearchText ? '未找到匹配的物料' : '请输入物料名称搜索'}</div>
+                ) : (
+                  associateSearchResults.map(m => (
+                    <div key={m.id} className="flex items-center justify-between px-4 py-3 hover:bg-gray-50 border-b border-gray-50 last:border-b-0 cursor-pointer"
+                      onClick={() => handleAssociateMaterial(m)}>
+                      <div className="flex-1 min-w-0">
+                        <div className="text-sm font-medium text-gray-800 truncate">{m.materialName}</div>
+                        <div className="text-xs text-gray-500 mt-0.5">
+                          {[m.drawingCode, m.internalCode, m.drawingNo].filter(Boolean).join(' / ')}
+                        </div>
+                      </div>
+                      <span className="text-xs text-gray-400 ml-2">{typeLabelMap[m.materialType] || m.materialType}</span>
+                    </div>
+                  ))
+                )}
+              </div>
             </div>
           </div>
         </div>
