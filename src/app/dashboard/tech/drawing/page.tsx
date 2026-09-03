@@ -1042,7 +1042,7 @@ export default function DrawingPage() {
                           <tbody>
                             {materialDetail.drawings.map((d: any) => (
                               <tr key={d.id} className="hover:bg-gray-50">
-                                <td className="py-1.5 px-3 border border-gray-200 text-blue-600">{d.fileName}</td>
+                                <td className="py-1.5 px-3 border border-gray-200 text-blue-600 cursor-pointer hover:underline" onClick={() => handleDownloadSingle(d)}>{d.fileName}</td>
                                 <td className="py-1.5 px-3 border border-gray-200">{d.version}</td>
                                 <td className="py-1.5 px-3 border border-gray-200">{d.fileSize ? formatFileSize(d.fileSize) : '-'}</td>
                                 <td className="py-1.5 px-3 border border-gray-200">{d.createdAt ? new Date(d.createdAt).toLocaleString('zh-CN') : '-'}</td>
