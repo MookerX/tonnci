@@ -131,6 +131,10 @@ export default function DrawingPage() {
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [searching, setSearching] = useState(false);
 
+  // MD5重复检测
+  const [showDuplicateDialog, setShowDuplicateDialog] = useState(false);
+  const [duplicateInfo, setDuplicateInfo] = useState<{ existingFile: any; material: any; duplicateFile: File } | null>(null);
+
   // 预览
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [previewFile, setPreviewFile] = useState<Drawing | null>(null);
@@ -468,6 +472,11 @@ export default function DrawingPage() {
       if (materialId) formData.append('materialId', materialId.toString());
       const data = await fetchApi('/api/drawing/upload', { method: 'POST', body: formData });
       if (data.code === 200) { toast.success('上传成功' + (data.data.materialName ? `，已关联物料: ${data.data.materialName}` : '')); fetchDrawings(); }
+      else if (data.code === 409) {
+        // MD5重复，显示对话框
+        setDuplicateInfo({ existingFile: data.data.existingFile, material: data.data.material, duplicateFile: file });
+        setShowDuplicateDialog(true);
+      }
       else { toast.error(data.message || '上传失败'); }
     } catch (err: any) { toast.error('上传失败: ' + err.message); }
     finally { setUploading(false); setUploadProgress(''); setUploadFile(null); setSelectedMaterial(null); setMatchedMaterials([]); setShowMaterialDialog(false); }
@@ -937,6 +946,66 @@ export default function DrawingPage() {
       )}
 
       {/* ========================================================================= */}
+      {/* MD5重复检测弹窗 */}
+      {/* ========================================================================= */}
+      {showDuplicateDialog && duplicateInfo && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={() => setShowDuplicateDialog(false)}>
+          <div className="bg-white rounded-xl shadow-2xl w-[500px] max-h-[500px] overflow-hidden" onClick={e => e.stopPropagation()}>
+            <div className="p-4 border-b border-gray-200 flex items-center justify-between bg-yellow-50">
+              <h3 className="text-lg font-semibold text-yellow-800">文件已存在</h3>
+              <button onClick={() => setShowDuplicateDialog(false)} className="text-gray-400 hover:text-gray-600 cursor-pointer"><X className="w-5 h-5" /></button>
+            </div>
+            <div className="p-4 overflow-y-auto">
+              <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg text-sm text-yellow-700">
+                文件 <strong>{duplicateInfo.duplicateFile.name}</strong> 的MD5与已存在的文件相同，以下是已存在的文件信息：
+              </div>
+              <div className="space-y-2 text-sm">
+                <div className="flex justify-between p-2 bg-gray-50 rounded">
+                  <span className="text-gray-500">已存在文件</span>
+                  <span className="font-medium">{duplicateInfo.existingFile.fileName || duplicateInfo.existingFile.file_name}</span>
+                </div>
+                <div className="flex justify-between p-2 bg-gray-50 rounded">
+                  <span className="text-gray-500">文件大小</span>
+                  <span className="font-medium">{formatFileSize(duplicateInfo.existingFile.fileSize || duplicateInfo.existingFile.file_size)}</span>
+                </div>
+                <div className="flex justify-between p-2 bg-gray-50 rounded">
+                  <span className="text-gray-500">版本</span>
+                  <span className="font-medium">{duplicateInfo.existingFile.version || 'V1'}</span>
+                </div>
+                {duplicateInfo.material && (
+                  <>
+                    <div className="text-gray-700 font-medium mt-4 mb-1">关联物料信息：</div>
+                    <div className="flex justify-between p-2 bg-gray-50 rounded">
+                      <span className="text-gray-500">物料名称</span>
+                      <span className="font-medium">{duplicateInfo.material.materialName}</span>
+                    </div>
+                    <div className="flex justify-between p-2 bg-gray-50 rounded">
+                      <span className="text-gray-500">图纸编码</span>
+                      <span className="font-medium">{duplicateInfo.material.drawingCode || '-'}</span>
+                    </div>
+                    <div className="flex justify-between p-2 bg-gray-50 rounded">
+                      <span className="text-gray-500">内部编码</span>
+                      <span className="font-medium">{duplicateInfo.material.internalCode || '-'}</span>
+                    </div>
+                    <div className="flex justify-between p-2 bg-gray-50 rounded">
+                      <span className="text-gray-500">图号</span>
+                      <span className="font-medium">{duplicateInfo.material.drawingNo || '-'}</span>
+                    </div>
+                    <div className="flex justify-between p-2 bg-gray-50 rounded">
+                      <span className="text-gray-500">物料类型</span>
+                      <span className="font-medium">{typeLabelMap[duplicateInfo.material.materialType] || duplicateInfo.material.materialType}</span>
+                    </div>
+                  </>
+                )}
+              </div>
+            </div>
+            <div className="p-4 border-t border-gray-200 flex justify-end gap-2">
+              <button onClick={() => setShowDuplicateDialog(false)} className="px-4 py-2 text-sm border border-gray-300 rounded-lg hover:bg-gray-50 cursor-pointer">关闭</button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* 物料详情弹窗 */}
       {/* ========================================================================= */}
       {showMaterialDetail && materialDetail && (

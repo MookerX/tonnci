@@ -88,11 +88,43 @@ export async function POST(request: NextRequest) {
       where: { md5, isDelete: false },
     });
     if (existing) {
+      // 查询关联的物料信息
+      let materialInfo = null;
+      if (existing.materialId) {
+        const mat = await prisma.material.findUnique({
+          where: { id: existing.materialId },
+        });
+        if (mat) {
+          materialInfo = {
+            id: mat.id,
+            materialName: mat.materialName,
+            drawingCode: mat.drawingCode,
+            internalCode: mat.internalCode,
+            drawingNo: mat.drawingNo,
+            materialType: mat.materialType,
+            unit: mat.unit,
+            spec: mat.spec,
+            weight: mat.weight,
+            remark: mat.remark,
+          };
+        }
+      }
       return NextResponse.json({
-        code: 400,
-        message: `文件 "${fileName}" 已存在（MD5重复），所属图纸：${existing.fileName}`,
-        data: { md5, existing: true },
-      }, { status: 400 });
+        code: 409,
+        message: `文件已存在：${existing.fileName}`,
+        data: {
+          md5,
+          existing: true,
+          existingFile: {
+            id: existing.id,
+            fileName: existing.fileName,
+            fileSize: existing.fileSize,
+            version: existing.version,
+            createdAt: existing.createdAt,
+          },
+          material: materialInfo,
+        },
+      }, { status: 409 });
     }
 
     // 必须有materialId才能保存
