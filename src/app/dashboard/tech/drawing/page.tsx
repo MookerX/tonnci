@@ -156,9 +156,11 @@ export default function DrawingPage() {
   // 物料详情
   // ===========================================================================
   const fetchMaterialDetail = useCallback(async (materialId: number) => {
+    console.log('[Drawing] fetchMaterialDetail called with materialId:', materialId);
     setMaterialDetailLoading(true);
     try {
       const data = await fetchApi(`/api/bom/material/${materialId}`);
+      console.log('[Drawing] fetchMaterialDetail response:', data);
       if (data.code === 200) {
         setMaterialDetail(data.data);
         setShowMaterialDetail(true);
@@ -166,6 +168,7 @@ export default function DrawingPage() {
         toast.error(data.message || '获取物料详情失败');
       }
     } catch (err: any) {
+      console.error('[Drawing] fetchMaterialDetail error:', err);
       toast.error('获取物料详情失败: ' + err.message);
     } finally {
       setMaterialDetailLoading(false);
