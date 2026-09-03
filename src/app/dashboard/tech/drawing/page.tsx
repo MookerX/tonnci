@@ -470,6 +470,19 @@ export default function DrawingPage() {
     catch (err: any) { toast.error('删除失败: ' + err.message); }
   };
 
+  const handleDownloadSingle = async (drawing: Drawing) => {
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch('/api/drawing/download', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }, body: JSON.stringify({ ids: [drawing.id] }) });
+      if (res.headers.get('Content-Type')?.includes('application/zip')) {
+        const blob = await res.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a'); a.href = url; a.download = drawing.fileName; a.click();
+        window.URL.revokeObjectURL(url);
+      } else { toast.error('下载失败'); }
+    } catch (err: any) { toast.error('下载失败: ' + err.message); }
+  };
+
   const handleBatchDownload = async () => {
     if (selectedIds.length === 0) { toast.error('请先选择要下载的图纸'); return; }
     try {
@@ -511,9 +524,9 @@ export default function DrawingPage() {
     switch (key) {
       case 'fileName':
         return (
-          <div className="flex items-center gap-1.5 truncate">
+          <div className="flex items-center gap-1.5 truncate cursor-pointer group" onClick={() => handleDownloadSingle(drawing)} title="点击下载文件">
             <FileText className="w-4 h-4 text-blue-500 flex-shrink-0" />
-            <span className="text-gray-800 truncate" title={drawing.fileName}>{drawing.fileName}</span>
+            <span className="text-blue-600 group-hover:text-blue-800 truncate underline decoration-transparent group-hover:decoration-blue-600 transition-all" title={drawing.fileName}>{drawing.fileName}</span>
           </div>
         );
       case 'fileSize':
