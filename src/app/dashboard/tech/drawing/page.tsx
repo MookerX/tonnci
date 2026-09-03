@@ -168,6 +168,32 @@ export default function DrawingPage() {
     try { return JSON.parse(text); } catch { return { code: 500, message: '响应解析失败' }; }
   };
 
+  // 存储配置（从存储管理读取允许的文件类型）
+  const [allowedFileTypes, setAllowedFileTypes] = useState<string>('.pdf,.dwg,.dxf,.jpg,.jpeg,.png,.gif,.bmp,.tiff,.tif,.zip,.rar,.7z');
+
+  // 从存储管理获取允许的文件类型
+  useEffect(() => {
+    fetchApi('/api/system/storage-config')
+      .then((res: any) => {
+        if (res?.code === 200 && Array.isArray(res.data) && res.data.length > 0) {
+          // 合并所有存储配置的文件类型
+          const allTypes = new Set<string>();
+          res.data.forEach((config: any) => {
+            if (config.fileTypes) {
+              config.fileTypes.split(',').forEach((t: string) => {
+                const ext = t.trim().toLowerCase().replace(/^\./, '');
+                if (ext) allTypes.add('.' + ext);
+              });
+            }
+          });
+          if (allTypes.size > 0) {
+            setAllowedFileTypes(Array.from(allTypes).join(','));
+          }
+        }
+      })
+      .catch(() => {});
+  }, []);
+
   // ===========================================================================
   // 列配置管理
   // ===========================================================================
@@ -414,7 +440,7 @@ export default function DrawingPage() {
   const handleSingleUpload = () => {
     const input = document.createElement('input');
     input.type = 'file';
-    input.accept = '.pdf,.dwg,.dxf,.jpg,.png,.tif,.zip,.rar,.7z';
+    input.accept = allowedFileTypes;
     input.onchange = async (e: any) => {
       const file = e.target.files?.[0];
       if (!file) return;
@@ -590,7 +616,7 @@ export default function DrawingPage() {
             <label className="flex items-center gap-1 px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-100 rounded-lg cursor-pointer">
               <Upload className="w-4 h-4" />
               批量导入
-              <input type="file" multiple accept=".pdf,.dwg,.dxf,.jpg,.jpeg,.png,.gif,.bmp,.tiff,.tif,.zip,.rar" className="hidden" onChange={e => handleUpload(e.target.files)} disabled={uploading} />
+              <input type="file" multiple accept={allowedFileTypes} className="hidden" onChange={e => handleUpload(e.target.files)} disabled={uploading} />
             </label>
             <button onClick={handleSingleUpload} className="flex items-center gap-1 px-3 py-1.5 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 cursor-pointer" disabled={uploading}>
               <Plus className="w-4 h-4" />
