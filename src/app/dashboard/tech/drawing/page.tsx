@@ -4,7 +4,7 @@ import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react'
 import { toast } from 'react-hot-toast';
 import {
   Search, Upload, Download, ChevronDown, ChevronRight, FileText, Trash2,
-  X, Settings, Eye, FolderTree, Plus, Link
+  X, Settings, Eye, FolderTree, Plus, Link2
 } from 'lucide-react';
 
 // 物料类型标签映射
