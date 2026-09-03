@@ -60,7 +60,7 @@ async function getDrawingTypeByExt(fileExt: string): Promise<string> {
       }
     }
   } catch {}
-  return '设计图'; // 默认
+  return '未知类型'; // 默认
 }
 
 export async function POST(request: NextRequest) {
