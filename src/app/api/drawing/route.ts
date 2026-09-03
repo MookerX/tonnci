@@ -83,7 +83,7 @@ export async function GET(request: NextRequest) {
     const startDate = searchParams.get('startDate') || '';
     const endDate = searchParams.get('endDate') || '';
 
-    const where: any = { isDelete: false };
+    const where: any = {};
 
     if (fileName) where.fileName = { contains: fileName };
     if (drawingType) where.drawingType = drawingType;
@@ -105,6 +105,7 @@ export async function GET(request: NextRequest) {
           md5: true,
           isLatest: true,
           status: true,
+          isDelete: true,
           createdAt: true,
           createdBy: true,
         },

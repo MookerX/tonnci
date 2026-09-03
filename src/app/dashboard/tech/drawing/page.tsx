@@ -4,7 +4,7 @@ import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react'
 import { useToast } from '@/components/ToastProvider';
 import {
   Search, Upload, Download, ChevronDown, ChevronRight, FileText, Trash2,
-  X, Settings, Eye, FolderTree, Plus, Link2, AlertTriangle
+  X, Settings, Eye, FolderTree, Plus, Link2, AlertTriangle, Ban, CheckCircle
 } from 'lucide-react';
 
 // 物料类型标签映射
@@ -684,6 +684,29 @@ export default function DrawingPage() {
   // ===========================================================================
   // 删除 / 批量下载 / 版本 / 预览
   // ===========================================================================
+  const handleDisable = async (drawing: Drawing) => {
+    const isDisabled = drawing.isDelete || drawing.status === 'deleted';
+    const action = isDisabled ? 'enable' : 'disable';
+    const actionText = isDisabled ? '启用' : '禁用';
+    if (!window.confirm(`确定${actionText}图纸"${drawing.fileName}"吗？${actionText === '禁用' ? '禁用后可以恢复' : ''}`)) return;
+    try {
+      const res = await fetchApi(`/api/drawing/${drawing.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action }),
+      });
+      const result = await res.json();
+      if (result.code === 200) {
+        success(`已${actionText}: ${drawing.fileName}`);
+        fetchDrawings();
+      } else {
+        error(result.message || `${actionText}失败`);
+      }
+    } catch (err) {
+      error(`${actionText}失败: 网络异常`);
+    }
+  };
+
   const handleDeleteConfirm = async () => {
     if (deleteConfirmId === null) return;
     try { const data = await fetchApi(`/api/drawing/${deleteConfirmId}`, { method: 'DELETE' }); if (data.code === 200) { success('删除成功'); fetchDrawings(); } else error(data.message || '删除失败'); }
@@ -781,8 +804,8 @@ export default function DrawingPage() {
         ) : <span className="text-gray-400 text-xs">-</span>;
       case 'status':
         return (
-          <span className={`px-1.5 py-0.5 rounded text-xs ${drawing.status === 'active' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
-            {drawing.status === 'active' ? '正常' : '停用'}
+          <span className={`px-1.5 py-0.5 rounded text-xs ${drawing.isDelete || drawing.status === 'deleted' ? 'bg-gray-200 text-gray-600' : 'bg-green-100 text-green-700'}`}>
+            {drawing.isDelete || drawing.status === 'deleted' ? '禁用' : '正常'}
           </span>
         );
       case 'createdAt':
@@ -933,6 +956,11 @@ export default function DrawingPage() {
                     <button onClick={() => handlePreview(drawing)} className="p-1 text-blue-600 hover:bg-blue-100 rounded transition-colors cursor-pointer" title="预览"><Eye className="w-4 h-4" /></button>
                     <button onClick={() => handleShowVersions(drawing)} className="p-1 text-indigo-600 hover:bg-indigo-100 rounded transition-colors cursor-pointer" title="版本历史"><FileText className="w-4 h-4" /></button>
                     <button onClick={() => handleShowAssociateDialog(drawing)} className={`p-1 rounded transition-colors cursor-pointer ${drawing.materialId ? 'text-emerald-600 hover:bg-emerald-100' : 'text-red-600 hover:bg-red-100'}`} title={drawing.materialId ? '更换物料' : '关联物料'}><Link2 className="w-4 h-4" /></button>
+                    {drawing.isDelete || drawing.status === 'deleted' ? (
+                      <button onClick={() => handleDisable(drawing)} className="p-1 text-emerald-600 hover:bg-emerald-100 rounded transition-colors cursor-pointer" title="启用"><CheckCircle className="w-4 h-4" /></button>
+                    ) : (
+                      <button onClick={() => handleDisable(drawing)} className="p-1 text-amber-600 hover:bg-amber-100 rounded transition-colors cursor-pointer" title="禁用"><Ban className="w-4 h-4" /></button>
+                    )}
                     <button onClick={() => handleDelete(drawing.id)} className="p-1 text-red-600 hover:bg-red-100 rounded transition-colors cursor-pointer" title="删除"><Trash2 className="w-4 h-4" /></button>
                   </div>
                 </div>

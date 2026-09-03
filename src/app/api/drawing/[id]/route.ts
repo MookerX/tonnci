@@ -56,12 +56,29 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
     if (isNaN(drawingId)) return badRequestResponse('参数错误');
 
     const body = await request.json();
-    const { materialId, drawingType, status } = body;
+    const { materialId, drawingType, status, action } = body;
 
     const drawing = await prisma.materialDrawing.findFirst({
-      where: { id: drawingId, isDelete: false },
+      where: { id: drawingId },
     });
     if (!drawing) return badRequestResponse('图纸不存在');
+
+    // 处理禁用/启用操作
+    if (action === 'disable') {
+      await prisma.materialDrawing.update({
+        where: { id: drawingId },
+        data: { status: 'deleted', isDelete: true },
+      });
+      return successResponse(null, '已禁用');
+    }
+
+    if (action === 'enable') {
+      await prisma.materialDrawing.update({
+        where: { id: drawingId },
+        data: { status: 'active', isDelete: false },
+      });
+      return successResponse(null, '已启用');
+    }
 
     const updateData: any = {};
     if (materialId !== undefined) updateData.materialId = materialId;
