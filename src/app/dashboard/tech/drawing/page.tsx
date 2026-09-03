@@ -39,11 +39,12 @@ interface Version {
 // =============================================================================
 // 工具函数
 // =============================================================================
-const formatFileSize = (bytes: number) => {
-  if (!bytes) return '0 B';
+const formatFileSize = (bytes: number | string) => {
+  const num = typeof bytes === 'string' ? parseFloat(bytes) : bytes;
+  if (!num || isNaN(num)) return '0 B';
   const units = ['B', 'KB', 'MB', 'GB'];
   let i = 0;
-  let size = bytes;
+  let size = num;
   while (size >= 1024 && i < units.length - 1) {
     size /= 1024;
     i++;
