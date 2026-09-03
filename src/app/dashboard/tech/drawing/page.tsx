@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { toast } from 'react-hot-toast';
-import { X } from 'lucide-react';
+import { X, ChevronDown, ChevronRight, Download, FileText } from 'lucide-react';
 
 // 物料类型标签映射
 const typeLabelMap: Record<string, string> = {
@@ -115,6 +115,24 @@ export default function DrawingPage() {
   const [materialDetailLoading, setMaterialDetailLoading] = useState(false);
   const [isDetailModalMaximized, setIsDetailModalMaximized] = useState(false);
 
+  // BOM子件结构
+  const [materialBomTree, setMaterialBomTree] = useState<any[]>([]);
+  const [loadingBomTree, setLoadingBomTree] = useState(false);
+  const [detailExpandedKeys, setDetailExpandedKeys] = useState<Set<string>>(new Set());
+  const [detailColumnWidths, setDetailColumnWidths] = useState({
+    materialName: 200,
+    internalCode: 100,
+    drawingCode: 100,
+    drawingNo: 60,
+    materialType: 60,
+    quantity: 60,
+    bomRemark: 100,
+    operation: 80,
+  });
+  const [detailResizingColumn, setDetailResizingColumn] = useState<string | null>(null);
+  const [detailResizeStartX, setDetailResizeStartX] = useState(0);
+  const [detailResizeStartWidth, setDetailResizeStartWidth] = useState(0);
+
   // ===========================================================================
   // API 请求封装（自动携带认证token）
   // ===========================================================================
@@ -168,14 +186,30 @@ export default function DrawingPage() {
   // 物料详情
   // ===========================================================================
   const fetchMaterialDetail = useCallback(async (materialId: number) => {
-    console.log('[Drawing] fetchMaterialDetail called with materialId:', materialId);
     setMaterialDetailLoading(true);
+    setMaterialBomTree([]);
+    setDetailExpandedKeys(new Set());
     try {
       const data = await fetchApi(`/api/bom/material/${materialId}`);
-      console.log('[Drawing] fetchMaterialDetail response:', data);
       if (data.code === 200) {
         setMaterialDetail(data.data);
         setShowMaterialDetail(true);
+        // 加载BOM子树
+        setLoadingBomTree(true);
+        try {
+          const treeData = await fetchApi(`/api/bom/${materialId}/bom-tree`);
+          if (treeData.code === 200 && treeData.data) {
+            const bomTree = treeData.data.bomTree || [];
+            setMaterialBomTree(bomTree);
+            // 默认全部展开
+            const allKeys = collectAllNodeKeys(bomTree);
+            setDetailExpandedKeys(new Set(allKeys));
+          }
+        } catch (e) {
+          console.error('加载BOM子树失败', e);
+        } finally {
+          setLoadingBomTree(false);
+        }
       } else {
         toast.error(data.message || '获取物料详情失败');
       }
@@ -186,6 +220,171 @@ export default function DrawingPage() {
       setMaterialDetailLoading(false);
     }
   }, []);
+
+  // ===========================================================================
+  // BOM子件结构 - 辅助函数
+  // ===========================================================================
+  // 收集BOM子树中所有节点的key（用于默认全部展开）
+  const collectAllNodeKeys = (items: any[], parentKey: string = ''): string[] => {
+    const keys: string[] = [];
+    items.forEach((item: any) => {
+      const nodeKey = `detail_node_${item.materialId || item.id}`;
+      const fullKey = parentKey ? `${parentKey}_${nodeKey}` : nodeKey;
+      keys.push(fullKey);
+      if (item.children && item.children.length > 0) {
+        keys.push(...collectAllNodeKeys(item.children, fullKey));
+      }
+    });
+    return keys;
+  };
+
+  // 弹窗中BOM子树展开/折叠切换
+  const toggleDetailExpand = (key: string) => {
+    setDetailExpandedKeys(prev => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  };
+
+  // 列宽拖拽调整
+  const handleDetailColumnResizeStart = (e: React.MouseEvent, columnKey: string) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDetailResizingColumn(columnKey);
+    setDetailResizeStartX(e.clientX);
+    setDetailResizeStartWidth(detailColumnWidths[columnKey as keyof typeof detailColumnWidths] || 100);
+  };
+
+  // 拖拽过程中更新列宽
+  useEffect(() => {
+    if (!detailResizingColumn) return;
+    const handleMouseMove = (e: MouseEvent) => {
+      const delta = e.clientX - detailResizeStartX;
+      const newWidth = Math.max(40, Math.min(400, detailResizeStartWidth + delta));
+      setDetailColumnWidths(prev => ({ ...prev, [detailResizingColumn]: newWidth }));
+    };
+    const handleMouseUp = () => { setDetailResizingColumn(null); };
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [detailResizingColumn, detailResizeStartX, detailResizeStartWidth]);
+
+  // 层级样式配置
+  const detailLevelColors = ['bg-white', 'bg-blue-50', 'bg-green-50', 'bg-yellow-50', 'bg-purple-50', 'bg-pink-50'];
+  const detailLevelFontSizes = ['text-sm', 'text-sm', 'text-xs', 'text-xs', 'text-xs', 'text-xs'];
+  const detailLevelPadding = ['py-2.5', 'py-2', 'py-1.5', 'py-1.5', 'py-1', 'py-1'];
+
+  // 渲染BOM子树表格行（递归）
+  const renderBomTreeRows = (items: any[], level: number = 0, parentKey: string = '') => {
+    const levelIndex = Math.min(level, detailLevelColors.length - 1);
+    return items.map((item: any) => {
+      const nodeKey = `detail_node_${item.materialId || item.id}`;
+      const fullKey = parentKey ? `${parentKey}_${nodeKey}` : nodeKey;
+      const hasChildren = item.children && item.children.length > 0;
+      const isExpanded = detailExpandedKeys.has(fullKey);
+      const bgColor = detailLevelColors[levelIndex];
+      const fontSize = detailLevelFontSizes[levelIndex];
+      const paddingY = detailLevelPadding[levelIndex];
+
+      return (
+        <div key={fullKey}>
+          <div className={`flex items-center border-b border-gray-200 hover:brightness-95 transition-all ${bgColor}`}
+               style={{ paddingLeft: `${level * 20 + 8}px` }}>
+            {/* 展开/折叠图标 */}
+            <div className="w-8 flex-shrink-0 flex items-center justify-center">
+              {hasChildren ? (
+                <button onClick={() => toggleDetailExpand(fullKey)} className="p-1 hover:bg-black/5 rounded transition-colors">
+                  {isExpanded ? <ChevronDown className="w-4 h-4 text-gray-500" /> : <ChevronRight className="w-4 h-4 text-gray-500" />}
+                </button>
+              ) : <span className="w-4 h-4" />}
+            </div>
+            {/* 数据列 */}
+            <div className={`flex-1 flex items-center ${paddingY} ${fontSize} min-w-0`}>
+              <div className="flex-shrink-0 truncate px-1" style={{ width: `${detailColumnWidths.materialName}px` }}>
+                <span className="font-medium text-gray-800 truncate">{item.materialName || '-'}</span>
+              </div>
+              <div className="flex-shrink-0 truncate px-1" style={{ width: `${detailColumnWidths.internalCode}px` }}>
+                <span className="text-gray-600 font-mono truncate">{item.internalCode || '-'}</span>
+              </div>
+              <div className="flex-shrink-0 truncate px-1" style={{ width: `${detailColumnWidths.drawingCode}px` }}>
+                <span className="text-gray-600 truncate">{item.drawingCode || '-'}</span>
+              </div>
+              <div className="flex-shrink-0 truncate px-1" style={{ width: `${detailColumnWidths.drawingNo}px` }}>
+                <span className="text-gray-600 truncate">{item.drawingNo || '-'}</span>
+              </div>
+              <div className="flex-shrink-0 truncate px-1" style={{ width: `${detailColumnWidths.materialType}px` }}>
+                <span className="text-gray-600 truncate">{typeLabelMap[item.materialType] || item.materialType || '-'}</span>
+              </div>
+              <div className="flex-shrink-0 truncate px-1" style={{ width: `${detailColumnWidths.quantity}px` }}>
+                <span className="text-gray-800 font-medium truncate">{item.quantity || '-'}</span>
+              </div>
+              <div className="flex-shrink-0 truncate px-1" style={{ width: `${detailColumnWidths.bomRemark}px` }}>
+                <span className="text-gray-500 truncate">{item.bomRemark || '-'}</span>
+              </div>
+              {/* 操作列 - 查看图纸 */}
+              <div className="flex-shrink-0 flex items-center justify-center gap-0.5 px-1" style={{ width: `${detailColumnWidths.operation}px` }}>
+                <button className="p-1 text-blue-600 hover:bg-blue-100 rounded transition-colors" title="查看图纸">
+                  <FileText className={`w-4 h-4 ${level > 0 ? 'w-3 h-3' : ''}`} />
+                </button>
+              </div>
+            </div>
+          </div>
+          {hasChildren && isExpanded && renderBomTreeRows(item.children, level + 1, fullKey)}
+        </div>
+      );
+    });
+  };
+
+  // 导出BOM为CSV
+  const handleExportBomCsv = () => {
+    if (!materialDetail || materialBomTree.length === 0) return;
+    const drawingCode = materialDetail.drawingCode || '';
+    const internalCode = materialDetail.internalCode || '';
+    const materialName = materialDetail.materialName || '';
+    const fileName = `${drawingCode}_${internalCode}_${materialName}.csv`;
+    const headers = ['层级', '物料名称', '内部编码', '图纸编码', '图号', '类型', '用量', 'BOM备注'];
+    const rows: string[][] = [];
+    const collectRows = (nodes: any[], levelPrefix: string) => {
+      nodes.forEach((node, index) => {
+        const levelNumber = levelPrefix ? `${levelPrefix}.${index + 1}` : `${index + 1}`;
+        rows.push([
+          levelNumber,
+          node.materialName || '',
+          node.internalCode || '',
+          node.drawingCode || '',
+          node.drawingNumber || '',
+          typeLabelMap[node.materialType] || node.materialType || '',
+          String(node.quantity || ''),
+          node.bomRemark || ''
+        ]);
+        if (node.children && node.children.length > 0) {
+          collectRows(node.children, levelNumber);
+        }
+      });
+    };
+    collectRows(materialBomTree, '');
+    const csvContent = [
+      headers.join(','),
+      ...rows.map(row => row.map(cell => {
+        if (cell.includes(',') || cell.includes('"') || cell.includes('\n')) {
+          return `"${cell.replace(/"/g, '""')}"`;
+        }
+        return cell;
+      }).join(','))
+    ].join('\n');
+    const blob = new Blob(['\ufeff' + csvContent], { type: 'text/csv;charset=utf-8' });
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = fileName;
+    link.click();
+    window.URL.revokeObjectURL(url);
+  };
 
   // ===========================================================================
   // 文件上传
@@ -789,7 +988,7 @@ export default function DrawingPage() {
               : 'rounded-lg w-[95vw] max-w-[1400px] mx-auto max-h-[90vh]'
           }`}>
             <div className="px-6 py-4 border-b flex justify-between items-center">
-              <h3 className="text-lg font-semibold text-gray-800">物料详情 - {materialDetail.materialName}</h3>
+              <h3 className="text-lg font-semibold text-gray-800">物料详情</h3>
               <div className="flex items-center gap-2">
                 <button
                   onClick={() => setIsDetailModalMaximized(!isDetailModalMaximized)}
@@ -874,6 +1073,65 @@ export default function DrawingPage() {
                     </div>
                   </div>
                   
+                  {/* BOM子件结构 */}
+                  {(materialBomTree.length > 0 || loadingBomTree) && (
+                    <div className="mb-4">
+                      <div className="flex items-center justify-between mb-2 pb-1 border-b">
+                        <h4 className="text-sm font-semibold text-gray-600">BOM子件结构</h4>
+                        <button
+                          onClick={handleExportBomCsv}
+                          disabled={materialBomTree.length === 0}
+                          className="flex items-center gap-1 px-3 py-1 text-xs bg-blue-500 text-white rounded hover:bg-blue-600 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
+                        >
+                          <Download className="w-3 h-3" />
+                          导出BOM
+                        </button>
+                      </div>
+                      {loadingBomTree ? (
+                        <div className="text-center py-4 text-sm text-gray-400">加载中...</div>
+                      ) : (
+                        <div className="border border-gray-200 rounded-lg overflow-hidden">
+                          {/* 表头 */}
+                          <div className="flex items-center bg-gray-50 border-b border-gray-200 py-2 pl-8 select-none">
+                            <div className="flex-shrink-0 px-1 relative group" style={{ width: `${detailColumnWidths.materialName}px` }}>
+                              <span className="font-medium text-gray-600 truncate">物料名称</span>
+                              <div className="absolute right-0 top-0 bottom-0 w-2 cursor-col-resize hover:bg-blue-400 group-hover:bg-blue-300 z-10" onMouseDown={(e) => handleDetailColumnResizeStart(e, 'materialName')} />
+                            </div>
+                            <div className="flex-shrink-0 px-1 relative group" style={{ width: `${detailColumnWidths.internalCode}px` }}>
+                              <span className="font-medium text-gray-600 truncate">内部编码</span>
+                              <div className="absolute right-0 top-0 bottom-0 w-2 cursor-col-resize hover:bg-blue-400 group-hover:bg-blue-300 z-10" onMouseDown={(e) => handleDetailColumnResizeStart(e, 'internalCode')} />
+                            </div>
+                            <div className="flex-shrink-0 px-1 relative group" style={{ width: `${detailColumnWidths.drawingCode}px` }}>
+                              <span className="font-medium text-gray-600 truncate">图纸编码</span>
+                              <div className="absolute right-0 top-0 bottom-0 w-2 cursor-col-resize hover:bg-blue-400 group-hover:bg-blue-300 z-10" onMouseDown={(e) => handleDetailColumnResizeStart(e, 'drawingCode')} />
+                            </div>
+                            <div className="flex-shrink-0 px-1 relative group" style={{ width: `${detailColumnWidths.drawingNo}px` }}>
+                              <span className="font-medium text-gray-600 truncate">图号</span>
+                              <div className="absolute right-0 top-0 bottom-0 w-2 cursor-col-resize hover:bg-blue-400 group-hover:bg-blue-300 z-10" onMouseDown={(e) => handleDetailColumnResizeStart(e, 'drawingNo')} />
+                            </div>
+                            <div className="flex-shrink-0 px-1 relative group" style={{ width: `${detailColumnWidths.materialType}px` }}>
+                              <span className="font-medium text-gray-600 truncate">类型</span>
+                              <div className="absolute right-0 top-0 bottom-0 w-2 cursor-col-resize hover:bg-blue-400 group-hover:bg-blue-300 z-10" onMouseDown={(e) => handleDetailColumnResizeStart(e, 'materialType')} />
+                            </div>
+                            <div className="flex-shrink-0 px-1 relative group" style={{ width: `${detailColumnWidths.quantity}px` }}>
+                              <span className="font-medium text-gray-600 truncate">用量</span>
+                              <div className="absolute right-0 top-0 bottom-0 w-2 cursor-col-resize hover:bg-blue-400 group-hover:bg-blue-300 z-10" onMouseDown={(e) => handleDetailColumnResizeStart(e, 'quantity')} />
+                            </div>
+                            <div className="flex-shrink-0 px-1 relative group" style={{ width: `${detailColumnWidths.bomRemark}px` }}>
+                              <span className="font-medium text-gray-600 truncate">BOM备注</span>
+                              <div className="absolute right-0 top-0 bottom-0 w-2 cursor-col-resize hover:bg-blue-400 group-hover:bg-blue-300 z-10" onMouseDown={(e) => handleDetailColumnResizeStart(e, 'bomRemark')} />
+                            </div>
+                            <div className="flex-shrink-0 px-1 flex items-center justify-center" style={{ width: `${detailColumnWidths.operation}px` }}>
+                              <span className="font-medium text-gray-600">操作</span>
+                            </div>
+                          </div>
+                          {/* 数据行 */}
+                          {renderBomTreeRows(materialBomTree, 0)}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
                   {/* 关联图纸 */}
                   {materialDetail.drawings && materialDetail.drawings.length > 0 && (
                     <div className="mb-4">
@@ -904,6 +1162,19 @@ export default function DrawingPage() {
                   )}
                 </>
               )}
+            </div>
+            
+            <div className="px-6 py-4 border-t flex justify-end">
+              <button
+                onClick={() => {
+                  setShowMaterialDetail(false);
+                  setIsDetailModalMaximized(false);
+                  setDetailExpandedKeys(new Set());
+                }}
+                className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded"
+              >
+                关闭
+              </button>
             </div>
           </div>
         </div>
