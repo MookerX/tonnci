@@ -506,7 +506,7 @@ model Material {
 // 物料图纸表
 model MaterialDrawing {
   id             Int       @id @default(autoincrement())
-  materialId     Int       @map("material_id")
+  materialId     Int?      @map("material_id")
   drawingType    String    @map("drawing_type") @db.VarChar(30) // 设计图/下料用图/工艺附图
   version        String    @default("V1") @db.VarChar(20)
   fileName       String    @map("file_name") @db.VarChar(255)
