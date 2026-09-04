@@ -1162,7 +1162,7 @@ export default function DrawingPage() {
       {/* ========================================================================= */}
       {showDuplicateDialog && duplicateInfo && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-xl shadow-2xl w-[500px] max-h-[500px] overflow-hidden" onClick={e => e.stopPropagation()}>
+          <div className="bg-white rounded-xl shadow-2xl w-[500px] max-h-[550px] overflow-hidden" onClick={e => e.stopPropagation()}>
             <div className="p-4 border-b border-gray-200 flex items-center justify-between bg-yellow-50">
               <h3 className="text-lg font-semibold text-yellow-800">文件已存在</h3>
               <button onClick={() => { setShowDuplicateDialog(false); setUploading(false); setUploadProgress(''); }} className="text-gray-400 hover:text-gray-600 cursor-pointer"><X className="w-5 h-5" /></button>
