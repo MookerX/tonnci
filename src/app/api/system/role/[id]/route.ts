@@ -57,19 +57,17 @@ export async function GET(
     }
 
     // 获取角色已分配的权限列表（permission字符串，如 "system:user:query"）
-    const permRecords = await prisma.$queryRaw<any[]>`
-      SELECT permission 
-      FROM role_permission 
-      WHERE role_id = ${roleId} AND isDelete = false AND permission IS NOT NULL
-    `;
-    const permissions = permRecords.map(p => p.permission);
+    const permRecords = await prisma.rolePermission.findMany({
+      where: { roleId, isDelete: false, permission: { not: null } },
+      select: { permission: true },
+    });
+    const permissions = permRecords.map(p => p.permission).filter(Boolean) as string[];
 
     // 获取数据权限部门范围
-    const deptScopes = await prisma.$queryRaw<any[]>`
-      SELECT dept_id as deptId 
-      FROM role_dept_scope 
-      WHERE role_id = ${roleId} AND isDelete = false
-    `;
+    const deptScopes = await prisma.roleDeptScope.findMany({
+      where: { roleId, isDelete: false },
+      select: { deptId: true },
+    });
     const deptIds = deptScopes.map(d => d.deptId);
 
     return successResponse({
@@ -132,29 +130,33 @@ export async function PUT(
         }
 
         // 删除旧的权限记录（完全删除，因为权限分配是全量替换）
-        await tx.$executeRaw`
-          DELETE FROM role_permission WHERE role_id = ${roleId}
-        `;
+        await tx.rolePermission.deleteMany({
+          where: { roleId },
+        });
 
         // 删除旧的数据权限范围
-        await tx.$executeRaw`
-          DELETE FROM role_dept_scope WHERE role_id = ${roleId}
-        `;
+        await tx.roleDeptScope.deleteMany({
+          where: { roleId },
+        });
 
         // 插入新的权限记录
-        for (const perm of permissions) {
-          await tx.$executeRaw`
-            INSERT INTO role_permission (role_id, menu_id, permission, action_type, isDelete, created_at) 
-            VALUES (${roleId}, NULL, ${perm}, NULL, false, NOW())
-          `;
+        if (permissions.length > 0) {
+          await tx.rolePermission.createMany({
+            data: permissions.map(perm => ({
+              roleId,
+              permission: perm,
+            })),
+          });
         }
 
         // 插入数据权限部门范围
-        for (const deptId of deptIds) {
-          await tx.$executeRaw`
-            INSERT INTO role_dept_scope (role_id, dept_id, isDelete, created_at) 
-            VALUES (${roleId}, ${deptId}, false, NOW())
-          `;
+        if (deptIds.length > 0) {
+          await tx.roleDeptScope.createMany({
+            data: deptIds.map(deptId => ({
+              roleId,
+              deptId,
+            })),
+          });
         }
       });
 
@@ -287,8 +289,8 @@ export async function DELETE(
 
     // 删除角色权限关联
     await prisma.$transaction([
-      prisma.$executeRaw`DELETE FROM role_permission WHERE role_id = ${roleId}`,
-      prisma.$executeRaw`DELETE FROM role_dept_scope WHERE role_id = ${roleId}`,
+      prisma.rolePermission.deleteMany({ where: { roleId } }),
+      prisma.roleDeptScope.deleteMany({ where: { roleId } }),
     ]);
 
     await operationLog.logDelete(

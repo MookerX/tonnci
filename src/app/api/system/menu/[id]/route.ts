@@ -239,9 +239,9 @@ export async function DELETE(
     });
 
     // 删除角色权限关联
-    await prisma.$executeRaw`
-      DELETE FROM role_permission WHERE menu_id = ${menuId}
-    `;
+    await prisma.rolePermission.deleteMany({
+      where: { menuId },
+    });
 
     await operationLog.logDelete(
       '菜单权限',
