@@ -126,10 +126,21 @@ export async function GET(request: NextRequest) {
       : [];
     const materialMap = new Map(materials.map(m => [m.id, m]));
 
+    // 获取上传人信息
+    const creatorIds = list.map(d => d.createdBy).filter(Boolean) as number[];
+    const creators = creatorIds.length > 0
+      ? await prisma.user.findMany({
+          where: { id: { in: creatorIds } },
+          select: { id: true, realName: true, username: true },
+        })
+      : [];
+    const creatorMap = new Map(creators.map(c => [c.id, c]));
+
     const listWithMaterial = list.map(d => ({
       ...d,
       fileSize: d.fileSize ?? 0,
       material: d.materialId ? materialMap.get(d.materialId) || null : null,
+      creator: d.createdBy ? creatorMap.get(d.createdBy) || null : null,
     }));
 
     return NextResponse.json({ code: 200, message: 'ok', data: { list: listWithMaterial, total } });
