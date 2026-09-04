@@ -107,7 +107,7 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
     if (isNaN(drawingId)) return badRequestResponse('参数错误');
 
     const drawing = await prisma.materialDrawing.findFirst({
-      where: { id: drawingId, isDelete: false },
+      where: { id: drawingId },
     });
     if (!drawing) return badRequestResponse('图纸不存在');
 
