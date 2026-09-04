@@ -160,7 +160,7 @@ export async function POST(request: NextRequest) {
 
     // MD5去重检查
     const existing = await prisma.materialDrawing.findFirst({
-      where: { md5, isDelete: false },
+      where: { md5 },
       select: { id: true, fileName: true, version: true },
     });
     if (existing) {

@@ -112,7 +112,7 @@ export async function POST(request: NextRequest) {
 
     // MD5去重检查
     const existing = await prisma.materialDrawing.findFirst({
-      where: { md5, isDelete: false },
+      where: { md5 },
     });
     if (existing) {
       // 查询关联的物料信息
